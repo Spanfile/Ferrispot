@@ -1,7 +1,9 @@
+use super::{API_TOKEN_ENDPOINT, AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH};
 use crate::{
-    scope::ToScopesString, Error, Result, Scope, API_TOKEN_ENDPOINT, AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH,
-    RANDOM_STATE_LENGTH,
+    error::{Error, Result},
+    scope::{Scope, ToScopesString},
 };
+
 use futures::lock::Mutex;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};

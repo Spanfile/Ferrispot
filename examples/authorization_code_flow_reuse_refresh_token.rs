@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::SpotifyClientBuilder;
+use ferrispot::client::SpotifyClientBuilder;
 
 #[tokio::main]
 async fn main() {

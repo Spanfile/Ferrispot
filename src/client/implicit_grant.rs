@@ -1,4 +1,9 @@
-use crate::{scope::ToScopesString, Error, Result, Scope, SpotifyClientRef, AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
+use super::{SpotifyClientRef, AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
+use crate::{
+    error::{Error, Result},
+    scope::{Scope, ToScopesString},
+};
+
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{Client as AsyncClient, Url};
