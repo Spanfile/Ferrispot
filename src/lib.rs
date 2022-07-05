@@ -1,4 +1,6 @@
+mod authorization_code;
 mod error;
+mod implicit_grant;
 mod scope;
 
 const RANDOM_STATE_LENGTH: usize = 16;
@@ -7,142 +9,110 @@ const AUTHORIZE_ENDPOINT: &str = "https://accounts.spotify.com/authorize";
 const API_TOKEN_ENDPOINT: &str = "https://accounts.spotify.com/api/token";
 
 pub use crate::{
+    authorization_code::{
+        AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder, IncompleteAuthorizationCodeUserClient,
+    },
     error::{Error, Result},
     scope::Scope,
 };
 
-use crate::scope::ToScopesString;
-use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{blocking::Client as BlockingClient, header, Url};
+use futures::lock::Mutex;
+use log::debug;
+use reqwest::{header, Client as AsyncClient};
 use serde::Deserialize;
+use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SpotifyClient {
-    client_id: String,
+    inner: Arc<SpotifyClientRef>,
+    http_client: AsyncClient,
 }
 
 #[derive(Debug)]
+struct SpotifyClientRef {
+    client_id: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct SpotifyClientWithSecret {
+    inner: Arc<SpotifyClientWithSecretRef>,
+    http_client: AsyncClient,
+}
+
+#[derive(Debug)]
+struct SpotifyClientWithSecretRef {
     client_id: String,
     client_secret: String,
-    access_token: String,
-
-    blocking_client: Option<BlockingClient>,
+    access_token: Mutex<String>,
 }
 
+#[derive(Debug, Clone)]
 pub struct SpotifyClientBuilder {
     client_id: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct ClientSecretSpotifyClientBuilder {
     client_id: String,
     client_secret: String,
 }
 
-pub struct AuthorizeCodeFlowUserClient<'a> {
-    spotify_client: &'a SpotifyClientWithSecret,
-    access_token: String,
-    refresh_token: String,
-}
-
-pub struct IncompleteAuthorizeCodeFlowUserClient<'a> {
-    spotify_client: &'a SpotifyClientWithSecret,
-    redirect_uri: String, // TODO: figure if this can be &'a str instead
-    state: String,
-    scopes: Option<String>,
-    show_dialog: bool,
-}
-
-pub struct AuthorizeCodeFlowUserClientBuilder<'a> {
-    spotify_client: &'a SpotifyClientWithSecret,
-    redirect_uri: String, // TODO: figure if this can be &'a str instead
-    state: Option<String>,
-    scopes: Option<String>,
-    show_dialog: bool,
-}
-
 #[derive(Debug, Deserialize)]
 struct ClientTokenResponse {
     access_token: String,
-    // token_type: String,
-    // expires_in: u32
-}
 
-#[derive(Debug, Deserialize)]
-struct UserTokenResponse {
-    access_token: String,
-    refresh_token: String,
-    // scope: String,
-    // expires_in: u32,
-    // token_type: String,
+    // these fields are in the response but the library doesn't need them. keep them here for logging purposes
+    #[allow(dead_code)]
+    token_type: String,
+    #[allow(dead_code)]
+    expires_in: u32,
 }
 
 impl SpotifyClient {}
 
 impl SpotifyClientWithSecret {
-    pub fn authorize_code_flow_client<S>(&self, redirect_uri: S) -> AuthorizeCodeFlowUserClientBuilder
+    pub async fn refresh_access_token(&self) -> Result<()> {
+        debug!("Refreshing access token for client credentials flow");
+        let token_request_form = &[("grant_type", "client_credentials")];
+
+        let response = self
+            .http_client
+            .post(API_TOKEN_ENDPOINT)
+            .form(token_request_form)
+            .send()
+            .await?;
+
+        let token_response: ClientTokenResponse = response.json().await?;
+        debug!("Got token response for client credentials flow: {:?}", token_response);
+
+        *self.inner.access_token.lock().await = token_response.access_token;
+
+        Ok(())
+    }
+
+    pub fn authorization_code_client<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
     {
-        AuthorizeCodeFlowUserClientBuilder {
-            spotify_client: self,
+        AuthorizationCodeUserClientBuilder {
             redirect_uri: redirect_uri.into(),
             state: None,
             scopes: None,
             show_dialog: false,
+
+            spotify_client_ref: Arc::clone(&self.inner),
+            http_client: self.http_client.clone(),
         }
     }
 
-    fn get_blocking_http_client(&self) -> &BlockingClient {
-        self.blocking_client.as_ref().unwrap()
-    }
-}
-
-impl<'a> IncompleteAuthorizeCodeFlowUserClient<'a> {
-    pub fn get_authorize_url(&self) -> String {
-        let mut query_params = vec![
-            ("response_type", "code"),
-            ("redirect_uri", self.redirect_uri.as_str()),
-            ("client_id", self.spotify_client.client_id.as_str()),
-            ("state", self.state.as_str()),
-        ];
-
-        if let Some(scopes) = &self.scopes {
-            query_params.push(("scope", scopes.as_str()));
-        }
-
-        if self.show_dialog {
-            query_params.push(("show_dialog", "true"));
-        }
-
-        // parsing the URL fails only if the base URL is invalid, not the parameters. if this method fails, there's a
-        // bug in the library
-        let authorize_url =
-            Url::parse_with_params(AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL");
-
-        authorize_url.into()
-    }
-
-    pub fn finalize(self, code: &str, state: &str) -> Result<AuthorizeCodeFlowUserClient<'a>> {
-        if state != self.state {
-            return Err(Error::AuthorizationCodeStateMismatch);
-        }
-
-        let token_request_form = &[
-            ("grant_type", "authorization_code"),
-            ("redirect_uri", self.redirect_uri.as_str()),
-            ("code", code),
-        ];
-
-        let http_client = self.spotify_client.get_blocking_http_client();
-        let response = http_client.post(API_TOKEN_ENDPOINT).form(token_request_form).send()?;
-        let token_response: UserTokenResponse = response.json()?;
-
-        Ok(AuthorizeCodeFlowUserClient {
-            spotify_client: self.spotify_client,
-            access_token: token_response.access_token,
-            refresh_token: token_response.refresh_token,
-        })
+    pub async fn authorization_code_client_with_refresh_token<S>(
+        &self,
+        refresh_token: S,
+    ) -> Result<AuthorizationCodeUserClient>
+    where
+        S: Into<String>,
+    {
+        AuthorizationCodeUserClient::new_with_refresh_token(self.http_client.clone(), refresh_token.into()).await
     }
 }
 
@@ -168,92 +138,55 @@ impl SpotifyClientBuilder {
 
     pub fn build(self) -> SpotifyClient {
         SpotifyClient {
-            client_id: self.client_id,
+            inner: Arc::new(SpotifyClientRef {
+                client_id: self.client_id,
+            }),
+            http_client: AsyncClient::new(),
         }
     }
 }
 
 impl ClientSecretSpotifyClientBuilder {
-    fn get_blocking_http_client(&self) -> BlockingClient {
+    fn get_async_http_client(&self) -> AsyncClient {
         let mut default_headers = header::HeaderMap::new();
         default_headers.insert(
             header::AUTHORIZATION,
             header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
+                // this can only fail if the header value contains non-ASCII characters, which cannot happen since the
+                // given client ID and secret are base64-encoded
                 .expect("failed to insert authorization header into header map"),
         );
 
-        BlockingClient::builder()
+        AsyncClient::builder()
             .default_headers(default_headers)
             .build()
+            // this can only fail due to a system error, or if called within an async runtime. we cannot detect the
+            // latter, so it's up to the library user to be careful about it
             .expect("failed to build blocking HTTP client")
     }
 
-    pub fn build(self) -> Result<SpotifyClientWithSecret> {
+    pub async fn build(self) -> Result<SpotifyClientWithSecret> {
+        debug!("Requesting access token for client credentials flow");
         let token_request_form = &[("grant_type", "client_credentials")];
 
-        let http_client = self.get_blocking_http_client();
-        let response = http_client.post(API_TOKEN_ENDPOINT).form(token_request_form).send()?;
-        let token_response: ClientTokenResponse = response.json()?;
+        let http_client = self.get_async_http_client();
+        let response = http_client
+            .post(API_TOKEN_ENDPOINT)
+            .form(token_request_form)
+            .send()
+            .await?;
+
+        let token_response: ClientTokenResponse = response.json().await?;
+        debug!("Got token response for client credentials flow: {:?}", token_response);
 
         Ok(SpotifyClientWithSecret {
-            client_id: self.client_id,
-            client_secret: self.client_secret,
-            access_token: token_response.access_token,
-            blocking_client: Some(http_client),
+            inner: Arc::new(SpotifyClientWithSecretRef {
+                client_id: self.client_id,
+                client_secret: self.client_secret,
+                access_token: Mutex::new(token_response.access_token),
+            }),
+            http_client,
         })
-    }
-}
-
-impl<'a> AuthorizeCodeFlowUserClientBuilder<'a> {
-    pub fn state<S>(self, state: S) -> Self
-    where
-        S: Into<String>,
-    {
-        Self {
-            state: Some(state.into()),
-            ..self
-        }
-    }
-
-    pub fn scopes<I>(self, scopes: I) -> Self
-    where
-        I: Iterator<Item = Scope>,
-    {
-        Self {
-            scopes: Some(scopes.to_scopes_string()),
-            ..self
-        }
-    }
-
-    pub fn show_dialog(self, show_dialog: bool) -> Self {
-        Self { show_dialog, ..self }
-    }
-
-    pub fn build(self) -> Result<IncompleteAuthorizeCodeFlowUserClient<'a>> {
-        let state = if let Some(state) = self.state {
-            state
-        } else {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(RANDOM_STATE_LENGTH)
-                .map(char::from)
-                .collect()
-        };
-
-        Ok(IncompleteAuthorizeCodeFlowUserClient {
-            spotify_client: self.spotify_client,
-            redirect_uri: self.redirect_uri,
-            state,
-            scopes: self.scopes,
-            show_dialog: self.show_dialog,
-        })
-    }
-
-    pub fn existing_refresh_token<S>(self, refresh_token: S) -> AuthorizeCodeFlowUserClient<'a>
-    where
-        S: Into<String>,
-    {
-        unimplemented!()
     }
 }
 

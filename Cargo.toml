@@ -5,10 +5,24 @@ version = "0.1.0"
 
 [dependencies]
 base64 = "0.13.0"
+futures = "0.3.21"
+log = "0.4.17"
 rand = "0.8.5"
-reqwest = {version = "0.11.11", features = ["blocking", "json"]}
+reqwest = {version = "0.11.11", features = ["json"]}
 serde = {version = "1.0.138", features = ["derive"]}
 thiserror = "1.0.31"
 
+async-std = {version = "1.12.0", optional = true}
+tokio = {version = "1.19.2", features = ["time"], optional = true}
+
 [dev-dependencies]
 dotenvy = "0.15.1"
+env_logger = "0.9.0"
+tokio = {version = "1.19.2", features = ["rt-multi-thread", "macros"]}
+
+[features]
+default = ["tokio_sleep"]
+
+async_std_sleep = ["dep:async-std"]
+blocking = ["reqwest/blocking"]
+tokio_sleep = ["dep:tokio"]
