@@ -11,4 +11,9 @@ async fn main() {
             .build()
             .await
             .expect("failed to build Spotify client");
+
+    spotify_client
+        .refresh_access_token()
+        .await
+        .expect("failed to refresh access token");
 }

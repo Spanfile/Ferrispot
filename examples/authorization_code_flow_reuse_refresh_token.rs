@@ -13,8 +13,13 @@ async fn main() {
             .await
             .expect("failed to build Spotify client");
 
-    let auth_code_client = spotify_client
+    let user_client = spotify_client
         .authorization_code_client_with_refresh_token("a refresh token from a previous session")
         .await
         .expect("failed to build authorization code client");
+
+    user_client
+        .refresh_access_token()
+        .await
+        .expect("failed to refresh access token");
 }

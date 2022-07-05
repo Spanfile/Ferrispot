@@ -4,6 +4,7 @@ mod implicit_grant;
 mod scope;
 
 const RANDOM_STATE_LENGTH: usize = 16;
+const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 
 const AUTHORIZE_ENDPOINT: &str = "https://accounts.spotify.com/authorize";
 const API_TOKEN_ENDPOINT: &str = "https://accounts.spotify.com/api/token";
@@ -13,6 +14,7 @@ pub use crate::{
         AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder, IncompleteAuthorizationCodeUserClient,
     },
     error::{Error, Result},
+    implicit_grant::{ImplicitGrantUserClient, ImplicitGrantUserClientBuilder, IncompleteImplicitGrantUserClient},
     scope::Scope,
 };
 
@@ -42,7 +44,7 @@ pub struct SpotifyClientWithSecret {
 #[derive(Debug)]
 struct SpotifyClientWithSecretRef {
     client_id: String,
-    client_secret: String,
+    // client_secret: String,
     access_token: Mutex<String>,
 }
 
@@ -68,7 +70,41 @@ struct ClientTokenResponse {
     expires_in: u32,
 }
 
-impl SpotifyClient {}
+impl SpotifyClient {
+    pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder
+    where
+        S: Into<String>,
+    {
+        ImplicitGrantUserClientBuilder::new(redirect_uri.into(), Arc::clone(&self.inner), self.http_client.clone())
+    }
+
+    pub fn authorization_code_client_with_pkce<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder
+    where
+        S: Into<String>,
+    {
+        AuthorizationCodeUserClientBuilder::new(
+            redirect_uri.into(),
+            self.inner.client_id.clone(),
+            self.http_client.clone(),
+        )
+        .with_pkce()
+    }
+
+    pub async fn authorization_code_client_with_refresh_token_and_pkce<S>(
+        &self,
+        refresh_token: S,
+    ) -> Result<AuthorizationCodeUserClient>
+    where
+        S: Into<String>,
+    {
+        AuthorizationCodeUserClient::new_with_refresh_token(
+            self.http_client.clone(),
+            refresh_token.into(),
+            Some(self.inner.client_id.clone()),
+        )
+        .await
+    }
+}
 
 impl SpotifyClientWithSecret {
     pub async fn refresh_access_token(&self) -> Result<()> {
@@ -94,15 +130,11 @@ impl SpotifyClientWithSecret {
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClientBuilder {
-            redirect_uri: redirect_uri.into(),
-            state: None,
-            scopes: None,
-            show_dialog: false,
-
-            spotify_client_ref: Arc::clone(&self.inner),
-            http_client: self.http_client.clone(),
-        }
+        AuthorizationCodeUserClientBuilder::new(
+            redirect_uri.into(),
+            self.inner.client_id.clone(),
+            self.http_client.clone(),
+        )
     }
 
     pub async fn authorization_code_client_with_refresh_token<S>(
@@ -112,7 +144,7 @@ impl SpotifyClientWithSecret {
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClient::new_with_refresh_token(self.http_client.clone(), refresh_token.into()).await
+        AuthorizationCodeUserClient::new_with_refresh_token(self.http_client.clone(), refresh_token.into(), None).await
     }
 }
 
@@ -182,7 +214,7 @@ impl ClientSecretSpotifyClientBuilder {
         Ok(SpotifyClientWithSecret {
             inner: Arc::new(SpotifyClientWithSecretRef {
                 client_id: self.client_id,
-                client_secret: self.client_secret,
+                // client_secret: self.client_secret,
                 access_token: Mutex::new(token_response.access_token),
             }),
             http_client,
