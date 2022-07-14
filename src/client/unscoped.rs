@@ -1,10 +1,9 @@
-use super::{private::ClientBase, API_TRACKS_ENDPOINT, API_URL};
+use super::{private::ClientBase, API_TRACKS_ENDPOINT};
 use crate::{
     error::Result,
-    model::track::{FullTrack, PartialTrack, TrackObject},
+    model::track::{FullTrack, TrackObject},
 };
 use async_trait::async_trait;
-use const_format::concatcp;
 use log::debug;
 use reqwest::{Method, Url};
 use serde::Deserialize;
@@ -34,7 +33,7 @@ where
     {
         // TODO: gonna need a way more robust way of constructing the URLs
         let request = self
-            .build_http_request(Method::GET, format!("{}{}/{}", API_URL, API_TRACKS_ENDPOINT, track_id))
+            .build_http_request(Method::GET, format!("{}/{}", API_TRACKS_ENDPOINT, track_id))
             .await;
 
         let response = request.send().await?;
@@ -61,7 +60,7 @@ where
             .build_http_request(
                 Method::GET,
                 Url::parse_with_params(
-                    concatcp!(API_URL, API_TRACKS_ENDPOINT),
+                    API_TRACKS_ENDPOINT,
                     [(
                         "ids",
                         track_ids
@@ -71,6 +70,7 @@ where
                             .join(","),
                     )],
                 )
+                // TODO: can this fail because of malformed IDs?
                 .unwrap(),
             )
             .await;

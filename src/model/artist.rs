@@ -1,4 +1,7 @@
-use super::{ExternalUrls, Image};
+use super::{
+    object_type::{obj_deserialize, TypeArtist},
+    ExternalUrls, Image,
+};
 use serde::{Deserialize, Serialize};
 
 mod private {
@@ -75,9 +78,9 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Artist {
-    Full(FullArtist),
-    Partial(PartialArtist),
-    Local(LocalArtist),
+    Full(Box<FullArtist>),
+    Partial(Box<PartialArtist>),
+    Local(Box<LocalArtist>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,8 +103,8 @@ struct CommonArtistFields {
     name: String,
     #[serde(default)]
     external_urls: ExternalUrls,
-    #[serde(rename = "type")]
-    item_type: String, // TODO: make a type-safe type much like in aspotify
+    #[serde(rename = "type", deserialize_with = "obj_deserialize", skip_serializing)]
+    item_type: TypeArtist,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,18 +141,18 @@ pub struct LocalArtist {
 impl From<ArtistObject> for Artist {
     fn from(obj: ArtistObject) -> Self {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => Self::Full(FullArtist {
+            (Some(non_local), Some(full)) => Self::Full(Box::new(FullArtist {
                 common: obj.common,
                 non_local,
                 full,
-            }),
+            })),
 
-            (Some(non_local), None) => Self::Partial(PartialArtist {
+            (Some(non_local), None) => Self::Partial(Box::new(PartialArtist {
                 common: obj.common,
                 non_local,
-            }),
+            })),
 
-            (None, None) => Self::Local(LocalArtist { common: obj.common }),
+            (None, None) => Self::Local(Box::new(LocalArtist { common: obj.common })),
 
             (non_local, full) => panic!(
                 "impossible case trying to convert ArtistObject into Artist: non-local artist fields is {:?} while \
@@ -162,26 +165,26 @@ impl From<ArtistObject> for Artist {
 
 impl From<PartialArtist> for Artist {
     fn from(partial: PartialArtist) -> Self {
-        Self::Partial(partial)
+        Self::Partial(Box::new(partial))
     }
 }
 
 impl From<FullArtist> for Artist {
     fn from(full: FullArtist) -> Self {
-        Self::Full(full)
+        Self::Full(Box::new(full))
     }
 }
 
 impl From<LocalArtist> for Artist {
     fn from(local: LocalArtist) -> Self {
-        Self::Local(local)
+        Self::Local(Box::new(local))
     }
 }
 
 impl From<Artist> for FullArtist {
     fn from(artist: Artist) -> Self {
         match artist {
-            Artist::Full(full) => full,
+            Artist::Full(full) => *full,
 
             Artist::Partial(_) => panic!("attempt to convert partial artist into full artist"),
             Artist::Local(_) => panic!("attempt to convert local artist into full artist"),
@@ -214,7 +217,7 @@ impl From<Artist> for PartialArtist {
                 common: full.common,
                 non_local: full.non_local,
             },
-            Artist::Partial(partial) => partial,
+            Artist::Partial(partial) => *partial,
 
             Artist::Local(_) => panic!("attempt to convert local artist into partial artist"),
         }
@@ -240,11 +243,10 @@ impl From<ArtistObject> for PartialArtist {
 impl From<Artist> for LocalArtist {
     fn from(artist: Artist) -> Self {
         match artist {
-            Artist::Full(FullArtist { common, .. }) | Artist::Partial(PartialArtist { common, .. }) => {
-                LocalArtist { common }
-            }
+            Artist::Full(full) => LocalArtist { common: full.common },
+            Artist::Partial(partial) => LocalArtist { common: partial.common },
 
-            Artist::Local(local) => local,
+            Artist::Local(local) => *local,
         }
     }
 }

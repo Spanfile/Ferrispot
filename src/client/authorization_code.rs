@@ -1,12 +1,9 @@
-use super::{
-    ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, ACCOUNTS_URL, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
-};
+use super::{ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH};
 use crate::{
     error::{Error, Result},
     scope::{Scope, ToScopesString},
 };
 
-use const_format::concatcp;
 use futures::lock::Mutex;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
@@ -95,7 +92,7 @@ impl AuthorizationCodeUserClient {
         let mut token_request_form = vec![("grant_type", "refresh_token"), ("refresh_token", &refresh_token)];
 
         let response = http_client
-            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(if let Some(client_id) = client_id.as_deref() {
                 token_request_form.push(("client_id", client_id));
                 &token_request_form
@@ -142,7 +139,7 @@ impl AuthorizationCodeUserClient {
 
         let response = self
             .http_client
-            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(if let Some(client_id) = self.inner.client_id.as_deref() {
                 token_request_form.push(("client_id", client_id));
                 &token_request_form
@@ -197,14 +194,12 @@ impl IncompleteAuthorizationCodeUserClient {
 
             // parsing the URL fails only if the base URL is invalid, not the parameters. if this method fails, there's
             // a bug in the library
-            //
+
             // while both these branches end the same way, this one borrows the pkce_challenge string so the URL must be
             // built before the string falls out of scope
-            Url::parse_with_params(concatcp!(ACCOUNTS_URL, ACCOUNTS_AUTHORIZE_ENDPOINT), &query_params)
-                .expect("failed to build authorize URL")
+            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL")
         } else {
-            Url::parse_with_params(concatcp!(ACCOUNTS_URL, ACCOUNTS_AUTHORIZE_ENDPOINT), &query_params)
-                .expect("failed to build authorize URL")
+            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL")
         };
 
         authorize_url.into()
@@ -228,7 +223,7 @@ impl IncompleteAuthorizationCodeUserClient {
 
         let response = self
             .http_client
-            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(if let Some(pkce_verifier) = self.pkce_verifier.as_deref() {
                 debug!("Requesting access and refresh tokens for authorization code flow with PKCE");
 

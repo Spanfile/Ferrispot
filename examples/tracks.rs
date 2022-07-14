@@ -1,5 +1,12 @@
 use dotenvy::dotenv;
-use ferrispot::client::{SpotifyClientBuilder, UnscopedClient};
+use ferrispot::{
+    client::{SpotifyClientBuilder, UnscopedClient},
+    model::{
+        album::CommonAlbumInformation,
+        artist::CommonArtistInformation,
+        track::{CommonTrackInformation, FullTrackInformation},
+    },
+};
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +21,13 @@ async fn main() {
             .expect("failed to build Spotify client");
 
     #[allow(unused_variables)]
-    let one_track = spotify_client.track("3mXLyNsVeLelMakgpGUp1f").await.unwrap();
+    let one_track = spotify_client.track("0871AdnvzzSGr5XdTJaDHC").await.unwrap();
+    println!(
+        "{} - {} ({})",
+        one_track.name(),
+        one_track.artists().first().unwrap().name(),
+        one_track.album().name()
+    );
 
     #[allow(unused_variables)]
     let multiple_tracks = spotify_client
@@ -25,4 +38,13 @@ async fn main() {
         ])
         .await
         .unwrap();
+
+    for track in multiple_tracks {
+        println!(
+            "{} - {} ({})",
+            track.name(),
+            track.artists().first().unwrap().name(),
+            track.album().name()
+        );
+    }
 }

@@ -2,6 +2,7 @@ use super::{
     album::{AlbumObject, PartialAlbum},
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
+    object_type::{obj_deserialize, TypeTrack},
     ExternalIds, ExternalUrls, Restrictions,
 };
 use crate::util::duration_millis;
@@ -117,11 +118,11 @@ where
     }
 
     fn external_ids(&self) -> &ExternalIds {
-        todo!()
+        &self.full_fields().external_ids
     }
 
     fn popularity(&self) -> u32 {
-        todo!()
+        self.full_fields().popularity
     }
 }
 
@@ -136,9 +137,9 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Track {
-    Full(FullTrack),
-    Partial(PartialTrack),
-    Local(LocalTrack),
+    Full(Box<FullTrack>),
+    Partial(Box<PartialTrack>),
+    Local(Box<LocalTrack>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -170,6 +171,8 @@ pub(crate) struct CommonTrackFields {
     is_local: bool, // TODO: i don't like this field
     #[serde(default)]
     external_urls: ExternalUrls,
+    #[serde(rename = "type", deserialize_with = "obj_deserialize", skip_serializing)]
+    item_type: TypeTrack,
 
     // track relinking
     #[serde(default)]
@@ -221,18 +224,18 @@ pub struct LinkedTrack {
 impl From<TrackObject> for Track {
     fn from(obj: TrackObject) -> Self {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => Self::Full(FullTrack {
+            (Some(non_local), Some(full)) => Self::Full(Box::new(FullTrack {
                 common: obj.common,
                 non_local,
                 full,
-            }),
+            })),
 
-            (Some(non_local), None) => Self::Partial(PartialTrack {
+            (Some(non_local), None) => Self::Partial(Box::new(PartialTrack {
                 common: obj.common,
                 non_local,
-            }),
+            })),
 
-            (None, None) => Self::Local(LocalTrack { common: obj.common }),
+            (None, None) => Self::Local(Box::new(LocalTrack { common: obj.common })),
 
             (non_local, full) => panic!(
                 "impossible case trying to convert TrackObject into Track: non-local track fields is {:?} while full \
@@ -245,26 +248,26 @@ impl From<TrackObject> for Track {
 
 impl From<PartialTrack> for Track {
     fn from(partial: PartialTrack) -> Self {
-        Self::Partial(partial)
+        Self::Partial(Box::new(partial))
     }
 }
 
 impl From<FullTrack> for Track {
     fn from(full: FullTrack) -> Self {
-        Self::Full(full)
+        Self::Full(Box::new(full))
     }
 }
 
 impl From<LocalTrack> for Track {
     fn from(local: LocalTrack) -> Self {
-        Self::Local(local)
+        Self::Local(Box::new(local))
     }
 }
 
 impl From<Track> for FullTrack {
     fn from(track: Track) -> Self {
         match track {
-            Track::Full(full) => full,
+            Track::Full(full) => *full,
 
             Track::Partial(_) => panic!("attempt to convert partial track into full track"),
             Track::Local(_) => panic!("attempt to convert local track into full track"),
@@ -297,7 +300,7 @@ impl From<Track> for PartialTrack {
                 common: full.common,
                 non_local: full.non_local,
             },
-            Track::Partial(partial) => partial,
+            Track::Partial(partial) => *partial,
 
             Track::Local(_) => panic!("attempt to convert local track into partial track"),
         }
@@ -323,11 +326,10 @@ impl From<TrackObject> for PartialTrack {
 impl From<Track> for LocalTrack {
     fn from(track: Track) -> Self {
         match track {
-            Track::Full(FullTrack { common, .. }) | Track::Partial(PartialTrack { common, .. }) => {
-                LocalTrack { common }
-            }
+            Track::Full(full) => LocalTrack { common: full.common },
+            Track::Partial(partial) => LocalTrack { common: partial.common },
 
-            Track::Local(local) => local,
+            Track::Local(local) => *local,
         }
     }
 }

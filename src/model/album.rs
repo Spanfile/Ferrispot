@@ -1,6 +1,7 @@
 use super::{
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
+    object_type::{obj_deserialize, TypeAlbum},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
 use serde::{Deserialize, Serialize};
@@ -132,9 +133,9 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Album {
-    Full(FullAlbum),
-    Partial(PartialAlbum),
-    Local(LocalAlbum),
+    Full(Box<FullAlbum>),
+    Partial(Box<PartialAlbum>),
+    Local(Box<LocalAlbum>),
 }
 
 /// This struct covers all the possible album responses from Spotify's API. It has a function that converts it into an
@@ -162,8 +163,8 @@ struct CommonAlbumFields {
     images: Vec<Image>,
     #[serde(default)]
     external_urls: ExternalUrls,
-    #[serde(rename = "type")]
-    item_type: String, // TODO: make a type-safe type much like in aspotify
+    #[serde(rename = "type", deserialize_with = "obj_deserialize", skip_serializing)]
+    item_type: TypeAlbum,
 
     // track relinking
     available_markets: HashSet<CountryCode>,
@@ -222,18 +223,18 @@ pub enum AlbumType {
 impl From<AlbumObject> for Album {
     fn from(obj: AlbumObject) -> Self {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => Self::Full(FullAlbum {
+            (Some(non_local), Some(full)) => Self::Full(Box::new(FullAlbum {
                 common: obj.common,
                 non_local,
                 full,
-            }),
+            })),
 
-            (Some(non_local), None) => Self::Partial(PartialAlbum {
+            (Some(non_local), None) => Self::Partial(Box::new(PartialAlbum {
                 common: obj.common,
                 non_local,
-            }),
+            })),
 
-            (None, None) => Self::Local(LocalAlbum { common: obj.common }),
+            (None, None) => Self::Local(Box::new(LocalAlbum { common: obj.common })),
 
             (non_local, full) => panic!(
                 "impossible case trying to convert AlbumObject into Album: non-local album fields is {:?} while full \
@@ -246,26 +247,26 @@ impl From<AlbumObject> for Album {
 
 impl From<PartialAlbum> for Album {
     fn from(partial: PartialAlbum) -> Self {
-        Self::Partial(partial)
+        Self::Partial(Box::new(partial))
     }
 }
 
 impl From<FullAlbum> for Album {
     fn from(full: FullAlbum) -> Self {
-        Self::Full(full)
+        Self::Full(Box::new(full))
     }
 }
 
 impl From<LocalAlbum> for Album {
     fn from(local: LocalAlbum) -> Self {
-        Self::Local(local)
+        Self::Local(Box::new(local))
     }
 }
 
 impl From<Album> for FullAlbum {
     fn from(album: Album) -> Self {
         match album {
-            Album::Full(full) => full,
+            Album::Full(full) => *full,
 
             Album::Partial(_) => panic!("attempt to convert partial album into full album"),
             Album::Local(_) => panic!("attempt to convert local album into full album"),
@@ -298,7 +299,7 @@ impl From<Album> for PartialAlbum {
                 common: full.common,
                 non_local: full.non_local,
             },
-            Album::Partial(partial) => partial,
+            Album::Partial(partial) => *partial,
 
             Album::Local(_) => panic!("attempt to convert local album into partial album"),
         }
@@ -324,11 +325,10 @@ impl From<AlbumObject> for PartialAlbum {
 impl From<Album> for LocalAlbum {
     fn from(album: Album) -> Self {
         match album {
-            Album::Full(FullAlbum { common, .. }) | Album::Partial(PartialAlbum { common, .. }) => {
-                LocalAlbum { common }
-            }
+            Album::Full(full) => LocalAlbum { common: full.common },
+            Album::Partial(partial) => LocalAlbum { common: partial.common },
 
-            Album::Local(local) => local,
+            Album::Local(local) => *local,
         }
     }
 }
