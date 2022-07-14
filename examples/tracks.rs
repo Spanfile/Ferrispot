@@ -14,5 +14,15 @@ async fn main() {
             .expect("failed to build Spotify client");
 
     #[allow(unused_variables)]
-    let track = spotify_client.track("3mXLyNsVeLelMakgpGUp1f").await.unwrap();
+    let one_track = spotify_client.track("3mXLyNsVeLelMakgpGUp1f").await.unwrap();
+
+    #[allow(unused_variables)]
+    let multiple_tracks = spotify_client
+        .tracks([
+            "3mXLyNsVeLelMakgpGUp1f",
+            "367IrkRR4wk5WtSL41rONn",
+            "1GxzaUNoSvzNqL4JB9ztXq",
+        ])
+        .await
+        .unwrap();
 }

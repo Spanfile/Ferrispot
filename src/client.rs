@@ -35,7 +35,7 @@ const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 
 const API_URL: &str = "https://api.spotify.com/v1/";
-const API_TRACKS_ENDPOINT: &str = "tracks/";
+const API_TRACKS_ENDPOINT: &str = "tracks";
 
 const ACCOUNTS_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = "authorize";
