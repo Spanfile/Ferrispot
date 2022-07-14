@@ -1,9 +1,134 @@
 use super::{
-    artist::ArtistObject, country_code::CountryCode, Copyright, DatePrecision, ExternalIds, ExternalUrls, Image,
-    Restrictions,
+    artist::{ArtistObject, PartialArtist},
+    country_code::CountryCode,
+    Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+mod private {
+    use super::{CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
+
+    pub trait Sealed {}
+
+    pub(super) trait CommonFields {
+        fn common_fields(&self) -> &CommonAlbumFields;
+    }
+
+    pub(super) trait FullFields {
+        fn full_fields(&self) -> &FullAlbumFields;
+    }
+
+    pub(super) trait NonLocalFields {
+        fn non_local_fields(&self) -> &NonLocalAlbumFields;
+    }
+}
+
+pub trait CommonAlbumInformation: private::Sealed {
+    fn name(&self) -> &str;
+    fn artists(&self) -> Vec<PartialArtist>;
+    fn images(&self) -> &[Image];
+    fn external_urls(&self) -> &ExternalUrls;
+    fn available_markets(&self) -> &HashSet<CountryCode>;
+    fn restrictions(&self) -> &Restrictions;
+}
+
+pub trait FullAlbumInformation: private::Sealed {
+    // pub tracks: Page<PartialTrack>, // TODO: paging
+    // TODO: the artist album thing with the album group field
+
+    fn copyrights(&self) -> &[Copyright];
+    fn external_ids(&self) -> &ExternalIds;
+    fn genres(&self) -> &[String];
+    fn label(&self) -> &str;
+    fn popularity(&self) -> u32;
+}
+
+pub trait NonLocalAlbumInformation: private::Sealed {
+    fn album_type(&self) -> AlbumType;
+    fn id(&self) -> &str;
+    fn release_date(&self) -> &str;
+    fn release_date_precision(&self) -> DatePrecision;
+}
+
+impl<T> CommonAlbumInformation for T
+where
+    T: private::CommonFields + private::Sealed,
+{
+    fn name(&self) -> &str {
+        &self.common_fields().name
+    }
+
+    fn artists(&self) -> Vec<PartialArtist> {
+        self.common_fields()
+            .artists
+            .iter()
+            .map(|artist_obj| artist_obj.to_owned().into())
+            .collect()
+    }
+
+    fn images(&self) -> &[Image] {
+        &self.common_fields().images
+    }
+
+    fn external_urls(&self) -> &ExternalUrls {
+        &self.common_fields().external_urls
+    }
+
+    fn available_markets(&self) -> &HashSet<CountryCode> {
+        &self.common_fields().available_markets
+    }
+
+    fn restrictions(&self) -> &Restrictions {
+        &self.common_fields().restrictions
+    }
+}
+
+impl<T> FullAlbumInformation for T
+where
+    T: private::FullFields + private::Sealed,
+{
+    fn copyrights(&self) -> &[Copyright] {
+        &self.full_fields().copyrights
+    }
+
+    fn external_ids(&self) -> &ExternalIds {
+        &self.full_fields().external_ids
+    }
+
+    fn genres(&self) -> &[String] {
+        &self.full_fields().genres
+    }
+
+    fn label(&self) -> &str {
+        &self.full_fields().label
+    }
+
+    fn popularity(&self) -> u32 {
+        self.full_fields().popularity
+    }
+}
+
+impl<T> NonLocalAlbumInformation for T
+where
+    T: private::NonLocalFields + private::Sealed,
+{
+    fn album_type(&self) -> AlbumType {
+        self.non_local_fields().album_type
+    }
+
+    fn id(&self) -> &str {
+        &self.non_local_fields().id
+    }
+
+    fn release_date(&self) -> &str {
+        &self.non_local_fields().release_date
+    }
+
+    fn release_date_precision(&self) -> DatePrecision {
+        self.non_local_fields().release_date_precision
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Album {
@@ -211,5 +336,45 @@ impl From<Album> for LocalAlbum {
 impl From<AlbumObject> for LocalAlbum {
     fn from(obj: AlbumObject) -> Self {
         LocalAlbum { common: obj.common }
+    }
+}
+
+impl private::Sealed for FullAlbum {}
+impl private::Sealed for PartialAlbum {}
+impl private::Sealed for LocalAlbum {}
+
+impl private::CommonFields for FullAlbum {
+    fn common_fields(&self) -> &CommonAlbumFields {
+        &self.common
+    }
+}
+
+impl private::CommonFields for PartialAlbum {
+    fn common_fields(&self) -> &CommonAlbumFields {
+        &self.common
+    }
+}
+
+impl private::CommonFields for LocalAlbum {
+    fn common_fields(&self) -> &CommonAlbumFields {
+        &self.common
+    }
+}
+
+impl private::NonLocalFields for FullAlbum {
+    fn non_local_fields(&self) -> &NonLocalAlbumFields {
+        &self.non_local
+    }
+}
+
+impl private::NonLocalFields for PartialAlbum {
+    fn non_local_fields(&self) -> &NonLocalAlbumFields {
+        &self.non_local
+    }
+}
+
+impl private::FullFields for FullAlbum {
+    fn full_fields(&self) -> &FullAlbumFields {
+        &self.full
     }
 }

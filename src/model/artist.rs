@@ -1,6 +1,78 @@
 use super::{ExternalUrls, Image};
 use serde::{Deserialize, Serialize};
 
+mod private {
+    use super::{CommonArtistFields, FullArtistFields, NonLocalArtistFields};
+
+    pub trait Sealed {}
+
+    pub(super) trait CommonFields {
+        fn common_fields(&self) -> &CommonArtistFields;
+    }
+
+    pub(super) trait FullFields {
+        fn full_fields(&self) -> &FullArtistFields;
+    }
+
+    pub(super) trait NonLocalFields {
+        fn non_local_fields(&self) -> &NonLocalArtistFields;
+    }
+}
+
+pub trait CommonArtistInformation: private::Sealed {
+    fn name(&self) -> &str;
+    fn external_urls(&self) -> &ExternalUrls;
+}
+
+pub trait FullArtistInformation: private::Sealed {
+    fn genres(&self) -> &[String];
+    fn images(&self) -> &[Image];
+    fn popularity(&self) -> u32;
+}
+
+pub trait NonLocalArtistInformation: private::Sealed {
+    fn id(&self) -> &str;
+}
+
+impl<T> CommonArtistInformation for T
+where
+    T: private::CommonFields + private::Sealed,
+{
+    fn name(&self) -> &str {
+        &self.common_fields().name
+    }
+
+    fn external_urls(&self) -> &ExternalUrls {
+        &self.common_fields().external_urls
+    }
+}
+
+impl<T> FullArtistInformation for T
+where
+    T: private::FullFields + private::Sealed,
+{
+    fn genres(&self) -> &[String] {
+        &self.full_fields().genres
+    }
+
+    fn images(&self) -> &[Image] {
+        &self.full_fields().images
+    }
+
+    fn popularity(&self) -> u32 {
+        self.full_fields().popularity
+    }
+}
+
+impl<T> NonLocalArtistInformation for T
+where
+    T: private::NonLocalFields + private::Sealed,
+{
+    fn id(&self) -> &str {
+        &self.non_local_fields().id
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Artist {
     Full(FullArtist),
@@ -180,5 +252,45 @@ impl From<Artist> for LocalArtist {
 impl From<ArtistObject> for LocalArtist {
     fn from(obj: ArtistObject) -> Self {
         LocalArtist { common: obj.common }
+    }
+}
+
+impl private::Sealed for FullArtist {}
+impl private::Sealed for PartialArtist {}
+impl private::Sealed for LocalArtist {}
+
+impl private::CommonFields for FullArtist {
+    fn common_fields(&self) -> &CommonArtistFields {
+        &self.common
+    }
+}
+
+impl private::CommonFields for PartialArtist {
+    fn common_fields(&self) -> &CommonArtistFields {
+        &self.common
+    }
+}
+
+impl private::CommonFields for LocalArtist {
+    fn common_fields(&self) -> &CommonArtistFields {
+        &self.common
+    }
+}
+
+impl private::NonLocalFields for FullArtist {
+    fn non_local_fields(&self) -> &NonLocalArtistFields {
+        &self.non_local
+    }
+}
+
+impl private::NonLocalFields for PartialArtist {
+    fn non_local_fields(&self) -> &NonLocalArtistFields {
+        &self.non_local
+    }
+}
+
+impl private::FullFields for FullArtist {
+    fn full_fields(&self) -> &FullArtistFields {
+        &self.full
     }
 }
