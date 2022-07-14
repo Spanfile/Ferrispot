@@ -1,4 +1,4 @@
-use super::{SpotifyClientRef, AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
+use super::{SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
 use crate::{
     error::{Error, Result},
     scope::{Scope, ToScopesString},
@@ -57,7 +57,7 @@ impl IncompleteImplicitGrantUserClient {
         // parsing the URL fails only if the base URL is invalid, not the parameters. if this method fails, there's a
         // bug in the library
         let authorize_url =
-            Url::parse_with_params(AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL");
+            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL");
 
         authorize_url.into()
     }

@@ -1,9 +1,12 @@
-use super::{API_TOKEN_ENDPOINT, AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH};
+use super::{
+    ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, ACCOUNTS_URL, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
+};
 use crate::{
     error::{Error, Result},
     scope::{Scope, ToScopesString},
 };
 
+use const_format::concatcp;
 use futures::lock::Mutex;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
@@ -91,20 +94,16 @@ impl AuthorizationCodeUserClient {
 
         let mut token_request_form = vec![("grant_type", "refresh_token"), ("refresh_token", &refresh_token)];
 
-        let response = if let Some(client_id) = client_id.as_deref() {
-            token_request_form.push(("client_id", client_id));
-            http_client
-                .post(API_TOKEN_ENDPOINT)
-                .form(&token_request_form)
-                .send()
-                .await?
-        } else {
-            http_client
-                .post(API_TOKEN_ENDPOINT)
-                .form(&token_request_form)
-                .send()
-                .await?
-        };
+        let response = http_client
+            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
+            .form(if let Some(client_id) = client_id.as_deref() {
+                token_request_form.push(("client_id", client_id));
+                &token_request_form
+            } else {
+                &token_request_form
+            })
+            .send()
+            .await?;
 
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(
@@ -132,7 +131,7 @@ impl AuthorizationCodeUserClient {
         let refresh_token = self.inner.refresh_token.lock().await;
 
         debug!(
-            "Attempting to authorization code flow access token with refresh token: {}",
+            "Attempting to refresh authorization code flow access token with refresh token: {}",
             *refresh_token
         );
 
@@ -141,21 +140,17 @@ impl AuthorizationCodeUserClient {
             ("refresh_token", refresh_token.as_str()),
         ];
 
-        let response = if let Some(client_id) = self.inner.client_id.as_deref() {
-            token_request_form.push(("client_id", client_id));
-
-            self.http_client
-                .post(API_TOKEN_ENDPOINT)
-                .form(&token_request_form)
-                .send()
-                .await?
-        } else {
-            self.http_client
-                .post(API_TOKEN_ENDPOINT)
-                .form(&token_request_form)
-                .send()
-                .await?
-        };
+        let response = self
+            .http_client
+            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
+            .form(if let Some(client_id) = self.inner.client_id.as_deref() {
+                token_request_form.push(("client_id", client_id));
+                &token_request_form
+            } else {
+                &token_request_form
+            })
+            .send()
+            .await?;
 
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(
@@ -180,15 +175,11 @@ impl IncompleteAuthorizationCodeUserClient {
             ("redirect_uri", self.redirect_uri.as_str()),
             ("client_id", self.client_id.as_str()),
             ("state", self.state.as_str()),
+            ("show_dialog", if self.show_dialog { "true" } else { "false" }),
         ];
 
         if let Some(scopes) = &self.scopes {
             query_params.push(("scope", scopes.as_str()));
-        }
-
-        if self.show_dialog {
-            // spotify's default for show_dialog is false if it's not specified
-            query_params.push(("show_dialog", "true"));
         }
 
         let authorize_url = if let Some(pkce_verifier) = self.pkce_verifier.as_deref() {
@@ -202,17 +193,18 @@ impl IncompleteAuthorizationCodeUserClient {
                 pkce_verifier, pkce_challenge
             );
 
-            query_params.push(("code_challenge_method", "S256"));
-            query_params.push(("code_challenge", &pkce_challenge));
+            query_params.extend([("code_challenge_method", "S256"), ("code_challenge", &pkce_challenge)]);
 
             // parsing the URL fails only if the base URL is invalid, not the parameters. if this method fails, there's
             // a bug in the library
             //
             // while both these branches end the same way, this one borrows the pkce_challenge string so the URL must be
             // built before the string falls out of scope
-            Url::parse_with_params(AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL")
+            Url::parse_with_params(concatcp!(ACCOUNTS_URL, ACCOUNTS_AUTHORIZE_ENDPOINT), &query_params)
+                .expect("failed to build authorize URL")
         } else {
-            Url::parse_with_params(AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL")
+            Url::parse_with_params(concatcp!(ACCOUNTS_URL, ACCOUNTS_AUTHORIZE_ENDPOINT), &query_params)
+                .expect("failed to build authorize URL")
         };
 
         authorize_url.into()
@@ -234,25 +226,20 @@ impl IncompleteAuthorizationCodeUserClient {
             ("code", code),
         ];
 
-        let response = if let Some(pkce_verifier) = self.pkce_verifier.as_deref() {
-            debug!("Requesting access and refresh tokens for authorization code flow with PKCE");
+        let response = self
+            .http_client
+            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
+            .form(if let Some(pkce_verifier) = self.pkce_verifier.as_deref() {
+                debug!("Requesting access and refresh tokens for authorization code flow with PKCE");
 
-            token_request_form.push(("client_id", &self.client_id));
-            token_request_form.push(("code_verifier", pkce_verifier));
-
-            self.http_client
-                .post(API_TOKEN_ENDPOINT)
-                .form(&token_request_form)
-                .send()
-                .await?
-        } else {
-            debug!("Requesting access and refresh tokens for authorization code flow");
-            self.http_client
-                .post(API_TOKEN_ENDPOINT)
-                .form(&token_request_form)
-                .send()
-                .await?
-        };
+                token_request_form.extend([("client_id", self.client_id.as_str()), ("code_verifier", pkce_verifier)]);
+                &token_request_form
+            } else {
+                debug!("Requesting access and refresh tokens for authorization code flow");
+                &token_request_form
+            })
+            .send()
+            .await?;
 
         let token_response: AuthorizeUserTokenResponse = response.json().await?;
         debug!("Got token response for authorization code flow: {:?}", token_response);

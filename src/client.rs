@@ -4,28 +4,42 @@ pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
 mod private {
+    use async_trait::async_trait;
+    use reqwest::{IntoUrl, Method, RequestBuilder};
+
+    #[async_trait]
     pub trait ClientBase {
-        fn get_http_client(&self) -> &reqwest::Client;
+        async fn build_http_request<U>(&self, method: Method, url: U) -> RequestBuilder
+        where
+            U: IntoUrl + Send;
     }
 }
+
+pub use scoped::ScopedClient;
+pub use unscoped::UnscopedClient;
 
 use self::{
     authorization_code::{AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder},
     implicit_grant::ImplicitGrantUserClientBuilder,
 };
 use crate::error::Result;
-
+use async_trait::async_trait;
+use const_format::concatcp;
 use futures::lock::Mutex;
 use log::debug;
-use reqwest::{header, Client as AsyncClient};
+use reqwest::{header, Client as AsyncClient, IntoUrl};
 use serde::Deserialize;
 use std::sync::Arc;
 
 const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 
-const AUTHORIZE_ENDPOINT: &str = "https://accounts.spotify.com/authorize";
-const API_TOKEN_ENDPOINT: &str = "https://accounts.spotify.com/api/token";
+const API_URL: &str = "https://api.spotify.com/v1/";
+const API_TRACKS_ENDPOINT: &str = "tracks/";
+
+const ACCOUNTS_URL: &str = "https://accounts.spotify.com/";
+const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = "authorize";
+const ACCOUNTS_API_TOKEN_ENDPOINT: &str = "api/token";
 
 #[derive(Debug, Clone)]
 pub struct SpotifyClient {
@@ -116,7 +130,7 @@ impl SpotifyClientWithSecret {
 
         let response = self
             .http_client
-            .post(API_TOKEN_ENDPOINT)
+            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
             .form(token_request_form)
             .send()
             .await?;
@@ -206,7 +220,7 @@ impl ClientSecretSpotifyClientBuilder {
 
         let http_client = self.get_async_http_client();
         let response = http_client
-            .post(API_TOKEN_ENDPOINT)
+            .post(concatcp!(ACCOUNTS_URL, ACCOUNTS_API_TOKEN_ENDPOINT))
             .form(token_request_form)
             .send()
             .await?;
@@ -228,4 +242,15 @@ impl ClientSecretSpotifyClientBuilder {
 fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
     let auth = format!("{}:{}", client_id, client_secret);
     format!("Basic {}", base64::encode(&auth))
+}
+
+#[async_trait]
+impl private::ClientBase for SpotifyClientWithSecret {
+    async fn build_http_request<U>(&self, method: reqwest::Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl + Send,
+    {
+        let access_token = self.inner.access_token.lock().await;
+        self.http_client.request(method, url).bearer_auth(access_token.as_str())
+    }
 }

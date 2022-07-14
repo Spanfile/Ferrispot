@@ -4,6 +4,7 @@ use ferrispot::client::SpotifyClientBuilder;
 #[tokio::main]
 async fn main() {
     dotenv().ok();
+    env_logger::init();
 
     let spotify_client =
         SpotifyClientBuilder::new(std::env::var("CLIENT_ID").expect("Spotify client ID not in environment")).build();

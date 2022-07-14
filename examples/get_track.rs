@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::client::SpotifyClientBuilder;
+use ferrispot::client::{SpotifyClientBuilder, UnscopedClient};
 
 #[tokio::main]
 async fn main() {
@@ -13,8 +13,6 @@ async fn main() {
             .await
             .expect("failed to build Spotify client");
 
-    spotify_client
-        .refresh_access_token()
-        .await
-        .expect("failed to refresh access token");
+    #[allow(unused_variables)]
+    let track = spotify_client.track("3mXLyNsVeLelMakgpGUp1f").await.unwrap();
 }

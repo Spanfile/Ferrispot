@@ -16,6 +16,7 @@ thiserror = "1.0.31"
 async-std = {version = "1.12.0", optional = true}
 tokio = {version = "1.19.2", features = ["time"], optional = true}
 async-trait = "0.1.56"
+const_format = "0.2.26"
 
 [dev-dependencies]
 dotenvy = "0.15.1"
