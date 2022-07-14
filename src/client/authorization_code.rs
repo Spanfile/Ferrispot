@@ -1,13 +1,17 @@
-use super::{ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH};
+use super::{
+    private::{ClientBase, UserAuthenticatedClient},
+    ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
+};
 use crate::{
     error::{Error, Result},
     scope::{Scope, ToScopesString},
 };
 
+use async_trait::async_trait;
 use futures::lock::Mutex;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Url};
+use reqwest::{Client as AsyncClient, IntoUrl, Url};
 use serde::Deserialize;
 use sha2::Digest;
 use std::sync::Arc;
@@ -291,7 +295,7 @@ impl AuthorizationCodeUserClientBuilder {
 
     pub fn scopes<I>(self, scopes: I) -> Self
     where
-        I: Iterator<Item = Scope>,
+        I: IntoIterator<Item = Scope>,
     {
         Self {
             scopes: Some(scopes.to_scopes_string()),
@@ -324,5 +328,18 @@ impl AuthorizationCodeUserClientBuilder {
 
             http_client: self.http_client,
         }
+    }
+}
+
+impl UserAuthenticatedClient for AuthorizationCodeUserClient {}
+
+#[async_trait]
+impl ClientBase for AuthorizationCodeUserClient {
+    async fn build_http_request<U>(&self, method: reqwest::Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl + Send,
+    {
+        let access_token = self.inner.access_token.lock().await;
+        self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
 }

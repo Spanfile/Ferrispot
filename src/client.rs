@@ -7,12 +7,18 @@ mod private {
     use async_trait::async_trait;
     use reqwest::{IntoUrl, Method, RequestBuilder};
 
+    /// All Spotify clients implement this trait.
     #[async_trait]
     pub trait ClientBase {
+        /// Returns a new [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g. authentication
+        /// headers) filled in.
         async fn build_http_request<U>(&self, method: Method, url: U) -> RequestBuilder
         where
             U: IntoUrl + Send;
     }
+
+    /// Marker trait for signifying a Spotify client that includes user authentication.
+    pub trait UserAuthenticatedClient {}
 }
 
 pub use self::{
@@ -38,6 +44,8 @@ const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 
 const API_BASE_URL: &str = "https://api.spotify.com/v1/";
 const API_TRACKS_ENDPOINT: &str = concatcp!(API_BASE_URL, "tracks");
+const API_PLAYBACK_STATE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player");
+const API_CURRENTLY_PLAYING_TRACK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
 
 const ACCOUNTS_BASE_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authorize");
@@ -64,6 +72,8 @@ pub struct SpotifyClientWithSecret {
 struct SpotifyClientWithSecretRef {
     client_id: String,
     // client_secret: String,
+    // TODO: replace all these mutexes with RWLocks since they're mostly just always read, written once very rarely
+    // (when the token is refreshed)
     access_token: Mutex<String>,
 }
 
@@ -204,7 +214,7 @@ impl ClientSecretSpotifyClientBuilder {
             header::AUTHORIZATION,
             header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
                 // this can only fail if the header value contains non-ASCII characters, which cannot happen since the
-                // given client ID and secret are base64-encoded
+                // given header value is in base64
                 .expect("failed to insert authorization header into header map"),
         );
 

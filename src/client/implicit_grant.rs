@@ -1,12 +1,16 @@
-use super::{SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
+use super::{
+    private::{ClientBase, UserAuthenticatedClient},
+    SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
+};
 use crate::{
     error::{Error, Result},
     scope::{Scope, ToScopesString},
 };
 
+use async_trait::async_trait;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Url};
+use reqwest::{Client as AsyncClient, IntoUrl, Url};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -144,5 +148,19 @@ impl ImplicitGrantUserClientBuilder {
             spotify_client_ref: self.spotify_client_ref,
             http_client: self.http_client,
         }
+    }
+}
+
+impl UserAuthenticatedClient for ImplicitGrantUserClient {}
+
+#[async_trait]
+impl ClientBase for ImplicitGrantUserClient {
+    async fn build_http_request<U>(&self, method: reqwest::Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl + Send,
+    {
+        self.http_client
+            .request(method, url)
+            .bearer_auth(self.access_token.as_str())
     }
 }
