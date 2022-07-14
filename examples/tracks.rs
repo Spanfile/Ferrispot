@@ -20,8 +20,8 @@ async fn main() {
             .await
             .expect("failed to build Spotify client");
 
-    #[allow(unused_variables)]
-    let one_track = spotify_client.track("0871AdnvzzSGr5XdTJaDHC").await.unwrap();
+    let one_track = spotify_client.track("0871AdnvzzSGr5XdTJaDHC", None).await.unwrap();
+
     println!(
         "{} - {} ({})",
         one_track.name(),
@@ -29,13 +29,15 @@ async fn main() {
         one_track.album().name()
     );
 
-    #[allow(unused_variables)]
     let multiple_tracks = spotify_client
-        .tracks([
-            "3mXLyNsVeLelMakgpGUp1f",
-            "367IrkRR4wk5WtSL41rONn",
-            "1GxzaUNoSvzNqL4JB9ztXq",
-        ])
+        .tracks(
+            [
+                "3mXLyNsVeLelMakgpGUp1f",
+                "367IrkRR4wk5WtSL41rONn",
+                "1GxzaUNoSvzNqL4JB9ztXq",
+            ],
+            None,
+        )
         .await
         .unwrap();
 

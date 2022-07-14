@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CountryCode {
@@ -259,4 +260,10 @@ pub enum CountryCode {
     // country codes not recognised by ISO-3166
     // ========================================
     XK,
+}
+
+impl fmt::Display for CountryCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
 }

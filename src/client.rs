@@ -15,13 +15,15 @@ mod private {
     }
 }
 
-pub use scoped::ScopedClient;
-pub use unscoped::UnscopedClient;
-
-use self::{
-    authorization_code::{AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder},
-    implicit_grant::ImplicitGrantUserClientBuilder,
+pub use self::{
+    authorization_code::{
+        AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder, IncompleteAuthorizationCodeUserClient,
+    },
+    implicit_grant::{ImplicitGrantUserClient, ImplicitGrantUserClientBuilder, IncompleteImplicitGrantUserClient},
+    scoped::ScopedClient,
+    unscoped::UnscopedClient,
 };
+
 use crate::error::Result;
 use async_trait::async_trait;
 use const_format::concatcp;
