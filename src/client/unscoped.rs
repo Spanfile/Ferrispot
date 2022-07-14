@@ -16,7 +16,7 @@ pub trait UnscopedClient: ClientBase {
     where
         T: Display + Send;
 
-    async fn tracks<I, T>(&self, track_ids: I) -> Result<Vec<PartialTrack>>
+    async fn tracks<I, T>(&self, track_ids: I) -> Result<Vec<FullTrack>>
     where
         I: IntoIterator<Item = T> + Send,
         <I as IntoIterator>::IntoIter: Send,
@@ -46,7 +46,7 @@ where
         Ok(full_track)
     }
 
-    async fn tracks<I, T>(&self, track_ids: I) -> Result<Vec<PartialTrack>>
+    async fn tracks<I, T>(&self, track_ids: I) -> Result<Vec<FullTrack>>
     where
         I: IntoIterator<Item = T> + Send,
         <I as IntoIterator>::IntoIter: Send,
@@ -79,7 +79,7 @@ where
         let tracks_object: TracksResponse = response.json().await?;
         debug!("Tracks response: {:#?}", tracks_object);
 
-        let partial_tracks: Vec<PartialTrack> = tracks_object.tracks.into_iter().map(PartialTrack::from).collect();
-        Ok(partial_tracks)
+        let full_tracks: Vec<_> = tracks_object.tracks.into_iter().map(FullTrack::from).collect();
+        Ok(full_tracks)
     }
 }
