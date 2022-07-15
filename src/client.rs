@@ -4,21 +4,105 @@ pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
 mod private {
+    use crate::error::{Error, Result};
     use async_trait::async_trait;
-    use reqwest::{IntoUrl, Method, RequestBuilder};
+    use log::warn;
+    use reqwest::{header, IntoUrl, Method, RequestBuilder, Response, StatusCode, Url};
 
-    /// All Spotify clients implement this trait.
+    pub trait Sealed {}
+
+    /// Marker trait for signifying a Spotify client that includes user authentication;
+    /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) and
+    /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient). This is used to separate the clients into
+    /// [scoped clients](crate::client::ScopedClient) and [unscoped clients](crate::client::UnscopedClient).
+    pub trait UserAuthenticatedClient: Sealed {}
+
+    /// Every Spotify client implement this trait.
     #[async_trait]
-    pub trait ClientBase {
+    pub trait BuildHttpRequest: Sealed {
         /// Returns a new [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g. authentication
-        /// headers) filled in.
-        async fn build_http_request<U>(&self, method: Method, url: U) -> RequestBuilder
+        /// headers) filled in. You probably shouldn't call this function directly; instead use
+        /// [send_http_request](crate::client::private::SendHttpRequest::send_http_request).
+        async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder;
+    }
+
+    /// Every Spotify client implement this trait.
+    #[async_trait]
+    pub trait SendHttpRequest: BuildHttpRequest {
+        /// Builds an HTTP request, sends it, and handles rate limiting and possible access token refreshes.
+        async fn send_http_request<U>(&self, method: Method, url: U) -> Result<reqwest::Response>
         where
             U: IntoUrl + Send;
     }
 
-    /// Marker trait for signifying a Spotify client that includes user authentication.
-    pub trait UserAuthenticatedClient {}
+    /// Every Spotify client implements this trait.
+    #[async_trait]
+    pub trait AccessTokenExpiry: Sealed {
+        // if specialisation was a thing, this function could be refactored into two generic trait impls
+        async fn handle_access_token_expired(&self) -> Result<AccessTokenExpiryResult>;
+    }
+
+    /// Result to having tried to refresh a client's access token.
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum AccessTokenExpiryResult {
+        /// Refreshing the token succeeded
+        Ok,
+        /// Refreshing an access token is not applicable to this client
+        Inapplicable,
+    }
+
+    #[async_trait]
+    impl<C> SendHttpRequest for C
+    where
+        C: BuildHttpRequest + AccessTokenExpiry + Sync,
+    {
+        async fn send_http_request<U>(&self, method: Method, url: U) -> Result<Response>
+        where
+            U: IntoUrl + Send,
+        {
+            let url = url.into_url()?;
+
+            loop {
+                // lesser evil to have to clone the method and URL instead of the entire built request
+                let request = self.build_http_request(method.clone(), url.clone()).await;
+                let response = request.send().await?;
+
+                match response.status() {
+                    // TODO: what does trying to call an endpoint the access token's scope doesn't allow return?
+                    StatusCode::UNAUTHORIZED => {
+                        warn!("Got 401 token expired response from Spotify");
+
+                        if self.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable {
+                            warn!("Refreshing access tokens is inapplicable to this client");
+                            return Err(Error::AccessTokenExpired);
+                        }
+                    }
+
+                    StatusCode::TOO_MANY_REQUESTS => {
+                        let headers = response.headers();
+                        if let Some(wait_time) = headers
+                            .get(header::RETRY_AFTER)
+                            .and_then(|header| header.to_str().ok())
+                            .and_then(|header_str| header_str.parse::<u32>().ok())
+                        {
+                            warn!(
+                                "Got 429 rate-limit response from Spotify. Waiting {} seconds and trying again",
+                                wait_time
+                            );
+
+                            // TODO: actually wait
+                        } else {
+                            return Err(Error::InvalidRateLimitResponse);
+                        }
+                    }
+
+                    _ => {
+                        return Ok(response);
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub use self::{
@@ -35,7 +119,7 @@ use async_trait::async_trait;
 use const_format::concatcp;
 use futures::lock::Mutex;
 use log::debug;
-use reqwest::{header, Client as AsyncClient, IntoUrl};
+use reqwest::{header, Client as AsyncClient, Method, RequestBuilder, Url};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -50,6 +134,18 @@ const API_CURRENTLY_PLAYING_TRACK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/p
 const ACCOUNTS_BASE_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authorize");
 const ACCOUNTS_API_TOKEN_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "api/token");
+
+/// Clients that have automatically refreshable access tokens implement this trait.
+///
+/// These are [SpotifyClientWithSecret](crate::client::SpotifyClientWithSecret) and
+/// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient). Note that
+/// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient) does *not* implement this trait, since even though
+/// it has an access token, it cannot be automatically refreshed.
+#[async_trait]
+pub trait AccessTokenRefresh: private::Sealed {
+    /// Request a new access token from Spotify using a refresh token and save it internally in the client.
+    async fn refresh_access_token(&self) -> Result<()>;
+}
 
 #[derive(Debug, Clone)]
 pub struct SpotifyClient {
@@ -136,25 +232,6 @@ impl SpotifyClient {
 }
 
 impl SpotifyClientWithSecret {
-    pub async fn refresh_access_token(&self) -> Result<()> {
-        debug!("Refreshing access token for client credentials flow");
-        let token_request_form = &[("grant_type", "client_credentials")];
-
-        let response = self
-            .http_client
-            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .form(token_request_form)
-            .send()
-            .await?;
-
-        let token_response: ClientTokenResponse = response.json().await?;
-        debug!("Got token response for client credentials flow: {:?}", token_response);
-
-        *self.inner.access_token.lock().await = token_response.access_token;
-
-        Ok(())
-    }
-
     pub fn authorization_code_client<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
@@ -251,14 +328,43 @@ impl ClientSecretSpotifyClientBuilder {
     }
 }
 
+impl private::Sealed for SpotifyClientWithSecret {}
+
 #[async_trait]
-impl private::ClientBase for SpotifyClientWithSecret {
-    async fn build_http_request<U>(&self, method: reqwest::Method, url: U) -> reqwest::RequestBuilder
-    where
-        U: IntoUrl + Send,
-    {
+impl private::BuildHttpRequest for SpotifyClientWithSecret {
+    async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
         let access_token = self.inner.access_token.lock().await;
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
+    }
+}
+
+#[async_trait]
+impl AccessTokenRefresh for SpotifyClientWithSecret {
+    async fn refresh_access_token(&self) -> Result<()> {
+        debug!("Refreshing access token for client credentials flow");
+        let token_request_form = &[("grant_type", "client_credentials")];
+
+        let response = self
+            .http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .form(token_request_form)
+            .send()
+            .await?;
+
+        let token_response: ClientTokenResponse = response.json().await?;
+        debug!("Got token response for client credentials flow: {:?}", token_response);
+
+        *self.inner.access_token.lock().await = token_response.access_token;
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl private::AccessTokenExpiry for SpotifyClientWithSecret {
+    async fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
+        self.refresh_access_token().await?;
+        Ok(private::AccessTokenExpiryResult::Ok)
     }
 }
 

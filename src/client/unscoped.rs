@@ -1,4 +1,4 @@
-use super::{private::ClientBase, API_TRACKS_ENDPOINT};
+use super::{private, API_TRACKS_ENDPOINT};
 use crate::{
     error::Result,
     model::{
@@ -16,7 +16,7 @@ use std::fmt::{Display, Write};
 ///
 /// The functions in this trait do not require user authentication to use. All Spotify clients implement this trait.
 #[async_trait]
-pub trait UnscopedClient: ClientBase {
+pub trait UnscopedClient: private::SendHttpRequest {
     /// Get Spotify catalog information for a single track identified by its unique Spotify ID.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
@@ -47,7 +47,7 @@ pub trait UnscopedClient: ClientBase {
 #[async_trait]
 impl<C> UnscopedClient for C
 where
-    C: ClientBase + Sync,
+    C: private::SendHttpRequest + Sync,
 {
     async fn track<T>(&self, track_id: T, market: Option<CountryCode>) -> Result<FullTrack>
     where
@@ -61,8 +61,7 @@ where
             write!(&mut url, "?market={}", market).unwrap();
         }
 
-        let request = self.build_http_request(Method::GET, url).await;
-        let response = request.send().await?;
+        let response = self.send_http_request(Method::GET, url).await?;
         debug!("Track response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?

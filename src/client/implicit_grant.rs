@@ -1,7 +1,4 @@
-use super::{
-    private::{ClientBase, UserAuthenticatedClient},
-    SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
-};
+use super::{private, SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
 use crate::{
     error::{Error, Result},
     scope::{Scope, ToScopesString},
@@ -10,7 +7,7 @@ use crate::{
 use async_trait::async_trait;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, IntoUrl, Url};
+use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -151,16 +148,21 @@ impl ImplicitGrantUserClientBuilder {
     }
 }
 
-impl UserAuthenticatedClient for ImplicitGrantUserClient {}
+impl private::Sealed for ImplicitGrantUserClient {}
+impl private::UserAuthenticatedClient for ImplicitGrantUserClient {}
 
 #[async_trait]
-impl ClientBase for ImplicitGrantUserClient {
-    async fn build_http_request<U>(&self, method: reqwest::Method, url: U) -> reqwest::RequestBuilder
-    where
-        U: IntoUrl + Send,
-    {
+impl private::BuildHttpRequest for ImplicitGrantUserClient {
+    async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
         self.http_client
             .request(method, url)
             .bearer_auth(self.access_token.as_str())
+    }
+}
+
+#[async_trait]
+impl private::AccessTokenExpiry for ImplicitGrantUserClient {
+    async fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
+        Ok(private::AccessTokenExpiryResult::Inapplicable)
     }
 }

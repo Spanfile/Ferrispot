@@ -1,7 +1,4 @@
-use super::{
-    private::{ClientBase, UserAuthenticatedClient},
-    API_CURRENTLY_PLAYING_TRACK_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT,
-};
+use super::{private, API_CURRENTLY_PLAYING_TRACK_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT};
 use crate::{
     error::Result,
     model::playback::{CurrentlyPlayingTrack, PlaybackState},
@@ -16,7 +13,7 @@ use reqwest::{Method, StatusCode};
 /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) and
 /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient) implement this trait.
 #[async_trait]
-pub trait ScopedClient: ClientBase + UserAuthenticatedClient {
+pub trait ScopedClient: private::SendHttpRequest + private::UserAuthenticatedClient {
     async fn playback_state(&self) -> Result<Option<PlaybackState>>;
     async fn currently_playing_track(&self) -> Result<Option<CurrentlyPlayingTrack>>;
 }
@@ -24,11 +21,10 @@ pub trait ScopedClient: ClientBase + UserAuthenticatedClient {
 #[async_trait]
 impl<T> ScopedClient for T
 where
-    T: ClientBase + UserAuthenticatedClient + Sync,
+    T: private::SendHttpRequest + private::UserAuthenticatedClient + Sync,
 {
     async fn playback_state(&self) -> Result<Option<PlaybackState>> {
-        let request = self.build_http_request(Method::GET, API_PLAYBACK_STATE_ENDPOINT).await;
-        let response = request.send().await?;
+        let response = self.send_http_request(Method::GET, API_PLAYBACK_STATE_ENDPOINT).await?;
         debug!("Playback state response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
@@ -45,11 +41,10 @@ where
     }
 
     async fn currently_playing_track(&self) -> Result<Option<CurrentlyPlayingTrack>> {
-        let request = self
-            .build_http_request(Method::GET, API_CURRENTLY_PLAYING_TRACK_ENDPOINT)
-            .await;
+        let response = self
+            .send_http_request(Method::GET, API_CURRENTLY_PLAYING_TRACK_ENDPOINT)
+            .await?;
 
-        let response = request.send().await?;
         debug!("Currently playing track response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
