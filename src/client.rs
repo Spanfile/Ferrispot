@@ -18,12 +18,11 @@ mod private {
     pub trait UserAuthenticatedClient: Sealed {}
 
     /// Every Spotify client implement this trait.
-    #[async_trait]
     pub trait BuildHttpRequest: Sealed {
         /// Returns a new [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g. authentication
         /// headers) filled in. You probably shouldn't call this function directly; instead use
         /// [send_http_request](crate::client::private::SendHttpRequest::send_http_request).
-        async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder;
+        fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder;
     }
 
     /// Every Spotify client implement this trait.
@@ -63,7 +62,7 @@ mod private {
             let url = url.into_url()?;
 
             loop {
-                let request = self.build_http_request(method.clone(), url.clone()).await;
+                let request = self.build_http_request(method.clone(), url.clone());
                 let response = request.send().await?;
 
                 match response.status() {
@@ -114,11 +113,10 @@ pub use self::{
 use crate::error::Result;
 use async_trait::async_trait;
 use const_format::concatcp;
-use futures::lock::Mutex;
 use log::debug;
 use reqwest::{header, Client as AsyncClient, Method, RequestBuilder, Url};
 use serde::Deserialize;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
@@ -164,10 +162,9 @@ pub struct SpotifyClientWithSecret {
 #[derive(Debug)]
 struct SpotifyClientWithSecretRef {
     client_id: String,
+    // there's no use for the client secret currently, but there might be in the future
     // client_secret: String,
-    // TODO: replace all these mutexes with RWLocks since they're mostly just always read, written once very rarely
-    // (when the token is refreshed)
-    access_token: Mutex<String>,
+    access_token: RwLock<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -318,7 +315,7 @@ impl ClientSecretSpotifyClientBuilder {
             inner: Arc::new(SpotifyClientWithSecretRef {
                 client_id: self.client_id,
                 // client_secret: self.client_secret,
-                access_token: Mutex::new(token_response.access_token),
+                access_token: RwLock::new(token_response.access_token),
             }),
             http_client,
         })
@@ -327,10 +324,9 @@ impl ClientSecretSpotifyClientBuilder {
 
 impl private::Sealed for SpotifyClientWithSecret {}
 
-#[async_trait]
 impl private::BuildHttpRequest for SpotifyClientWithSecret {
-    async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
-        let access_token = self.inner.access_token.lock().await;
+    fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
+        let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
 }
@@ -351,7 +347,7 @@ impl AccessTokenRefresh for SpotifyClientWithSecret {
         let token_response: ClientTokenResponse = response.json().await?;
         debug!("Got token response for client credentials flow: {:?}", token_response);
 
-        *self.inner.access_token.lock().await = token_response.access_token;
+        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
 
         Ok(())
     }

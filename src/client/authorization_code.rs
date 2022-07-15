@@ -8,13 +8,12 @@ use crate::{
 };
 
 use async_trait::async_trait;
-use futures::lock::Mutex;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
 use serde::Deserialize;
 use sha2::Digest;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct AuthorizationCodeUserClient {
@@ -24,8 +23,8 @@ pub struct AuthorizationCodeUserClient {
 
 #[derive(Debug)]
 struct AuthorizationCodeUserClientRef {
-    access_token: Mutex<String>,
-    refresh_token: Mutex<String>,
+    access_token: RwLock<String>,
+    refresh_token: RwLock<String>,
     client_id: Option<String>,
 }
 
@@ -120,8 +119,8 @@ impl AuthorizationCodeUserClient {
 
         Ok(Self {
             inner: Arc::new(AuthorizationCodeUserClientRef {
-                access_token: Mutex::new(token_response.access_token),
-                refresh_token: Mutex::new(refresh_token),
+                access_token: RwLock::new(token_response.access_token),
+                refresh_token: RwLock::new(refresh_token),
                 client_id,
             }),
             http_client,
@@ -205,8 +204,8 @@ impl IncompleteAuthorizationCodeUserClient {
 
         Ok(AuthorizationCodeUserClient {
             inner: Arc::new(AuthorizationCodeUserClientRef {
-                access_token: Mutex::new(token_response.access_token),
-                refresh_token: Mutex::new(token_response.refresh_token),
+                access_token: RwLock::new(token_response.access_token),
+                refresh_token: RwLock::new(token_response.refresh_token),
                 // from here on out, using PKCE only requires us supplying our client ID when refreshing the access
                 // token. if the PKCE verifier is used, include the client ID
                 client_id: self.pkce_verifier.and(Some(self.client_id)),
@@ -294,10 +293,9 @@ impl AuthorizationCodeUserClientBuilder {
 impl private::Sealed for AuthorizationCodeUserClient {}
 impl private::UserAuthenticatedClient for AuthorizationCodeUserClient {}
 
-#[async_trait]
 impl private::BuildHttpRequest for AuthorizationCodeUserClient {
-    async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
-        let access_token = self.inner.access_token.lock().await;
+    fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
+        let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
 }
@@ -305,29 +303,31 @@ impl private::BuildHttpRequest for AuthorizationCodeUserClient {
 #[async_trait]
 impl AccessTokenRefresh for AuthorizationCodeUserClient {
     async fn refresh_access_token(&self) -> Result<()> {
-        let refresh_token = self.inner.refresh_token.lock().await;
+        // build and send the request this way to not hold the non-async RwLockReadGuard across await points
+        let response = {
+            let refresh_token = self.inner.refresh_token.read().expect("access token rwlock poisoned");
 
-        debug!(
-            "Attempting to refresh authorization code flow access token with refresh token: {}",
-            *refresh_token
-        );
+            debug!(
+                "Attempting to refresh authorization code flow access token with refresh token: {}",
+                *refresh_token
+            );
 
-        let mut token_request_form = vec![
-            ("grant_type", "refresh_token"),
-            ("refresh_token", refresh_token.as_str()),
-        ];
+            let mut token_request_form = vec![
+                ("grant_type", "refresh_token"),
+                ("refresh_token", refresh_token.as_str()),
+            ];
 
-        let response = self
-            .http_client
-            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .form(if let Some(client_id) = self.inner.client_id.as_deref() {
-                token_request_form.push(("client_id", client_id));
-                &token_request_form
-            } else {
-                &token_request_form
-            })
-            .send()
-            .await?;
+            self.http_client.post(ACCOUNTS_API_TOKEN_ENDPOINT).form(
+                if let Some(client_id) = self.inner.client_id.as_deref() {
+                    token_request_form.push(("client_id", client_id));
+                    &token_request_form
+                } else {
+                    &token_request_form
+                },
+            )
+        }
+        .send()
+        .await?;
 
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(
@@ -335,10 +335,10 @@ impl AccessTokenRefresh for AuthorizationCodeUserClient {
             token_response
         );
 
-        *self.inner.access_token.lock().await = token_response.access_token;
+        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
 
         if let Some(refresh_token) = token_response.refresh_token {
-            *self.inner.refresh_token.lock().await = refresh_token;
+            *self.inner.refresh_token.write().expect("access token rwlock poisoned") = refresh_token;
         }
 
         Ok(())

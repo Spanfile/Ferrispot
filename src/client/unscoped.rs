@@ -98,16 +98,15 @@ where
             params.push(("market", market.to_string()));
         }
 
-        let request = self
-            .build_http_request(
+        let response = self
+            .send_http_request(
                 Method::GET,
                 Url::parse_with_params(API_TRACKS_ENDPOINT, params)
-                    // TODO: can this fail because of malformed IDs?
+                    // I'm quite sure this can't fail because of user input (i.e. invalid parameters)
                     .unwrap(),
             )
-            .await;
+            .await?;
 
-        let response = request.send().await?;
         debug!("Tracks response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?

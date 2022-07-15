@@ -151,9 +151,8 @@ impl ImplicitGrantUserClientBuilder {
 impl private::Sealed for ImplicitGrantUserClient {}
 impl private::UserAuthenticatedClient for ImplicitGrantUserClient {}
 
-#[async_trait]
 impl private::BuildHttpRequest for ImplicitGrantUserClient {
-    async fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
+    fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
         self.http_client
             .request(method, url)
             .bearer_auth(self.access_token.as_str())
