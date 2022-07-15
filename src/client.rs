@@ -63,7 +63,6 @@ mod private {
             let url = url.into_url()?;
 
             loop {
-                // lesser evil to have to clone the method and URL instead of the entire built request
                 let request = self.build_http_request(method.clone(), url.clone()).await;
                 let response = request.send().await?;
 
@@ -83,22 +82,20 @@ mod private {
                         if let Some(wait_time) = headers
                             .get(header::RETRY_AFTER)
                             .and_then(|header| header.to_str().ok())
-                            .and_then(|header_str| header_str.parse::<u32>().ok())
+                            .and_then(|header_str| header_str.parse::<u64>().ok())
                         {
                             warn!(
-                                "Got 429 rate-limit response from Spotify. Waiting {} seconds and trying again",
+                                "Got 429 rate-limit response from Spotify with Retry-After: {}",
                                 wait_time
                             );
 
-                            // TODO: actually wait
+                            super::rate_limit_sleep(wait_time).await?;
                         } else {
                             return Err(Error::InvalidRateLimitResponse);
                         }
                     }
 
-                    _ => {
-                        return Ok(response);
-                    }
+                    _ => return Ok(response),
                 }
             }
         }
@@ -371,4 +368,26 @@ impl private::AccessTokenExpiry for SpotifyClientWithSecret {
 fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
     let auth = format!("{}:{}", client_id, client_secret);
     format!("Basic {}", base64::encode(&auth))
+}
+
+/// Return a rate limit error since no sleep utility has been enabled.
+#[cfg(all(not(feature = "tokio_sleep"), not(feature = "async_std_sleep")))]
+async fn rate_limit_sleep(sleep_time: u64) -> Result<()> {
+    Err(crate::error::Error::RateLimit(sleep_time))
+}
+
+// sleeping with tokio takes precedence over async_std so if the user enables both features for some reason, they get
+// tokio sleep
+/// Sleep for the specified amount of time using tokio's sleep function.
+#[cfg(feature = "tokio_sleep")]
+async fn rate_limit_sleep(sleep_time: u64) -> Result<()> {
+    tokio::time::sleep(std::time::Duration::from_secs(sleep_time)).await;
+    Ok(())
+}
+
+/// Sleep for the specified amount of time using async_std's sleep function.
+#[cfg(all(feature = "async_std_sleep", not(feature = "tokio_sleep")))]
+async fn rate_limit_sleep(sleep_time: u64) -> Result<()> {
+    async_std::task::sleep(std::time::Duration::from_secs(sleep_time)).await;
+    Ok(())
 }
