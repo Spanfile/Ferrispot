@@ -135,11 +135,14 @@ pub use self::{
     unscoped::UnscopedClient,
 };
 
-use crate::error::Result;
+use crate::{
+    error::{Error, Result},
+    model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
+};
 use async_trait::async_trait;
 use const_format::concatcp;
 use log::debug;
-use reqwest::{header, Client as AsyncClient, Method, RequestBuilder, Url};
+use reqwest::{header, Client as AsyncClient, Method, RequestBuilder, StatusCode, Url};
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
 
@@ -333,6 +336,14 @@ impl ClientSecretSpotifyClientBuilder {
             .send()
             .await?;
 
+        let response = extract_authentication_error(response).await.map_err(|err| {
+            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidClient, _) = err {
+                Error::InvalidClient
+            } else {
+                err
+            }
+        })?;
+
         let token_response: ClientTokenResponse = response.json().await?;
         debug!("Got token response for client credentials flow: {:?}", token_response);
 
@@ -369,6 +380,14 @@ impl AccessTokenRefresh for SpotifyClientWithSecret {
             .send()
             .await?;
 
+        let response = extract_authentication_error(response).await.map_err(|err| {
+            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
+                Error::InvalidRefreshToken(description)
+            } else {
+                err
+            }
+        })?;
+
         let token_response: ClientTokenResponse = response.json().await?;
         debug!("Got token response for client credentials flow: {:?}", token_response);
 
@@ -389,6 +408,17 @@ impl private::AccessTokenExpiry for SpotifyClientWithSecret {
 fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
     let auth = format!("{}:{}", client_id, client_secret);
     format!("Basic {}", base64::encode(&auth))
+}
+
+/// Takes a response for an authentication request and if its status is 400, parses its body as an authentication error.
+/// On success returns the given response without modifying it.
+async fn extract_authentication_error(response: reqwest::Response) -> Result<reqwest::Response> {
+    if let StatusCode::BAD_REQUEST = response.status() {
+        let error_response: AuthenticationErrorResponse = response.json().await?;
+        Err(error_response.into_unhandled_error())
+    } else {
+        Ok(response)
+    }
 }
 
 /// Return a rate limit error since no sleep utility has been enabled.

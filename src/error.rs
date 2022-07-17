@@ -14,6 +14,8 @@ pub enum Error {
     InvalidRefreshToken(String),
     #[error("The authorization code is invalid")]
     InvalidAuthorizationCode,
+    #[error("The client ID and/or secret is invalid")]
+    InvalidClient,
     #[error("Request rate limit hit; retry after {0} seconds")]
     RateLimit(u64),
     #[error("The required scope for the endpoint hasn't been granted by the user")]

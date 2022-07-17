@@ -1,3 +1,4 @@
+use crate::error::Error;
 use serde::{de::Visitor, Deserialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -30,6 +31,12 @@ pub(crate) enum ApiErrorMessage {
     TokenExpired,
 
     Other(String),
+}
+
+impl AuthenticationErrorResponse {
+    pub fn into_unhandled_error(self) -> Error {
+        Error::UnhandledAuthenticationError(self.error, self.error_description)
+    }
 }
 
 impl<'de> Deserialize<'de> for ApiErrorMessage {
