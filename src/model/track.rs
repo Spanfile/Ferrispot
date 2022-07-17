@@ -12,8 +12,6 @@ use std::{collections::HashSet, time::Duration};
 mod private {
     use super::{CommonTrackFields, FullTrackFields, NonLocalTrackFields};
 
-    pub trait Sealed {}
-
     pub(super) trait CommonFields {
         fn common_fields(&self) -> &CommonTrackFields;
     }
@@ -27,7 +25,7 @@ mod private {
     }
 }
 
-pub trait CommonTrackInformation: private::Sealed {
+pub trait CommonTrackInformation: super::private::Sealed {
     fn name(&self) -> &str;
     fn artists(&self) -> Vec<PartialArtist>;
     fn track_number(&self) -> u32;
@@ -42,19 +40,19 @@ pub trait CommonTrackInformation: private::Sealed {
     fn restrictions(&self) -> &Restrictions;
 }
 
-pub trait FullTrackInformation: private::Sealed {
+pub trait FullTrackInformation: super::private::Sealed {
     fn album(&self) -> PartialAlbum;
     fn external_ids(&self) -> &ExternalIds;
     fn popularity(&self) -> u32;
 }
 
-pub trait NonLocalTrackInformation: private::Sealed {
+pub trait NonLocalTrackInformation: super::private::Sealed {
     fn id(&self) -> &str;
 }
 
 impl<T> CommonTrackInformation for T
 where
-    T: private::CommonFields + private::Sealed,
+    T: private::CommonFields + super::private::Sealed,
 {
     fn name(&self) -> &str {
         &self.common_fields().name
@@ -111,7 +109,7 @@ where
 
 impl<T> FullTrackInformation for T
 where
-    T: private::FullFields + private::Sealed,
+    T: private::FullFields + super::private::Sealed,
 {
     fn album(&self) -> PartialAlbum {
         self.full_fields().album.to_owned().into()
@@ -128,7 +126,7 @@ where
 
 impl<T> NonLocalTrackInformation for T
 where
-    T: private::NonLocalFields + private::Sealed,
+    T: private::NonLocalFields + super::private::Sealed,
 {
     fn id(&self) -> &str {
         &self.non_local_fields().id
@@ -340,9 +338,9 @@ impl From<TrackObject> for LocalTrack {
     }
 }
 
-impl private::Sealed for FullTrack {}
-impl private::Sealed for PartialTrack {}
-impl private::Sealed for LocalTrack {}
+impl super::private::Sealed for FullTrack {}
+impl super::private::Sealed for PartialTrack {}
+impl super::private::Sealed for LocalTrack {}
 
 impl private::CommonFields for FullTrack {
     fn common_fields(&self) -> &CommonTrackFields {

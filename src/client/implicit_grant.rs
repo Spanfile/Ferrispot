@@ -1,7 +1,7 @@
 use super::{private, SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
 use crate::{
     error::{Error, Result},
-    scope::{Scope, ToScopesString},
+    scope::ToScopesString,
 };
 
 use async_trait::async_trait;
@@ -111,9 +111,9 @@ impl ImplicitGrantUserClientBuilder {
         }
     }
 
-    pub fn scopes<I>(self, scopes: I) -> Self
+    pub fn scopes<T>(self, scopes: T) -> Self
     where
-        I: Iterator<Item = Scope>,
+        T: ToScopesString,
     {
         Self {
             scopes: Some(scopes.to_scopes_string()),

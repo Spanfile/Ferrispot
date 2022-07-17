@@ -1,9 +1,6 @@
 use std::fmt::Display;
 
-pub(crate) trait ToScopesString
-where
-    Self: IntoIterator<Item = Scope>,
-{
+pub trait ToScopesString {
     fn to_scopes_string(self) -> String;
 }
 

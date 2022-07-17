@@ -3,10 +3,18 @@ pub mod artist;
 pub mod country_code;
 pub mod error;
 pub mod object_type;
+pub mod page;
 pub mod playback;
+pub mod search;
 pub mod track;
 
 use serde::{Deserialize, Serialize};
+
+// TODO: really gotta do a pass of what all derives are actually useful for everything
+
+mod private {
+    pub trait Sealed {}
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Image {

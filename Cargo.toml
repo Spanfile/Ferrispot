@@ -4,6 +4,7 @@ name = "ferrispot"
 version = "0.1.0"
 
 [dependencies]
+# async-stream = "0.3.3"
 async-trait = "0.1.56"
 base64 = "0.13.0"
 const_format = "0.2.26"

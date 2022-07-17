@@ -3,14 +3,14 @@ pub(crate) mod implicit_grant;
 pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
-mod private {
+pub(crate) mod private {
     use crate::{
         error::{Error, Result},
         model::error::{ApiErrorMessage, ApiErrorResponse},
     };
     use async_trait::async_trait;
     use log::{error, warn};
-    use reqwest::{header, IntoUrl, Method, RequestBuilder, Response, StatusCode, Url};
+    use reqwest::{header, Method, RequestBuilder, Response, StatusCode, Url};
 
     pub trait Sealed {}
 
@@ -32,9 +32,7 @@ mod private {
     #[async_trait]
     pub trait SendHttpRequest: BuildHttpRequest {
         /// Builds an HTTP request, sends it, and handles rate limiting and possible access token refreshes.
-        async fn send_http_request<U>(&self, method: Method, url: U) -> Result<reqwest::Response>
-        where
-            U: IntoUrl + Send;
+        async fn send_http_request(&self, method: Method, url: Url) -> Result<reqwest::Response>;
     }
 
     /// Every Spotify client implements this trait.
@@ -58,12 +56,7 @@ mod private {
     where
         C: BuildHttpRequest + AccessTokenExpiry + Sync,
     {
-        async fn send_http_request<U>(&self, method: Method, url: U) -> Result<Response>
-        where
-            U: IntoUrl + Send,
-        {
-            let url = url.into_url()?;
-
+        async fn send_http_request(&self, method: Method, url: Url) -> Result<Response> {
             loop {
                 let request = self.build_http_request(method.clone(), url.clone());
                 let response = request.send().await?;
@@ -153,6 +146,7 @@ const API_BASE_URL: &str = "https://api.spotify.com/v1/";
 const API_TRACKS_ENDPOINT: &str = concatcp!(API_BASE_URL, "tracks");
 const API_PLAYBACK_STATE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player");
 const API_CURRENTLY_PLAYING_TRACK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
+const API_SEARCH_ENDPOINT: &str = concatcp!(API_BASE_URL, "search");
 
 const ACCOUNTS_BASE_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authorize");

@@ -5,7 +5,7 @@ use super::{
 use crate::{
     error::{Error, Result},
     model::error::AuthenticationErrorKind,
-    scope::{Scope, ToScopesString},
+    scope::ToScopesString,
 };
 
 use async_trait::async_trait;
@@ -269,9 +269,9 @@ impl AuthorizationCodeUserClientBuilder {
         }
     }
 
-    pub fn scopes<I>(self, scopes: I) -> Self
+    pub fn scopes<T>(self, scopes: T) -> Self
     where
-        I: IntoIterator<Item = Scope>,
+        T: ToScopesString,
     {
         Self {
             scopes: Some(scopes.to_scopes_string()),

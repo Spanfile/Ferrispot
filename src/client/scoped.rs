@@ -5,7 +5,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use log::debug;
-use reqwest::{Method, StatusCode};
+use reqwest::{Method, StatusCode, Url};
 
 /// All scoped Spotify endpoints.
 ///
@@ -14,17 +14,13 @@ use reqwest::{Method, StatusCode};
 /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient) implement this trait.
 #[async_trait]
 pub trait ScopedClient: private::SendHttpRequest + private::UserAuthenticatedClient {
-    async fn playback_state(&self) -> Result<Option<PlaybackState>>;
-    async fn currently_playing_track(&self) -> Result<Option<CurrentlyPlayingTrack>>;
-}
-
-#[async_trait]
-impl<T> ScopedClient for T
-where
-    T: private::SendHttpRequest + private::UserAuthenticatedClient + Sync,
-{
     async fn playback_state(&self) -> Result<Option<PlaybackState>> {
-        let response = self.send_http_request(Method::GET, API_PLAYBACK_STATE_ENDPOINT).await?;
+        let response = self
+            .send_http_request(
+                Method::GET,
+                Url::parse(API_PLAYBACK_STATE_ENDPOINT).expect("failed to build playback state endpoint URL"),
+            )
+            .await?;
         debug!("Playback state response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
@@ -42,7 +38,11 @@ where
 
     async fn currently_playing_track(&self) -> Result<Option<CurrentlyPlayingTrack>> {
         let response = self
-            .send_http_request(Method::GET, API_CURRENTLY_PLAYING_TRACK_ENDPOINT)
+            .send_http_request(
+                Method::GET,
+                Url::parse(API_CURRENTLY_PLAYING_TRACK_ENDPOINT)
+                    .expect("failed to build currently playing track endpoint URL"),
+            )
             .await?;
 
         debug!("Currently playing track response: {:?}", response);
@@ -60,3 +60,6 @@ where
         Ok(Some(currently_playing_trtack))
     }
 }
+
+#[async_trait]
+impl<T> ScopedClient for T where T: private::SendHttpRequest + private::UserAuthenticatedClient + Sync {}

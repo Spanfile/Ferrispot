@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 mod private {
     use super::{CommonArtistFields, FullArtistFields, NonLocalArtistFields};
 
-    pub trait Sealed {}
-
     pub(super) trait CommonFields {
         fn common_fields(&self) -> &CommonArtistFields;
     }
@@ -22,24 +20,24 @@ mod private {
     }
 }
 
-pub trait CommonArtistInformation: private::Sealed {
+pub trait CommonArtistInformation: super::private::Sealed {
     fn name(&self) -> &str;
     fn external_urls(&self) -> &ExternalUrls;
 }
 
-pub trait FullArtistInformation: private::Sealed {
+pub trait FullArtistInformation: super::private::Sealed {
     fn genres(&self) -> &[String];
     fn images(&self) -> &[Image];
     fn popularity(&self) -> u32;
 }
 
-pub trait NonLocalArtistInformation: private::Sealed {
+pub trait NonLocalArtistInformation: super::private::Sealed {
     fn id(&self) -> &str;
 }
 
 impl<T> CommonArtistInformation for T
 where
-    T: private::CommonFields + private::Sealed,
+    T: private::CommonFields + super::private::Sealed,
 {
     fn name(&self) -> &str {
         &self.common_fields().name
@@ -52,7 +50,7 @@ where
 
 impl<T> FullArtistInformation for T
 where
-    T: private::FullFields + private::Sealed,
+    T: private::FullFields + super::private::Sealed,
 {
     fn genres(&self) -> &[String] {
         &self.full_fields().genres
@@ -69,7 +67,7 @@ where
 
 impl<T> NonLocalArtistInformation for T
 where
-    T: private::NonLocalFields + private::Sealed,
+    T: private::NonLocalFields + super::private::Sealed,
 {
     fn id(&self) -> &str {
         &self.non_local_fields().id
@@ -257,9 +255,9 @@ impl From<ArtistObject> for LocalArtist {
     }
 }
 
-impl private::Sealed for FullArtist {}
-impl private::Sealed for PartialArtist {}
-impl private::Sealed for LocalArtist {}
+impl super::private::Sealed for FullArtist {}
+impl super::private::Sealed for PartialArtist {}
+impl super::private::Sealed for LocalArtist {}
 
 impl private::CommonFields for FullArtist {
     fn common_fields(&self) -> &CommonArtistFields {

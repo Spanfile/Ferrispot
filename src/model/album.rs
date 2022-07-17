@@ -10,8 +10,6 @@ use std::collections::HashSet;
 mod private {
     use super::{CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
 
-    pub trait Sealed {}
-
     pub(super) trait CommonFields {
         fn common_fields(&self) -> &CommonAlbumFields;
     }
@@ -25,7 +23,7 @@ mod private {
     }
 }
 
-pub trait CommonAlbumInformation: private::Sealed {
+pub trait CommonAlbumInformation: super::private::Sealed {
     fn name(&self) -> &str;
     fn artists(&self) -> Vec<PartialArtist>;
     fn images(&self) -> &[Image];
@@ -34,7 +32,7 @@ pub trait CommonAlbumInformation: private::Sealed {
     fn restrictions(&self) -> &Restrictions;
 }
 
-pub trait FullAlbumInformation: private::Sealed {
+pub trait FullAlbumInformation: super::private::Sealed {
     // pub tracks: Page<PartialTrack>, // TODO: paging
     // TODO: the artist album thing with the album group field
 
@@ -45,7 +43,7 @@ pub trait FullAlbumInformation: private::Sealed {
     fn popularity(&self) -> u32;
 }
 
-pub trait NonLocalAlbumInformation: private::Sealed {
+pub trait NonLocalAlbumInformation: super::private::Sealed {
     fn album_type(&self) -> AlbumType;
     fn id(&self) -> &str;
     fn release_date(&self) -> &str;
@@ -54,7 +52,7 @@ pub trait NonLocalAlbumInformation: private::Sealed {
 
 impl<T> CommonAlbumInformation for T
 where
-    T: private::CommonFields + private::Sealed,
+    T: private::CommonFields + super::private::Sealed,
 {
     fn name(&self) -> &str {
         &self.common_fields().name
@@ -87,7 +85,7 @@ where
 
 impl<T> FullAlbumInformation for T
 where
-    T: private::FullFields + private::Sealed,
+    T: private::FullFields + super::private::Sealed,
 {
     fn copyrights(&self) -> &[Copyright] {
         &self.full_fields().copyrights
@@ -112,7 +110,7 @@ where
 
 impl<T> NonLocalAlbumInformation for T
 where
-    T: private::NonLocalFields + private::Sealed,
+    T: private::NonLocalFields + super::private::Sealed,
 {
     fn album_type(&self) -> AlbumType {
         self.non_local_fields().album_type
@@ -339,9 +337,9 @@ impl From<AlbumObject> for LocalAlbum {
     }
 }
 
-impl private::Sealed for FullAlbum {}
-impl private::Sealed for PartialAlbum {}
-impl private::Sealed for LocalAlbum {}
+impl super::private::Sealed for FullAlbum {}
+impl super::private::Sealed for PartialAlbum {}
+impl super::private::Sealed for LocalAlbum {}
 
 impl private::CommonFields for FullAlbum {
     fn common_fields(&self) -> &CommonAlbumFields {
