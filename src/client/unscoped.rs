@@ -57,8 +57,10 @@ where
         let mut url = format!("{}/{}", API_TRACKS_ENDPOINT, track_id);
 
         if let Some(market) = market {
-            // this will fail only if something goes terribly wrong
-            write!(&mut url, "?market={}", market).unwrap();
+            write!(&mut url, "?market={}", market).expect(
+                "failed to build API track endpoint URL (this is likely caused by the system, e.g. failing to \
+                 allocate memory)",
+            );
         }
 
         let response = self.send_http_request(Method::GET, url).await?;
@@ -102,8 +104,7 @@ where
             .send_http_request(
                 Method::GET,
                 Url::parse_with_params(API_TRACKS_ENDPOINT, params)
-                    // I'm quite sure this can't fail because of user input (i.e. invalid parameters)
-                    .unwrap(),
+                    .expect("failed to parse API tracks endpoint as URL (this is a bug in the library)"),
             )
             .await?;
 
