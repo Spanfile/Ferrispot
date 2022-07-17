@@ -4,13 +4,14 @@ use super::{
 };
 use crate::{
     error::{Error, Result},
+    model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
     scope::{Scope, ToScopesString},
 };
 
 use async_trait::async_trait;
-use log::debug;
+use log::{debug, error, warn};
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
+use reqwest::{Client as AsyncClient, Method, RequestBuilder, StatusCode, Url};
 use serde::Deserialize;
 use sha2::Digest;
 use std::sync::{Arc, RwLock};
@@ -105,6 +106,25 @@ impl AuthorizationCodeUserClient {
             .send()
             .await?;
 
+        if let StatusCode::BAD_REQUEST = response.status() {
+            warn!("Got 400 Bad Request when retrieving access token");
+            let error_response: AuthenticationErrorResponse = response.json().await?;
+            warn!("{:?}", error_response);
+
+            if let AuthenticationErrorKind::InvalidGrant = error_response.error {
+                warn!("Invalid refresh token");
+
+                return Err(Error::InvalidRefreshToken(error_response.error_description));
+            } else {
+                error!("Unhandled authentication error: {:?}", error_response);
+
+                return Err(Error::UnhandledAuthenticationError(
+                    error_response.error,
+                    error_response.error_description,
+                ));
+            }
+        }
+
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(
             "Got token response for refreshing authorization code flow tokens: {:?}",
@@ -198,6 +218,26 @@ impl IncompleteAuthorizationCodeUserClient {
             })
             .send()
             .await?;
+
+        // TODO: this thing is pretty wet, pls make DRY
+        if let StatusCode::BAD_REQUEST = response.status() {
+            warn!("Got 400 Bad Request when retrieving access token");
+            let error_response: AuthenticationErrorResponse = response.json().await?;
+            warn!("{:?}", error_response);
+
+            if let AuthenticationErrorKind::InvalidGrant = error_response.error {
+                warn!("Invalid authorization code");
+
+                return Err(Error::InvalidAuthorizationCode);
+            } else {
+                error!("Unhandled authentication error: {:?}", error_response);
+
+                return Err(Error::UnhandledAuthenticationError(
+                    error_response.error,
+                    error_response.error_description,
+                ));
+            }
+        }
 
         let token_response: AuthorizeUserTokenResponse = response.json().await?;
         debug!("Got token response for authorization code flow: {:?}", token_response);
@@ -328,6 +368,25 @@ impl AccessTokenRefresh for AuthorizationCodeUserClient {
         }
         .send()
         .await?;
+
+        if let StatusCode::BAD_REQUEST = response.status() {
+            warn!("Got 400 Bad Request when retrieving access token");
+            let error_response: AuthenticationErrorResponse = response.json().await?;
+            warn!("{:?}", error_response);
+
+            if let AuthenticationErrorKind::InvalidGrant = error_response.error {
+                warn!("Invalid refresh token");
+
+                return Err(Error::InvalidRefreshToken(error_response.error_description));
+            } else {
+                error!("Unhandled authentication error: {:?}", error_response);
+
+                return Err(Error::UnhandledAuthenticationError(
+                    error_response.error,
+                    error_response.error_description,
+                ));
+            }
+        }
 
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(

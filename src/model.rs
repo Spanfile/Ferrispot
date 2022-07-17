@@ -1,6 +1,7 @@
 pub mod album;
 pub mod artist;
 pub mod country_code;
+pub mod error;
 pub mod object_type;
 pub mod playback;
 pub mod track;

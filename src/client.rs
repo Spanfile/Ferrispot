@@ -4,9 +4,12 @@ pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
 mod private {
-    use crate::error::{Error, Result};
+    use crate::{
+        error::{Error, Result},
+        model::error::{ApiErrorMessage, ApiErrorResponse},
+    };
     use async_trait::async_trait;
-    use log::warn;
+    use log::{error, warn};
     use reqwest::{header, IntoUrl, Method, RequestBuilder, Response, StatusCode, Url};
 
     pub trait Sealed {}
@@ -66,13 +69,34 @@ mod private {
                 let response = request.send().await?;
 
                 match response.status() {
-                    // TODO: what does trying to call an endpoint the access token's scope doesn't allow return?
-                    StatusCode::UNAUTHORIZED => {
-                        warn!("Got 401 token expired response from Spotify");
+                    StatusCode::FORBIDDEN => {
+                        error!("Got 403 Forbidden response");
+                        return Err(Error::Forbidden);
+                    }
 
-                        if self.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable {
-                            warn!("Refreshing access tokens is inapplicable to this client");
-                            return Err(Error::AccessTokenExpired);
+                    StatusCode::UNAUTHORIZED => {
+                        warn!("Got 401 Unauthorized response");
+                        let error_response: ApiErrorResponse = response.json().await?;
+
+                        match error_response.message {
+                            ApiErrorMessage::PermissionsMissing => {
+                                error!("Missing required scope for the endpoint");
+                                return Err(Error::MissingScope);
+                            }
+
+                            ApiErrorMessage::TokenExpired => {
+                                warn!("Access token expired, attempting to refresh");
+
+                                if self.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable {
+                                    warn!("Refreshing access tokens is inapplicable to this client");
+                                    return Err(Error::AccessTokenExpired);
+                                }
+                            }
+
+                            ApiErrorMessage::Other(message) => {
+                                error!("Unhandled Spotify error: {}", message);
+                                return Err(Error::UnhandledSpotifyError(401, message));
+                            }
                         }
                     }
 
@@ -90,6 +114,7 @@ mod private {
 
                             super::rate_limit_sleep(wait_time).await?;
                         } else {
+                            warn!("Invalid rate-limit response");
                             return Err(Error::InvalidRateLimitResponse);
                         }
                     }
