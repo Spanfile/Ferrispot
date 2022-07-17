@@ -322,7 +322,7 @@ impl AccessTokenRefresh for AuthorizationCodeUserClient {
     async fn refresh_access_token(&self) -> Result<()> {
         // build and send the request this way to not hold the non-async RwLockReadGuard across await points
         let response = {
-            let refresh_token = self.inner.refresh_token.read().expect("access token rwlock poisoned");
+            let refresh_token = self.inner.refresh_token.read().expect("refresh token rwlock poisoned");
 
             debug!(
                 "Attempting to refresh authorization code flow access token with refresh token: {}",
@@ -363,7 +363,7 @@ impl AccessTokenRefresh for AuthorizationCodeUserClient {
         *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
 
         if let Some(refresh_token) = token_response.refresh_token {
-            *self.inner.refresh_token.write().expect("access token rwlock poisoned") = refresh_token;
+            *self.inner.refresh_token.write().expect("refresh token rwlock poisoned") = refresh_token;
         }
 
         Ok(())
