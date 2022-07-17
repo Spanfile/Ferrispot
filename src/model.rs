@@ -9,6 +9,7 @@ pub mod search;
 pub mod track;
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // TODO: really gotta do a pass of what all derives are actually useful for everything
 
@@ -76,4 +77,17 @@ pub enum ItemType {
     Track,
     Show,
     Episode,
+}
+
+impl fmt::Display for ItemType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ItemType::Album => write!(f, "album"),
+            ItemType::Artist => write!(f, "artist"),
+            ItemType::Playlist => write!(f, "playlist"),
+            ItemType::Track => write!(f, "track"),
+            ItemType::Show => write!(f, "show"),
+            ItemType::Episode => write!(f, "episode"),
+        }
+    }
 }

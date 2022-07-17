@@ -59,7 +59,9 @@ pub trait ScopedClient: private::SendHttpRequest + private::UserAuthenticatedCli
 
         Ok(Some(currently_playing_trtack))
     }
+
+    // async fn play(&self, ) -> Result<()> {}
 }
 
 #[async_trait]
-impl<T> ScopedClient for T where T: private::SendHttpRequest + private::UserAuthenticatedClient + Sync {}
+impl<C> ScopedClient for C where C: private::SendHttpRequest + private::UserAuthenticatedClient + Sync {}

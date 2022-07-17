@@ -4,8 +4,8 @@ use ferrispot::{
     model::{
         album::CommonAlbumInformation,
         artist::CommonArtistInformation,
-        search::SearchType,
         track::{CommonTrackInformation, FullTrackInformation},
+        ItemType,
     },
 };
 
@@ -23,7 +23,7 @@ async fn main() {
 
     let first_page = spotify_client
         .search("hatsune miku")
-        .types([SearchType::Track])
+        .types([ItemType::Track])
         .send()
         .await
         .unwrap();
@@ -40,7 +40,7 @@ async fn main() {
 
     let second_page = spotify_client
         .search("hatsune miku")
-        .types([SearchType::Track])
+        .types([ItemType::Track])
         // there are 20 items in a page by default, so offset the search by 20 to get the second page
         .offset(20)
         .send()

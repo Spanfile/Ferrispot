@@ -143,10 +143,15 @@ const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 
 const API_BASE_URL: &str = "https://api.spotify.com/v1/";
+
+// unscoped endpoints
 const API_TRACKS_ENDPOINT: &str = concatcp!(API_BASE_URL, "tracks");
+const API_SEARCH_ENDPOINT: &str = concatcp!(API_BASE_URL, "search");
+
+// scoped endpoints
 const API_PLAYBACK_STATE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player");
 const API_CURRENTLY_PLAYING_TRACK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
-const API_SEARCH_ENDPOINT: &str = concatcp!(API_BASE_URL, "search");
+const API_PLAYER_PLAY_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/play");
 
 const ACCOUNTS_BASE_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authorize");

@@ -3,10 +3,10 @@ use super::{
     artist::{ArtistObject, FullArtist},
     page::Page,
     track::{FullTrack, TrackObject},
+    ItemType,
 };
 
 use serde::Deserialize;
-use std::fmt::Display;
 
 // TODO: it'd be really cool if this was a const fn or smth
 /// The default search types.
@@ -24,16 +24,6 @@ pub struct SearchResults {
     // playlists: Page<Playlist>,
     // shows: Page<Show>,
     // episodes: Page<Episode>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SearchType {
-    Album,
-    Artist,
-    Playlist,
-    Track,
-    Show,
-    Episode,
 }
 
 impl SearchResults {
@@ -65,22 +55,9 @@ impl SearchResults {
     }
 }
 
-impl Display for SearchType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SearchType::Album => write!(f, "album"),
-            SearchType::Artist => write!(f, "artist"),
-            SearchType::Playlist => write!(f, "playlist"),
-            SearchType::Track => write!(f, "track"),
-            SearchType::Show => write!(f, "show"),
-            SearchType::Episode => write!(f, "episode"),
-        }
-    }
-}
-
 impl<I> ToTypesString for I
 where
-    I: IntoIterator<Item = SearchType>,
+    I: IntoIterator<Item = ItemType>,
 {
     fn to_types_string(self) -> String {
         self.into_iter()
