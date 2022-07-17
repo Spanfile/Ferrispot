@@ -41,6 +41,7 @@ async fn main() {
     let second_page = spotify_client
         .search("hatsune miku")
         .types([SearchType::Track])
+        // there are 20 items in a page by default, so offset the search by 20 to get the second page
         .offset(20)
         .send()
         .await

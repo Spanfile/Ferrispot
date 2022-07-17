@@ -5,4 +5,4 @@ pub mod model;
 mod scope;
 mod util;
 
-pub use scope::Scope;
+pub use scope::{Scope, ToScopesString};

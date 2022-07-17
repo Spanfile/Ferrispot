@@ -125,7 +125,7 @@ pub use self::{
     },
     implicit_grant::{ImplicitGrantUserClient, ImplicitGrantUserClientBuilder, IncompleteImplicitGrantUserClient},
     scoped::ScopedClient,
-    unscoped::UnscopedClient,
+    unscoped::{SearchBuilder, UnscopedClient},
 };
 
 use crate::{

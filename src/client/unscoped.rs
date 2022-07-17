@@ -6,7 +6,7 @@ use crate::{
     error::Result,
     model::{
         country_code::CountryCode,
-        search::{SearchResults, SearchType, ToTypesString},
+        search::{SearchResults, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
         track::{FullTrack, TrackObject},
     },
 };
@@ -14,7 +14,10 @@ use async_trait::async_trait;
 use log::debug;
 use reqwest::{Method, Url};
 use serde::Deserialize;
-use std::fmt::{Display, Write};
+use std::{
+    borrow::Cow,
+    fmt::{Display, Write},
+};
 
 /// All unscoped Spotify endpoints.
 ///
@@ -120,26 +123,16 @@ where
         Ok(full_tracks)
     }
 
+    /// Get Spotify catalog information about albums, artists, playlists, tracks, shows or episodes that match a keyword
+    /// string.
+    ///
+    /// This function returns a [SearchBuilder](self::SearchBuilder) that you can use to configure the various search
+    /// parameters and finally send the search and get the results back.
     fn search<S>(&'a self, query: S) -> SearchBuilder<'a, Self, S>
     where
         S: AsRef<str>,
     {
-        SearchBuilder {
-            client: self,
-            query,
-            types: [
-                SearchType::Album,
-                SearchType::Artist,
-                SearchType::Episode,
-                SearchType::Playlist,
-                SearchType::Show,
-                SearchType::Track,
-            ]
-            .to_types_string(),
-            limit: 20,
-            offset: 0,
-            market: None,
-        }
+        SearchBuilder::new(self, query)
     }
 }
 
@@ -153,35 +146,60 @@ where
 {
     client: &'a C,
     query: S,
-    types: String,
+    types: Cow<'a, str>,
     limit: u32,
     offset: u32,
     market: Option<String>,
 }
 
-impl<C, S> SearchBuilder<'_, C, S>
+impl<'a, C, S> SearchBuilder<'a, C, S>
 where
     C: SendHttpRequest,
     S: AsRef<str>,
 {
+    pub(crate) fn new(client: &'a C, query: S) -> Self {
+        Self {
+            client,
+            query,
+            types: Cow::Borrowed(DEFAULT_SEARCH_TYPES_STRING),
+            limit: 20,
+            offset: 0,
+            market: None,
+        }
+    }
+
+    /// Set specific types to search for. The `types` parameter can be any iterator of
+    /// [SearchType](crate::model::search::SearchType)-enums.
+    ///
+    /// By default, all types are searched for.
     pub fn types<T>(self, types: T) -> Self
     where
         T: ToTypesString,
     {
         Self {
-            types: types.to_types_string(),
+            types: Cow::Owned(types.to_types_string()),
             ..self
         }
     }
 
+    /// The maximum number of results to return in each item type.
+    ///
+    /// Default: 20.
     pub fn limit(self, limit: u32) -> Self {
         Self { limit, ..self }
     }
 
+    /// The index of the first result to return.
+    ///
+    /// Default: 0.
     pub fn offset(self, offset: u32) -> Self {
         Self { offset, ..self }
     }
 
+    /// Specify a country such that content that is available in that market will be returned. If using an
+    /// user-authenticated client (i.e. [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) or
+    /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient)), the country associated with the
+    /// corresponding user account will take priority over this parameter.
     pub fn market(self, market: CountryCode) -> Self {
         Self {
             market: Some(market.to_string()),
@@ -189,6 +207,7 @@ where
         }
     }
 
+    /// Send the search and return a collection of results.
     pub async fn send(self) -> Result<SearchResults> {
         let limit = self.limit.to_string();
         let offset = self.offset.to_string();

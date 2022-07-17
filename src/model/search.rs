@@ -8,6 +8,10 @@ use super::{
 use serde::Deserialize;
 use std::fmt::Display;
 
+// TODO: it'd be really cool if this was a const fn or smth
+/// The default search types.
+pub const DEFAULT_SEARCH_TYPES_STRING: &str = "album,artist,playlist,track,show,episode";
+
 pub trait ToTypesString {
     fn to_types_string(self) -> String;
 }
