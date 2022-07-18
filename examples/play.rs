@@ -45,6 +45,9 @@ async fn main() {
     user_client
         .play_items(
             [
+                // the function expects an iterator of PlayableItems. single PlayableItems can be parsed from either a
+                // Spotify URI or a share URL, but "bare" IDs have to be specified as being track or episode IDs, then
+                // converted into PlayableItems with .into()
                 PlayableItem::from_uri("spotify:track:3mXLyNsVeLelMakgpGUp1f").expect("failed to parse track URI"),
                 PlayableItem::from_url("https://open.spotify.com/track/367IrkRR4wk5WtSL41rONn?si=asdasdasdasd")
                     .expect("failed to parse track URL"),

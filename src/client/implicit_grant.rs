@@ -1,3 +1,23 @@
+//! Contains the [ImplicitGrantUserClient](ImplicitGrantUserClient) and its builder structs.
+//!
+//! # Note
+//! The implicit grant user client is not recommended for use. The access token is returned in the callback URL instead
+//! through a trusted channel, and the token cannot be automatically refreshed.
+//!
+//! In an environment where the application's client secret cannot be safely stored, it is recommended to use the
+//! [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) with PKCE, which can
+//! be built with the
+//! [`authorization_code_client_with_pkce`-function](crate::client::SpotifyClient::authorization_code_client_with_pkce).
+//!
+//! # Usage
+//!
+//! A new [ImplicitGrantUserClient] can be built with the [`implicit_grant_client`-function in
+//! SpotifyClient](crate::client::SpotifyClient::implicit_grant_client).
+//!
+//! ```
+//! // TODO
+//! ```
+
 use super::{private, SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
 use crate::{
     error::{Error, Result},
@@ -10,6 +30,8 @@ use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
 use std::sync::Arc;
 
+/// A client that uses the implicit grant flow to authenticate an user with Spotify. See the module-level docs for more
+/// information.
 #[derive(Debug, Clone)]
 pub struct ImplicitGrantUserClient {
     access_token: String,

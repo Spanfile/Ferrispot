@@ -9,10 +9,16 @@ pub(crate) struct AuthenticationErrorResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct ApiErrorResponse {
+    pub(crate) error: ApiError,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub(crate) struct ApiError {
     pub status: u16,
     pub message: ApiErrorMessage,
 }
 
+// TODO: should this be crate-public?
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthenticationErrorKind {
@@ -29,6 +35,7 @@ pub enum AuthenticationErrorKind {
 pub(crate) enum ApiErrorMessage {
     PermissionsMissing,
     TokenExpired,
+    NoActiveDevice,
 
     Other(String),
 }
@@ -66,7 +73,10 @@ impl<'de> Deserialize<'de> for ApiErrorMessage {
             {
                 match v.as_str() {
                     "Permissions missing" => Ok(ApiErrorMessage::PermissionsMissing),
-                    "Token expired" => Ok(ApiErrorMessage::TokenExpired),
+                    "The access token expired" => Ok(ApiErrorMessage::TokenExpired),
+                    // TODO: oh god this is ugly. there's actually a "reason" field that says NO_ACTIVE_DEVICE but that
+                    // field is not in every error response (because of course it isn't)
+                    "Player command failed: No active device found" => Ok(ApiErrorMessage::NoActiveDevice),
 
                     _ => Ok(ApiErrorMessage::Other(v)),
                 }

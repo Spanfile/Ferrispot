@@ -1,3 +1,5 @@
+//! Everything related to tracks.
+
 use super::{
     album::{AlbumObject, PartialAlbum},
     artist::{ArtistObject, PartialArtist},

@@ -1,3 +1,8 @@
+//! An abstraction over the (now undocumented) Spotify object model.
+//!
+//! Types here are *not* 1:1 representations of what the Spotify API returns, since such types are tedious to work with
+//! in a type-safe manner.
+
 pub mod album;
 pub mod artist;
 pub mod country_code;

@@ -19,9 +19,8 @@ use std::{
     fmt::{Display, Write},
 };
 
-/// All unscoped Spotify endpoints.
-///
-/// The functions in this trait do not require user authentication to use. All Spotify clients implement this trait.
+/// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All Spotify
+/// clients implement this trait.
 #[async_trait]
 pub trait UnscopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenExpiry
 where
@@ -31,9 +30,9 @@ where
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
     /// returned. If using an user-authenticated client (i.e.
-    /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) or
-    /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient)), the country associated with the
-    /// corresponding user account will take priority over this parameter.
+    /// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) or
+    /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient)), the country associated with
+    /// the corresponding user account will take priority over this parameter.
     async fn track<T>(&'a self, track_id: T, market: Option<CountryCode>) -> Result<FullTrack>
     where
         T: Display + Send,
@@ -73,9 +72,9 @@ where
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
     /// returned. If using an user-authenticated client (i.e.
-    /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) or
-    /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient)), the country associated with the
-    /// corresponding user account will take priority over this parameter.
+    /// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) or
+    /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient)), the country associated with
+    /// the corresponding user account will take priority over this parameter.
     async fn tracks<I, T>(&'a self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
     where
         I: IntoIterator<Item = T> + Send,
@@ -141,6 +140,8 @@ where
 #[async_trait]
 impl<'a, C> UnscopedClient<'a> for C where C: private::SendHttpRequest<'a> + Sync {}
 
+/// A builder for a search in Spotify's catalog. New instances are returned by the
+/// [search-function](UnscopedClient::search) in [UnscopedClient](UnscopedClient).
 pub struct SearchBuilder<'a, C, S>
 where
     C: SendHttpRequest<'a>,
@@ -170,7 +171,7 @@ where
         }
     }
 
-    /// Set specific types to search for. The `types` parameter can be any iterator of
+    /// Set specific Spotify item types to search for. The `types` parameter can be any iterator of
     /// [ItemType](crate::model::ItemType)-enums.
     ///
     /// By default, all types are searched for.
@@ -187,11 +188,13 @@ where
     /// The maximum number of results to return in each item type.
     ///
     /// Default: 20.
+    /// Maximum: 50.
     pub fn limit(self, limit: u32) -> Self {
         Self { limit, ..self }
     }
 
-    /// The index of the first result to return.
+    /// The index of the first result to return. By combining this with [limit](SearchBuilder::limit), you may request
+    /// new pages of content.
     ///
     /// Default: 0.
     pub fn offset(self, offset: u32) -> Self {
@@ -199,9 +202,10 @@ where
     }
 
     /// Specify a country such that content that is available in that market will be returned. If using an
-    /// user-authenticated client (i.e. [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) or
-    /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient)), the country associated with the
-    /// corresponding user account will take priority over this parameter.
+    /// user-authenticated client (i.e.
+    /// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) or
+    /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient)), the country associated with
+    /// the corresponding user account will take priority over this parameter.
     pub fn market(self, market: CountryCode) -> Self {
         Self {
             market: Some(market.to_string()),

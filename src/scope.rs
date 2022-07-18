@@ -1,29 +1,59 @@
 use std::fmt::Display;
 
+/// Trait for converting an object to a scopes string. This is currently implemented for all iterators of
+/// [Scope's](Scope).
 pub trait ToScopesString {
+    /// Convert `self` to a scopes string.
     fn to_scopes_string(self) -> String;
 }
 
+/// An OAuth authorization scope.
+///
+/// Authorization scopes are granted to the application by the user and restrict which endpoints are available to the
+/// application. All [scoped endpoints](crate::client::ScopedClient) require certain scopes to be granted. You choose
+/// which scopes to request in the `scopes`-functions of either the
+/// [AuthorizationCodeUserClientBuilder](crate::client::authorization_code::AuthorizationCodeUserClientBuilder::scopes)
+/// or the [ImplicitGrantUserClientBuilder](crate::client::implicit_grant::ImplicitGrantUserClientBuilder::scopes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Scope {
+    /// Write access to user-provided images.
     UgcImageUpload,
+    /// Write access to a user’s playback state.
     UserModifyPlaybackState,
+    /// Read access to a user’s player state.
     UserReadPlaybackState,
+    /// Read access to a user’s currently playing content.
     UserReadCurrentlyPlaying,
+    /// Write/delete access to the list of artists and other users that the user follows.
     UserFollowModify,
+    /// Read access to the list of artists and other users that the user follows.
     UserFollowRead,
+    /// Read access to a user’s recently played tracks.
     UserReadRecentlyPlayed,
+    /// Read access to a user’s playback position in a content.
     UserReadPlaybackPosition,
+    /// Read access to a user's top artists and tracks.
     UserTopRead,
+    /// Include collaborative playlists when requesting a user's playlists.
     PlaylistReadCollaborative,
+    /// Write access to a user's public playlists.
     PlaylistModifyPublic,
+    /// Read access to user's private playlists.
     PlaylistReadPrivate,
+    /// Write access to a user's private playlists.
     PlaylistModifyPrivate,
+    /// Remote control playback of Spotify. This scope is currently available to Spotify iOS and Android SDKs.
     AppRemoteControl,
+    /// Control playback of a Spotify track. This scope is currently available to the Web Playback SDK. The user must
+    /// have a Spotify Premium account.
     Streaming,
+    /// Read access to user’s email address.
     UserReadEmail,
+    /// Read access to user’s subscription details (type of user account).
     UserReadPrivate,
+    /// Write/delete access to a user's "Your Music" library.
     UserLibraryModify,
+    /// Read access to a user's library.
     UserLibraryRead,
 }
 

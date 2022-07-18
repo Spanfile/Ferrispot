@@ -1,3 +1,14 @@
+//! Contains the [AuthorizationCodeUserClient](AuthorizationCodeUserClient) and its builder structs.
+//!
+//! # Usage
+//!
+//! A new [AuthorizationCodeUserClient] can be built with the [`authorization_code_client`-function in
+//! SpotifyClientWithSecret](crate::client::SpotifyClientWithSecret::authorization_code_client).
+//!
+//! ```
+//! // TODO
+//! ```
+
 use super::{
     private, AccessTokenRefresh, ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH,
     RANDOM_STATE_LENGTH,

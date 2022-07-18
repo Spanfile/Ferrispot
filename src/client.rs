@@ -1,9 +1,12 @@
-pub(crate) mod authorization_code;
-pub(crate) mod implicit_grant;
+//! Clients for every authorization flow Spotify supports.
+
+pub mod authorization_code;
+pub mod implicit_grant;
+
 pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
-pub(crate) mod private {
+mod private {
     use crate::{
         error::{Error, Result},
         model::error::{ApiErrorMessage, ApiErrorResponse},
@@ -16,9 +19,10 @@ pub(crate) mod private {
     pub trait Sealed {}
 
     /// Marker trait for signifying a Spotify client that includes user authentication;
-    /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) and
-    /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient). This is used to separate the clients into
-    /// [scoped clients](crate::client::ScopedClient) and [unscoped clients](crate::client::UnscopedClient).
+    /// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and
+    /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient). This is used to separate the
+    /// clients into [scoped clients](crate::client::ScopedClient) and [unscoped
+    /// clients](crate::client::UnscopedClient).
     pub trait UserAuthenticatedClient: Sealed {}
 
     /// Every Spotify client implement this trait.
@@ -116,7 +120,7 @@ pub(crate) mod private {
                         warn!("Got 401 Unauthorized response");
                         let error_response: ApiErrorResponse = response.json().await?;
 
-                        match error_response.message {
+                        match error_response.error.message {
                             ApiErrorMessage::PermissionsMissing => {
                                 error!("Missing required scope for the endpoint");
                                 return Err(Error::MissingScope);
@@ -133,9 +137,9 @@ pub(crate) mod private {
                                 }
                             }
 
-                            ApiErrorMessage::Other(message) => {
-                                error!("Unhandled Spotify error: {}", message);
-                                return Err(Error::UnhandledSpotifyError(401, message));
+                            other => {
+                                error!("Unexpected Spotify error: {:?}", other);
+                                return Err(Error::UnhandledSpotifyError(401, format!("{:?}", other)));
                             }
                         }
                     }
@@ -159,6 +163,7 @@ pub(crate) mod private {
                         }
                     }
 
+                    // all other responses, even erroneous ones, are returned to the caller
                     _ => return Ok(response),
                 }
             }
@@ -167,18 +172,19 @@ pub(crate) mod private {
 }
 
 pub use self::{
-    authorization_code::{
-        AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder, IncompleteAuthorizationCodeUserClient,
-    },
-    implicit_grant::{ImplicitGrantUserClient, ImplicitGrantUserClientBuilder, IncompleteImplicitGrantUserClient},
     scoped::ScopedClient,
     unscoped::{SearchBuilder, UnscopedClient},
 };
 
+use self::{
+    authorization_code::{AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder},
+    implicit_grant::ImplicitGrantUserClientBuilder,
+};
 use crate::{
     error::{Error, Result},
     model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
 };
+
 use async_trait::async_trait;
 use const_format::concatcp;
 use log::debug;
@@ -205,17 +211,23 @@ const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authoriz
 const ACCOUNTS_API_TOKEN_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "api/token");
 
 /// Clients that have automatically refreshable access tokens implement this trait.
+/// [SpotifyClientWithSecret](SpotifyClientWithSecret) and
+/// [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) implement this trait.
 ///
-/// These are [SpotifyClientWithSecret](crate::client::SpotifyClientWithSecret) and
-/// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient). Note that
-/// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient) does *not* implement this trait, since even though
-/// it has an access token, it cannot be automatically refreshed.
+/// Note that [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient) does *not* implement
+/// this trait, since even though it has an access token, it cannot be automatically refreshed.
 #[async_trait]
 pub trait AccessTokenRefresh: private::Sealed {
     /// Request a new access token from Spotify using a refresh token and save it internally in the client.
     async fn refresh_access_token(&self) -> Result<()>;
 }
 
+/// A base Spotify client that does *not* have a client secret.
+///
+/// This client by itself cannot be used to access the Spotify API, since it has no way of authenticating itself to the
+/// API. However, it can be used to retrieve either user-authenticated client; [AuthorizationCodeUserClient with
+/// PKCE](authorization_code::AuthorizationCodeUserClient) or an
+/// [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient).
 #[derive(Debug, Clone)]
 pub struct SpotifyClient {
     inner: Arc<SpotifyClientRef>,
@@ -227,6 +239,11 @@ struct SpotifyClientRef {
     client_id: String,
 }
 
+/// A base Spotify client that has a client secret.
+///
+/// This client can be used to access all [unscoped Spotify endpoints](UnscopedClient). It can also be used to retrieve
+/// an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that can access
+/// all [scoped endpoints](ScopedClient).
 #[derive(Debug, Clone)]
 pub struct SpotifyClientWithSecret {
     inner: Arc<SpotifyClientWithSecretRef>,
@@ -241,13 +258,15 @@ struct SpotifyClientWithSecretRef {
     access_token: RwLock<String>,
 }
 
+/// Builder for [SpotifyClient](SpotifyClient).
 #[derive(Debug, Clone)]
 pub struct SpotifyClientBuilder {
     client_id: String,
 }
 
+/// Builder for [SpotifyClientWithSecret](SpotifyClientWithSecret).
 #[derive(Debug, Clone)]
-pub struct ClientSecretSpotifyClientBuilder {
+pub struct SpotifyClientWithSecretBuilder {
     client_id: String,
     client_secret: String,
 }
@@ -264,6 +283,10 @@ struct ClientTokenResponse {
 }
 
 impl SpotifyClient {
+    /// Returns a new builder for an [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient).
+    ///
+    /// **Note!** The implicit grant user client is not recommended for use. The access token is returned in the
+    /// callback URL instead through a trusted channel, and the token cannot be automatically refreshed.
     pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder
     where
         S: Into<String>,
@@ -271,6 +294,10 @@ impl SpotifyClient {
         ImplicitGrantUserClientBuilder::new(redirect_uri.into(), Arc::clone(&self.inner), self.http_client.clone())
     }
 
+    /// Returns a new builder for an [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient)
+    /// that uses PKCE.
+    ///
+    /// PKCE is required for strong authentication when the client secret cannot be securely stored in the environment.
     pub fn authorization_code_client_with_pkce<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
@@ -283,6 +310,11 @@ impl SpotifyClient {
         .with_pkce()
     }
 
+    /// Returns a new [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that uses PKCE and
+    /// an existing refresh token.
+    ///
+    /// The refresh token will be used to retrieve a new access token before the client is returned. PKCE is required
+    /// for strong authentication when the client secret cannot be securely stored in the environment.
     pub async fn authorization_code_client_with_refresh_token_and_pkce<S>(
         &self,
         refresh_token: S,
@@ -300,6 +332,8 @@ impl SpotifyClient {
 }
 
 impl SpotifyClientWithSecret {
+    /// Returns a new builder for an
+    /// [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient).
     pub fn authorization_code_client<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
@@ -311,6 +345,10 @@ impl SpotifyClientWithSecret {
         )
     }
 
+    /// Returns a new [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that
+    /// uses an existing refresh token.
+    ///
+    /// The refresh token will be used to retrieve a new access token before the client is returned.
     pub async fn authorization_code_client_with_refresh_token<S>(
         &self,
         refresh_token: S,
@@ -332,11 +370,11 @@ impl SpotifyClientBuilder {
         }
     }
 
-    pub fn client_secret<S>(self, client_secret: S) -> ClientSecretSpotifyClientBuilder
+    pub fn client_secret<S>(self, client_secret: S) -> SpotifyClientWithSecretBuilder
     where
         S: Into<String>,
     {
-        ClientSecretSpotifyClientBuilder {
+        SpotifyClientWithSecretBuilder {
             client_id: self.client_id,
             client_secret: client_secret.into(),
         }
@@ -352,7 +390,7 @@ impl SpotifyClientBuilder {
     }
 }
 
-impl ClientSecretSpotifyClientBuilder {
+impl SpotifyClientWithSecretBuilder {
     fn get_async_http_client(&self) -> AsyncClient {
         let mut default_headers = header::HeaderMap::new();
         default_headers.insert(
