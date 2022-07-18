@@ -23,7 +23,7 @@ use std::{
 ///
 /// The functions in this trait do not require user authentication to use. All Spotify clients implement this trait.
 #[async_trait]
-pub trait UnscopedClient<'a>: private::SendHttpRequest
+pub trait UnscopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenExpiry
 where
     Self: Sized,
 {
@@ -34,7 +34,7 @@ where
     /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) or
     /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient)), the country associated with the
     /// corresponding user account will take priority over this parameter.
-    async fn track<T>(&self, track_id: T, market: Option<CountryCode>) -> Result<FullTrack>
+    async fn track<T>(&'a self, track_id: T, market: Option<CountryCode>) -> Result<FullTrack>
     where
         T: Display + Send,
     {
@@ -53,6 +53,7 @@ where
                 Method::GET,
                 Url::parse(&url).expect("failed to build tracks endpoint URL"),
             )
+            .send()
             .await?;
         debug!("Track response: {:?}", response);
 
@@ -75,7 +76,7 @@ where
     /// [AuthorizationCodeUserClient](crate::client::AuthorizationCodeUserClient) or
     /// [ImplicitGrantUserClient](crate::client::ImplicitGrantUserClient)), the country associated with the
     /// corresponding user account will take priority over this parameter.
-    async fn tracks<I, T>(&self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
+    async fn tracks<I, T>(&'a self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
     where
         I: IntoIterator<Item = T> + Send,
         <I as IntoIterator>::IntoIter: Send,
@@ -105,6 +106,7 @@ where
                 Url::parse_with_params(API_TRACKS_ENDPOINT, params)
                     .expect("failed to parse API tracks endpoint as URL (this is a bug in the library)"),
             )
+            .send()
             .await?;
 
         debug!("Tracks response: {:?}", response);
@@ -137,11 +139,11 @@ where
 }
 
 #[async_trait]
-impl<C> UnscopedClient<'_> for C where C: private::SendHttpRequest + Sync {}
+impl<'a, C> UnscopedClient<'a> for C where C: private::SendHttpRequest<'a> + Sync {}
 
 pub struct SearchBuilder<'a, C, S>
 where
-    C: SendHttpRequest,
+    C: SendHttpRequest<'a>,
     S: AsRef<str>,
 {
     client: &'a C,
@@ -154,7 +156,7 @@ where
 
 impl<'a, C, S> SearchBuilder<'a, C, S>
 where
-    C: SendHttpRequest,
+    C: SendHttpRequest<'a>,
     S: AsRef<str>,
 {
     pub(crate) fn new(client: &'a C, query: S) -> Self {
@@ -226,7 +228,7 @@ where
         let url = Url::parse_with_params(API_SEARCH_ENDPOINT, params)
             .expect("failed to parse API tracks endpoint as URL (this is a bug in the library)");
 
-        let response = self.client.send_http_request(Method::GET, url).await?;
+        let response = self.client.send_http_request(Method::GET, url).send().await?;
         response.error_for_status_ref()?;
 
         let search_results: SearchResults = response.json().await?;

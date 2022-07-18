@@ -1,10 +1,18 @@
 use super::{
+    id::{PlayableContext, PlayableItem},
     track::{FullTrack, TrackObject},
     ExternalUrls, ItemType,
 };
 use crate::util::duration_millis;
 use serde::Deserialize;
-use std::time::Duration;
+use std::{iter::IntoIterator, time::Duration};
+
+pub enum Play<'a> {
+    Context(PlayableContext<'a>),
+    Items(PlayTracks<'a>),
+}
+
+pub struct PlayTracks<'a>(pub(crate) Box<dyn Iterator<Item = PlayableItem<'a>> + Send>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Device {
@@ -125,6 +133,16 @@ pub enum RepeatState {
     Off,
     Track,
     Context,
+}
+
+impl<'a, I> From<I> for PlayTracks<'a>
+where
+    I: IntoIterator<Item = PlayableItem<'a>> + 'static,
+    <I as IntoIterator>::IntoIter: Send,
+{
+    fn from(iter: I) -> Self {
+        PlayTracks(Box::new(iter.into_iter()))
+    }
 }
 
 impl Device {

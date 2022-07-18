@@ -11,6 +11,7 @@ pub(crate) mod private {
     use async_trait::async_trait;
     use log::{error, warn};
     use reqwest::{header, Method, RequestBuilder, Response, StatusCode, Url};
+    use serde::Serialize;
 
     pub trait Sealed {}
 
@@ -29,10 +30,12 @@ pub(crate) mod private {
     }
 
     /// Every Spotify client implement this trait.
-    #[async_trait]
-    pub trait SendHttpRequest: BuildHttpRequest {
+    pub trait SendHttpRequest<'a>: BuildHttpRequest + AccessTokenExpiry
+    where
+        Self: 'a,
+    {
         /// Builds an HTTP request, sends it, and handles rate limiting and possible access token refreshes.
-        async fn send_http_request(&self, method: Method, url: Url) -> Result<reqwest::Response>;
+        fn send_http_request(&'a self, method: Method, url: Url) -> PrivateRequestBuilder<'a, Self, ()>;
     }
 
     /// Every Spotify client implements this trait.
@@ -51,14 +54,56 @@ pub(crate) mod private {
         Inapplicable,
     }
 
-    #[async_trait]
-    impl<C> SendHttpRequest for C
+    pub struct PrivateRequestBuilder<'a, C, B>
     where
-        C: BuildHttpRequest + AccessTokenExpiry + Sync,
+        C: BuildHttpRequest + ?Sized,
+        B: Serialize + Send,
     {
-        async fn send_http_request(&self, method: Method, url: Url) -> Result<Response> {
+        client: &'a C,
+        method: Method,
+        url: Url,
+        body: Option<B>,
+    }
+
+    impl<'a, C> SendHttpRequest<'a> for C
+    where
+        C: BuildHttpRequest + AccessTokenExpiry + Sync + 'a,
+    {
+        fn send_http_request(&'a self, method: Method, url: Url) -> PrivateRequestBuilder<'a, Self, ()> {
+            PrivateRequestBuilder {
+                client: self,
+                method,
+                url,
+                body: None,
+            }
+        }
+    }
+
+    impl<'a, C, B> PrivateRequestBuilder<'a, C, B>
+    where
+        C: BuildHttpRequest + AccessTokenExpiry + ?Sized,
+        B: Serialize + Send,
+    {
+        pub fn body<T>(self, body: T) -> PrivateRequestBuilder<'a, C, T>
+        where
+            T: Serialize + Send,
+        {
+            PrivateRequestBuilder {
+                client: self.client,
+                method: self.method,
+                url: self.url,
+                body: Some(body), // once told me
+            }
+        }
+
+        pub async fn send(self) -> Result<Response> {
             loop {
-                let request = self.build_http_request(method.clone(), url.clone());
+                let mut request = self.client.build_http_request(self.method.clone(), self.url.clone());
+
+                if let Some(body) = &self.body {
+                    request = request.json(body);
+                }
+
                 let response = request.send().await?;
 
                 match response.status() {
@@ -80,7 +125,9 @@ pub(crate) mod private {
                             ApiErrorMessage::TokenExpired => {
                                 warn!("Access token expired, attempting to refresh");
 
-                                if self.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable {
+                                if self.client.handle_access_token_expired().await?
+                                    == AccessTokenExpiryResult::Inapplicable
+                                {
                                     warn!("Refreshing access tokens is inapplicable to this client");
                                     return Err(Error::AccessTokenExpired);
                                 }

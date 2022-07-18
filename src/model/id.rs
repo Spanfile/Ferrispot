@@ -18,7 +18,7 @@ pub trait ParseableId<'a>
 where
     Self: Sized,
 {
-    fn from_uri<S>(uri: &'a str) -> Result<Self>;
+    fn from_uri(uri: &'a str) -> Result<Self>;
 }
 
 pub trait Id<T>
@@ -41,7 +41,7 @@ impl<'a, T> ParseableId<'a> for T
 where
     T: private::PrivateId<'a> + Sized,
 {
-    fn from_uri<S>(uri: &'a str) -> Result<Self> {
+    fn from_uri(uri: &'a str) -> Result<Self> {
         let (item_type, id) = parse_item_type_and_id(uri)?;
 
         if item_type == Self::ITEM_TYPE {
@@ -70,13 +70,13 @@ pub(crate) fn parse_item_type_and_id(uri: &str) -> Result<(ItemType, &str)> {
 }
 
 pub(crate) fn verify_valid_id(id: &str) -> bool {
-    // Spotify IDs are base-62 strings and they look like 6rqhFgbbKwnb9MLmUQDhG6
+    // Spotify IDs are base-62 strings and they look like 3mXLyNsVeLelMakgpGUp1f
     if id.len() != 22 {
         return false;
     }
 
     for c in id.chars() {
-        if !c.is_ascii_alphabetic() || !c.is_ascii_digit() {
+        if !c.is_ascii_alphabetic() && !c.is_ascii_digit() {
             return false;
         }
     }
@@ -84,11 +84,13 @@ pub(crate) fn verify_valid_id(id: &str) -> bool {
     true
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlayableItem<'a> {
     Track(TrackId<'a>),
     Episode(EpisodeId<'a>),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlayableContext<'a> {
     Artist(ArtistId<'a>),
     Album(AlbumId<'a>),
@@ -115,7 +117,7 @@ pub struct PlaylistId<'a>(Cow<'a, str>);
 pub struct ShowId<'a>(Cow<'a, str>);
 
 impl<'a> ParseableId<'a> for PlayableItem<'a> {
-    fn from_uri<S>(uri: &'a str) -> Result<Self> {
+    fn from_uri(uri: &'a str) -> Result<Self> {
         let (item_type, id) = parse_item_type_and_id(uri)?;
 
         match item_type {
@@ -128,7 +130,7 @@ impl<'a> ParseableId<'a> for PlayableItem<'a> {
 }
 
 impl<'a> ParseableId<'a> for PlayableContext<'a> {
-    fn from_uri<S>(uri: &'a str) -> Result<Self> {
+    fn from_uri(uri: &'a str) -> Result<Self> {
         let (item_type, id) = parse_item_type_and_id(uri)?;
 
         match item_type {
