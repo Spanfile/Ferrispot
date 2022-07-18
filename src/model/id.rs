@@ -1,6 +1,9 @@
 use super::ItemType;
 use crate::error::{IdError, Result};
-use serde::Deserialize;
+use serde::{
+    de::{self, Visitor},
+    Deserialize,
+};
 use std::{borrow::Cow, marker::PhantomData};
 
 const ID_LENGTH: usize = 22; // I hope Spotify never changes this length
@@ -53,7 +56,7 @@ where
     T: ItemTypeId,
 {
     value: IdValue<'a>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<&'a T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -419,7 +422,69 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        todo!()
+        struct IdVisitor<'a, T> {
+            phantom: PhantomData<&'a T>,
+        }
+
+        impl<'de, T> Visitor<'de> for IdVisitor<'de, T>
+        where
+            T: ItemTypeId + 'static,
+        {
+            type Value = Id<'static, T>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_fmt(format_args!("a Spotify {:?} ID", T::ITEM_TYPE))
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                // TODO: is it actually possible to borrow everything from the source string? the string would have to
+                // be kept alive as long as the resulting IDs as well which makes me think it's not possible
+                self.visit_string(v.to_owned())
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                if v.starts_with(URI_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
+
+                    if item_type == T::ITEM_TYPE {
+                        Ok(Id::<T> {
+                            value: IdValue::Uri(id_index, Cow::Owned(v)),
+                            phantom: PhantomData,
+                        })
+                    } else {
+                        Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self))
+                    }
+                } else if v.starts_with(URL_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+
+                    if item_type == T::ITEM_TYPE {
+                        Ok(Id::<T> {
+                            value: IdValue::Url(id_index, Cow::Owned(v)),
+                            phantom: PhantomData,
+                        })
+                    } else {
+                        Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self))
+                    }
+                } else if verify_valid_id(&v) {
+                    Ok(Id::<T> {
+                        value: IdValue::Bare(Cow::Owned(v)),
+                        phantom: PhantomData,
+                    })
+                } else {
+                    Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self))
+                }
+            }
+        }
+
+        deserializer.deserialize_string(IdVisitor::<T> { phantom: PhantomData })
     }
 }
 
