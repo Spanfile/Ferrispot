@@ -75,6 +75,12 @@ pub trait ScopedClient<'a>:
         Ok(Some(currently_playing_trtack))
     }
 
+    // TODO: I'm pretty sure if there's no currently active device and no device_id is given, Spotify responds with a
+    // 404. this of course is not in the documentation
+    /// Start playing a collection of playable items in order; tracks or episodes.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
     async fn play_items<I, P>(&'a self, tracks: I, device_id: Option<&str>) -> Result<()>
     where
         I: IntoIterator<Item = P> + Send,
@@ -113,8 +119,37 @@ pub trait ScopedClient<'a>:
         Ok(())
     }
 
+    // TODO: offset
+    /// Start playing a context; album, artist, playlist or show.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
     async fn play_context(&'a self, context: PlayableContext<'a>, device_id: Option<&str>) -> Result<()> {
-        todo!()
+        #[derive(Debug, Serialize)]
+        struct Body<'a> {
+            context_uri: Cow<'a, str>,
+        }
+
+        let url = if let Some(device_id) = device_id {
+            Url::parse_with_params(API_PLAYER_PLAY_ENDPOINT, [("device_id", device_id)])
+                .expect("failed to build player play endpoint URL")
+        } else {
+            Url::parse(API_PLAYER_PLAY_ENDPOINT).expect("failed to build player play endpoint URL")
+        };
+
+        let body = Body {
+            context_uri: context.uri(),
+        };
+
+        debug!("Play body: {:#?}", body);
+
+        let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
+        debug!("Play response: {:?}", response);
+
+        // TODO: is this really the way to return an error from an error response?
+        response.error_for_status_ref()?;
+
+        Ok(())
     }
 }
 

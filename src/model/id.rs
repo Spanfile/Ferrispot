@@ -449,38 +449,34 @@ where
             where
                 E: de::Error,
             {
-                if v.starts_with(URI_PREFIX) {
+                let value = if v.starts_with(URI_PREFIX) {
                     let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
                         .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
                     if item_type == T::ITEM_TYPE {
-                        Ok(Id::<T> {
-                            value: IdValue::Uri(id_index, Cow::Owned(v)),
-                            phantom: PhantomData,
-                        })
+                        IdValue::Uri(id_index, Cow::Owned(v))
                     } else {
-                        Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self))
+                        return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
                     }
                 } else if v.starts_with(URL_PREFIX) {
                     let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
                         .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
 
                     if item_type == T::ITEM_TYPE {
-                        Ok(Id::<T> {
-                            value: IdValue::Url(id_index, Cow::Owned(v)),
-                            phantom: PhantomData,
-                        })
+                        IdValue::Url(id_index, Cow::Owned(v))
                     } else {
-                        Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self))
+                        return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
                     }
                 } else if verify_valid_id(&v) {
-                    Ok(Id::<T> {
-                        value: IdValue::Bare(Cow::Owned(v)),
-                        phantom: PhantomData,
-                    })
+                    IdValue::Bare(Cow::Owned(v))
                 } else {
-                    Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self))
-                }
+                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
+                };
+
+                Ok(Id {
+                    value,
+                    phantom: PhantomData,
+                })
             }
         }
 
@@ -495,11 +491,11 @@ pub(crate) fn parse_item_type_and_id_from_uri(uri: &str) -> Result<(ItemType, us
     {
         let item_type: ItemType = item_type.parse()?;
 
-        if !verify_valid_id(id) {
-            Err(IdError::InvalidId(id.to_owned()).into())
-        } else {
+        if verify_valid_id(id) {
             // the ID is always at the end of the string
             Ok((item_type, uri.len() - ID_LENGTH))
+        } else {
+            Err(IdError::InvalidId(id.to_owned()).into())
         }
     } else {
         Err(IdError::MalformedString(uri.to_string()).into())
@@ -521,11 +517,11 @@ pub(crate) fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, us
     {
         let item_type: ItemType = item_type_str.parse()?;
 
-        if !verify_valid_id(id) {
-            Err(IdError::InvalidId(id.to_owned()).into())
-        } else {
-            // the position of the ID in the string is the domain + the type + /
+        if verify_valid_id(id) {
+            // the position of the ID in the string is the domain + the item type + /
             Ok((item_type, URL_PREFIX.len() + item_type_str.len() + 1))
+        } else {
+            Err(IdError::InvalidId(id.to_owned()).into())
         }
     } else {
         Err(IdError::MalformedString(url.to_string()).into())
@@ -534,7 +530,7 @@ pub(crate) fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, us
 
 pub(crate) fn verify_valid_id(id: &str) -> bool {
     // Spotify IDs are base-62 strings and they look like 3mXLyNsVeLelMakgpGUp1f
-    if id.len() != 22 {
+    if id.len() != ID_LENGTH {
         return false;
     }
 

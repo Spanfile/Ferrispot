@@ -53,5 +53,16 @@ async fn main() {
             None,
         )
         .await
-        .expect("failed to play track");
+        .expect("failed to play tracks");
+
+    // user_client
+    //     .play_context(
+    //         ferrispot::model::id::PlayableContext::from_url(
+    //             "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P?si=E9RNAcdrSlCYmQGltzTILg",
+    //         )
+    //         .expect("failed to parse album URL"),
+    //         None,
+    //     )
+    //     .await
+    //     .expect("failed to play album");
 }
