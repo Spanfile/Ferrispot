@@ -1,4 +1,25 @@
-//! Clients for every authorization flow Spotify supports.
+//! Clients for every OAuth2 authorization flow Spotify supports.
+//!
+//! # Which authorization flow to use?
+//!
+//! Every client requires an application client ID. You can create a new application in the
+//! [Spotify developer dashboard](https://developer.spotify.com/dashboard). If the application's client secret can be
+//! safely stored in your environment, you may build a [SpotifyClientWithSecret] which can access all [unscoped
+//! endpoints](UnscopedClient). From there, you can retrieve an user-authorized
+//! [AuthorizationCodeUserClient](authorization_code) which can access all [scoped endpoints](ScopedClient) in addition
+//! to the [unscoped endpoints](UnscopedClient).
+//!
+//! However, if the client secret cannot be safely stored in your environment, you may still access all
+//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using an user-authorized
+//! [AuthorizationCodeUserClient with PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant
+//! flow is also supported](SpotifyClient::implicit_grant_client), however it is not recommended for use.
+//!
+//! | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token refresh](AccessTokenRefresh) |
+//! |-|-|-|-|
+//! | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
+//! | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
+//! | [ImplicitGrantUserClient](implicit_grant) | Yes | No | No |
+//! | [Client credentials](SpotifyClientWithSecret) | No | Yes | Yes |
 
 pub mod authorization_code;
 pub mod implicit_grant;
@@ -25,7 +46,7 @@ mod private {
     /// clients](crate::client::UnscopedClient).
     pub trait UserAuthenticatedClient: Sealed {}
 
-    /// Every Spotify client implement this trait.
+    /// Every Spotify client implements this trait.
     pub trait BuildHttpRequest: Sealed {
         /// Returns a new [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g. authentication
         /// headers) filled in. You probably shouldn't call this function directly; instead use
@@ -33,7 +54,7 @@ mod private {
         fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder;
     }
 
-    /// Every Spotify client implement this trait.
+    /// Every Spotify client implements this trait.
     pub trait SendHttpRequest<'a>: BuildHttpRequest + AccessTokenExpiry
     where
         Self: 'a,
@@ -206,6 +227,7 @@ const API_PLAYBACK_STATE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player");
 const API_CURRENTLY_PLAYING_TRACK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
 const API_PLAYER_PLAY_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/play");
 
+// accounts
 const ACCOUNTS_BASE_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authorize");
 const ACCOUNTS_API_TOKEN_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "api/token");
@@ -253,7 +275,8 @@ pub struct SpotifyClientWithSecret {
 #[derive(Debug)]
 struct SpotifyClientWithSecretRef {
     client_id: String,
-    // there's no use for the client secret currently, but there might be in the future
+    // there's no use to store the client secret here (it's already in the HTTP client), but there might be in the
+    // future
     // client_secret: String,
     access_token: RwLock<String>,
 }
@@ -285,8 +308,10 @@ struct ClientTokenResponse {
 impl SpotifyClient {
     /// Returns a new builder for an [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient).
     ///
-    /// **Note!** The implicit grant user client is not recommended for use. The access token is returned in the
-    /// callback URL instead through a trusted channel, and the token cannot be automatically refreshed.
+    /// # Note
+    ///
+    /// The implicit grant user client is not recommended for use. The access token is returned in the callback URL
+    /// instead through a trusted channel, and the token cannot be automatically refreshed.
     pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder
     where
         S: Into<String>,

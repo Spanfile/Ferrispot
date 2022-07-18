@@ -27,6 +27,10 @@ use serde::Deserialize;
 use sha2::Digest;
 use std::sync::{Arc, RwLock};
 
+/// A client that uses the authorization code flow to authenticate an user with Spotify. May optionally use PKCE if the
+/// client secret is not available. See the module-level docs for more information.
+///
+/// Implements all the [scoped](crate::client::ScopedClient) and [unscoped endpoints](crate::client::UnscopedClient).
 #[derive(Debug, Clone)]
 pub struct AuthorizationCodeUserClient {
     inner: Arc<AuthorizationCodeUserClientRef>,
@@ -40,6 +44,11 @@ struct AuthorizationCodeUserClientRef {
     client_id: Option<String>,
 }
 
+/// An incomplete authorization code user client.
+///
+/// The client has been configured, and it has to be [finalized](IncompleteAuthorizationCodeUserClient::finalize) by
+/// directing the user to the [authorize URL](IncompleteAuthorizationCodeUserClient::authorize) and retrieving an
+/// authorization code from the redirect callback URL.
 #[derive(Debug)]
 pub struct IncompleteAuthorizationCodeUserClient {
     client_id: String,
@@ -52,6 +61,7 @@ pub struct IncompleteAuthorizationCodeUserClient {
     http_client: AsyncClient,
 }
 
+/// Builder for [AuthorizationCodeUserClient].
 #[derive(Debug)]
 pub struct AuthorizationCodeUserClientBuilder {
     client_id: String,
@@ -149,6 +159,12 @@ impl AuthorizationCodeUserClient {
 }
 
 impl IncompleteAuthorizationCodeUserClient {
+    /// Returns an authorization URL the user should be directed to in some manner.
+    ///
+    /// Once the user approves the application, they are redirected back to the application's callback URL. The URL
+    /// query in the callback will contain a `code` parameter and a `state` parameter, which should be passed to the
+    /// [`finalize`-function](IncompleteAuthorizationCodeUserClient::finalize) in order to complete the client and get
+    /// an [AuthorizationCodeUserClient].
     pub fn get_authorize_url(&self) -> String {
         let mut query_params = vec![
             ("response_type", "code"),
@@ -188,6 +204,12 @@ impl IncompleteAuthorizationCodeUserClient {
         authorize_url.into()
     }
 
+    /// Finalize this client with a code and a state from the callback URL query the user was redirected to after they
+    /// approved the application and return an usable [AuthorizationCodeUserClient].
+    ///
+    /// This function will use the authorization code to request an access and a refresh token from Spotify. If the
+    /// originally generated state does not match the `state` parameter, the function will return an
+    /// [AuthorizationCodeStateMismatch-error](Error::AuthorizationCodeStateMismatch).
     pub async fn finalize(self, code: &str, state: &str) -> Result<AuthorizationCodeUserClient> {
         debug!(
             "Attempting to finalize authorization code flow user client with code: {} and state: {}",
@@ -270,16 +292,18 @@ impl AuthorizationCodeUserClientBuilder {
         }
     }
 
-    pub fn state<S>(self, state: S) -> Self
-    where
-        S: Into<String>,
-    {
-        Self {
-            state: Some(state.into()),
-            ..self
-        }
-    }
+    // TODO: I'm not sure there's a reason to let the user specify the state string themselves
+    // pub fn state<S>(self, state: S) -> Self
+    // where
+    //     S: Into<String>,
+    // {
+    //     Self {
+    //         state: Some(state.into()),
+    //         ..self
+    //     }
+    // }
 
+    /// Specify the [OAuth authorization scopes](crate::Scope) that the user is asked to grant for the application.
     pub fn scopes<T>(self, scopes: T) -> Self
     where
         T: ToScopesString,
@@ -290,10 +314,16 @@ impl AuthorizationCodeUserClientBuilder {
         }
     }
 
+    /// Set whether or not to force the user to approve the application again, if they've already done so.
+    ///
+    /// If false (default), a user who has already approved the application is automatically redirected to the specified
+    /// redirect URL. If true, the user will not be automatically redirected and will have to approve the application
+    /// again.
     pub fn show_dialog(self, show_dialog: bool) -> Self {
         Self { show_dialog, ..self }
     }
 
+    /// Finalize the builder and return an [IncompleteAuthorizationCodeUserClient].
     pub fn build(self) -> IncompleteAuthorizationCodeUserClient {
         let state = if let Some(state) = self.state {
             state
