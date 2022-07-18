@@ -1,10 +1,7 @@
 use dotenvy::dotenv;
 use ferrispot::{
     client::{ScopedClient, SpotifyClientBuilder},
-    model::{
-        id::{ParseableId, PlayableItem},
-        playback::Play,
-    },
+    model::id::{Id, IdFromBare, IdFromUri, IdFromUrl, PlayableItem, TrackId},
     Scope,
 };
 
@@ -46,11 +43,13 @@ async fn main() {
     // let user_client = spotify_client.authorization_code_client_with_refresh_token("refresh token").await.unwrap();
 
     user_client
-        .play(
-            Play::Items(
-                [PlayableItem::from_uri("spotify:track:3mXLyNsVeLelMakgpGUp1f").expect("failed to parse track URI")]
-                    .into(),
-            ),
+        .play_items(
+            [
+                PlayableItem::from_uri("spotify:track:3mXLyNsVeLelMakgpGUp1f").expect("failed to parse track URI"),
+                PlayableItem::from_url("https://open.spotify.com/track/367IrkRR4wk5WtSL41rONn?si=asdasdasdasd")
+                    .expect("failed to parse track URL"),
+                Id::<TrackId>::from_bare("1GxzaUNoSvzNqL4JB9ztXq").expect("").into(),
+            ],
             None,
         )
         .await

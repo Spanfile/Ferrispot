@@ -3,14 +3,15 @@ use crate::{
     client::API_PLAYER_PLAY_ENDPOINT,
     error::Result,
     model::{
-        id::Id,
-        playback::{CurrentlyPlayingTrack, Play, PlaybackState},
+        id::{IdTrait, PlayableContext, PlayableItem},
+        playback::{CurrentlyPlayingTrack, PlaybackState},
     },
 };
 use async_trait::async_trait;
 use log::debug;
 use reqwest::{Method, StatusCode, Url};
 use serde::Serialize;
+use std::borrow::Cow;
 
 /// All scoped Spotify endpoints.
 ///
@@ -74,15 +75,15 @@ pub trait ScopedClient<'a>:
         Ok(Some(currently_playing_trtack))
     }
 
-    /// Start a new context on the user's active device.
-    ///
-    /// An optional device ID may be supplied. If supplied, playback will be targeted on that device. Otherwise the
-    /// user's currently active device is targeted.
-    async fn play(&'a self, play: Play<'_>, device_id: Option<&str>) -> Result<()> {
+    async fn play_items<I, P>(&'a self, tracks: I, device_id: Option<&str>) -> Result<()>
+    where
+        I: IntoIterator<Item = P> + Send,
+        <I as IntoIterator>::IntoIter: Send,
+        P: Into<PlayableItem<'a>>,
+    {
         #[derive(Debug, Serialize)]
-        struct Body {
-            context_uri: Option<String>,
-            uris: Option<Vec<String>>,
+        struct Body<'a> {
+            uris: Vec<Cow<'a, str>>,
         }
 
         let url = if let Some(device_id) = device_id {
@@ -92,17 +93,16 @@ pub trait ScopedClient<'a>:
             Url::parse(API_PLAYER_PLAY_ENDPOINT).expect("failed to build player play endpoint URL")
         };
 
-        let body = match play {
-            Play::Context(context) => Body {
-                context_uri: Some(context.format_uri()),
-                uris: None,
-            },
+        // first gather all the IDs into a vector
+        let tracks: Vec<_> = tracks.into_iter().map(|id| id.into()).collect();
 
-            Play::Items(items) => Body {
-                context_uri: None,
-                uris: Some(items.0.map(|id| id.format_uri()).collect()),
-            },
+        // then create the body which borrows the IDs. this method has to allocate two vectors but whatcha gonna do.
+        // TODO
+        let body = Body {
+            uris: tracks.iter().map(|id| id.uri()).collect(),
         };
+
+        debug!("Play body: {:#?}", body);
 
         let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
         debug!("Play response: {:?}", response);
@@ -111,6 +111,10 @@ pub trait ScopedClient<'a>:
         response.error_for_status_ref()?;
 
         Ok(())
+    }
+
+    async fn play_context(&'a self, context: PlayableContext<'a>, device_id: Option<&str>) -> Result<()> {
+        todo!()
     }
 }
 

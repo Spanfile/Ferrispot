@@ -2,7 +2,7 @@ use super::{
     album::{AlbumObject, PartialAlbum},
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
-    id::{Id, TrackId},
+    id::{Id, IdTrait, TrackId},
     object_type::{obj_deserialize, TypeTrack},
     ExternalIds, ExternalUrls, Restrictions,
 };
@@ -192,7 +192,7 @@ struct FullTrackFields {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct NonLocalTrackFields {
-    id: TrackId<'static>,
+    id: Id<'static, TrackId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -217,7 +217,7 @@ pub struct LocalTrack {
 pub struct LinkedTrack {
     #[serde(default)]
     pub external_urls: ExternalUrls,
-    pub id: TrackId<'static>,
+    pub id: Id<'static, TrackId>,
 }
 
 impl From<TrackObject> for Track {

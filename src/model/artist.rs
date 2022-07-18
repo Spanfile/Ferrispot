@@ -1,5 +1,5 @@
 use super::{
-    id::{ArtistId, Id},
+    id::{ArtistId, Id, IdTrait},
     object_type::{obj_deserialize, TypeArtist},
     ExternalUrls, Image,
 };
@@ -116,7 +116,7 @@ struct FullArtistFields {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct NonLocalArtistFields {
-    id: ArtistId<'static>,
+    id: Id<'static, ArtistId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

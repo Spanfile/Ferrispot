@@ -1,7 +1,7 @@
 use super::{
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
-    id::{AlbumId, Id},
+    id::{AlbumId, Id, IdTrait},
     object_type::{obj_deserialize, TypeAlbum},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
@@ -185,7 +185,7 @@ struct FullAlbumFields {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct NonLocalAlbumFields {
     album_type: AlbumType,
-    id: AlbumId<'static>,
+    id: Id<'static, AlbumId>,
     release_date: String, // TODO: proper date type pls
     release_date_precision: DatePrecision,
 }
