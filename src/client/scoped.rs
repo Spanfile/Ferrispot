@@ -21,6 +21,10 @@ use serde::Serialize;
 pub trait ScopedClient<'a>:
     private::SendHttpRequest<'a> + private::AccessTokenExpiry + private::UserAuthenticatedClient
 {
+    /// Get information about the user’s current playback state, including track or episode, progress, and active
+    /// device.
+    ///
+    /// This returns a superset of the [currently playing track](Self::currently_playing_track).
     async fn playback_state(&'a self) -> Result<Option<PlaybackState>> {
         let response = self
             .send_http_request(
@@ -44,6 +48,7 @@ pub trait ScopedClient<'a>:
         Ok(Some(playback_state))
     }
 
+    /// Get the object currently being played on the user's Spotify account.
     async fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingTrack>> {
         let response = self
             .send_http_request(
@@ -69,6 +74,10 @@ pub trait ScopedClient<'a>:
         Ok(Some(currently_playing_trtack))
     }
 
+    /// Start a new context on the user's active device.
+    ///
+    /// An optional device ID may be supplied. If supplied, playback will be targeted on that device. Otherwise the
+    /// user's currently active device is targeted.
     async fn play(&'a self, play: Play<'_>, device_id: Option<&str>) -> Result<()> {
         #[derive(Debug, Serialize)]
         struct Body {

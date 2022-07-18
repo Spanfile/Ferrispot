@@ -7,8 +7,13 @@ use crate::util::duration_millis;
 use serde::Deserialize;
 use std::{iter::IntoIterator, time::Duration};
 
+/// A playback context.
 pub enum Play<'a> {
+    /// A playable context.
     Context(PlayableContext<'a>),
+    /// A collection of playable tracks or episodes.
+    ///
+    /// TOOD: how to use this
     Items(PlayTracks<'a>),
 }
 

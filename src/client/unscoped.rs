@@ -171,7 +171,7 @@ where
     }
 
     /// Set specific types to search for. The `types` parameter can be any iterator of
-    /// [SearchType](crate::model::search::SearchType)-enums.
+    /// [ItemType](crate::model::ItemType)-enums.
     ///
     /// By default, all types are searched for.
     pub fn types<T>(self, types: T) -> Self
