@@ -1,4 +1,4 @@
-use crate::model::error::AuthenticationErrorKind;
+use crate::model::{error::AuthenticationErrorKind, ItemType};
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -37,5 +37,23 @@ pub enum Error {
     UnhandledSpotifyError(u16, String),
 
     #[error(transparent)]
+    InvalidSpotifyId(#[from] IdError),
+
+    #[error(transparent)]
     HttpError(#[from] reqwest::Error),
+}
+
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum IdError {
+    #[error("Invalid item type: {0}")]
+    InvalidItemType(String),
+    #[error("Wrong item type in ID ({0:?})")]
+    WrongItemType(ItemType),
+    /// The ID in the input does not look like a valid Spotify ID. The ID may still be nonexistent in Spotify even if
+    /// it looks valid.
+    #[error("Invalid ID: {0}")]
+    InvalidId(String),
+    #[error("Malformed string: {0}")]
+    MalformedString(String),
 }

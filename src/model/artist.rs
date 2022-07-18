@@ -1,8 +1,9 @@
 use super::{
+    id::{ArtistId, Id},
     object_type::{obj_deserialize, TypeArtist},
     ExternalUrls, Image,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 mod private {
     use super::{CommonArtistFields, FullArtistFields, NonLocalArtistFields};
@@ -70,18 +71,18 @@ where
     T: private::NonLocalFields + super::private::Sealed,
 {
     fn id(&self) -> &str {
-        &self.non_local_fields().id
+        self.non_local_fields().id.id()
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum Artist {
     Full(Box<FullArtist>),
     Partial(Box<PartialArtist>),
     Local(Box<LocalArtist>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct ArtistObject {
     /// Fields available in every artist
     #[serde(flatten)]
@@ -96,7 +97,7 @@ pub(crate) struct ArtistObject {
     full: Option<FullArtistFields>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct CommonArtistFields {
     name: String,
     #[serde(default)]
@@ -105,7 +106,7 @@ struct CommonArtistFields {
     item_type: TypeArtist,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct FullArtistFields {
     // followers: Followers,
     genres: Vec<String>,
@@ -113,25 +114,25 @@ struct FullArtistFields {
     popularity: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct NonLocalArtistFields {
-    id: String,
+    id: ArtistId<'static>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FullArtist {
     common: CommonArtistFields,
     non_local: NonLocalArtistFields,
     full: FullArtistFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PartialArtist {
     common: CommonArtistFields,
     non_local: NonLocalArtistFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalArtist {
     common: CommonArtistFields,
 }

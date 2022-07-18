@@ -2,11 +2,12 @@ use super::{
     album::{AlbumObject, PartialAlbum},
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
+    id::{Id, TrackId},
     object_type::{obj_deserialize, TypeTrack},
     ExternalIds, ExternalUrls, Restrictions,
 };
 use crate::util::duration_millis;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{collections::HashSet, time::Duration};
 
 mod private {
@@ -129,18 +130,18 @@ where
     T: private::NonLocalFields + super::private::Sealed,
 {
     fn id(&self) -> &str {
-        &self.non_local_fields().id
+        self.non_local_fields().id.id()
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum Track {
     Full(Box<FullTrack>),
     Partial(Box<PartialTrack>),
     Local(Box<LocalTrack>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct TrackObject {
     /// Fields available in every track
     #[serde(flatten)]
@@ -155,7 +156,7 @@ pub(crate) struct TrackObject {
     full: Option<FullTrackFields>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct CommonTrackFields {
     // basic information
     name: String,
@@ -181,7 +182,7 @@ pub(crate) struct CommonTrackFields {
     restrictions: Restrictions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct FullTrackFields {
     album: AlbumObject,
     #[serde(default)]
@@ -189,34 +190,34 @@ struct FullTrackFields {
     popularity: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct NonLocalTrackFields {
-    id: String,
+    id: TrackId<'static>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FullTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
     full: FullTrackFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PartialTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalTrack {
     common: CommonTrackFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LinkedTrack {
     #[serde(default)]
     pub external_urls: ExternalUrls,
-    pub id: String,
+    pub id: TrackId<'static>,
 }
 
 impl From<TrackObject> for Track {

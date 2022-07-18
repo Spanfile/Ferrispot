@@ -2,14 +2,16 @@ pub mod album;
 pub mod artist;
 pub mod country_code;
 pub mod error;
+pub mod id;
 pub mod object_type;
 pub mod page;
 pub mod playback;
 pub mod search;
 pub mod track;
 
+use crate::error::IdError;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 // TODO: really gotta do a pass of what all derives are actually useful for everything
 
@@ -79,6 +81,8 @@ pub enum ItemType {
     Episode,
 }
 
+impl private::Sealed for ItemType {}
+
 impl fmt::Display for ItemType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -88,6 +92,23 @@ impl fmt::Display for ItemType {
             ItemType::Track => write!(f, "track"),
             ItemType::Show => write!(f, "show"),
             ItemType::Episode => write!(f, "episode"),
+        }
+    }
+}
+
+impl FromStr for ItemType {
+    type Err = crate::error::IdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "album" => Ok(Self::Album),
+            "artist" => Ok(Self::Artist),
+            "playlist" => Ok(Self::Playlist),
+            "track" => Ok(Self::Track),
+            "show" => Ok(Self::Show),
+            "episode" => Ok(Self::Episode),
+
+            other => Err(IdError::InvalidItemType(other.to_owned())),
         }
     }
 }

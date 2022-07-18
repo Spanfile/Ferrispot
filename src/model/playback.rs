@@ -3,10 +3,10 @@ use super::{
     ExternalUrls, ItemType,
 };
 use crate::util::duration_millis;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Device {
     name: String,
     // TODO: aspotify says this and the volume can be nonexistent for whatever reason but I haven't ever seen that
@@ -20,7 +20,7 @@ pub struct Device {
     device_type: DeviceType,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum DeviceType {
     Computer,
     Tablet,
@@ -37,7 +37,7 @@ pub enum DeviceType {
     Unknown,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PlaybackState {
     device: Device,
     repeat_state: RepeatState,
@@ -47,7 +47,7 @@ pub struct PlaybackState {
     currently_playing: CurrentlyPlayingTrack,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CurrentlyPlayingTrack {
     timestamp: u64, // TODO: this is an unix epoch
     is_playing: bool,
@@ -57,7 +57,7 @@ pub struct CurrentlyPlayingTrack {
     public_playing_track: Option<PublicPlayingItem>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PublicPlayingItem {
     context: Context,
     #[serde(rename = "progress_ms", with = "duration_millis")]
@@ -66,7 +66,7 @@ pub struct PublicPlayingItem {
     item: PlayingTypeObject,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Context {
     #[serde(rename = "type")]
     context_type: ItemType,
@@ -75,12 +75,12 @@ pub struct Context {
     uri: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub struct Actions {
     pub disallows: Disallows,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub struct Disallows {
     #[serde(default)]
     interrupting_playback: bool,
@@ -104,12 +104,12 @@ pub struct Disallows {
     transferring_playback: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum PlayingType {
     Track(FullTrack),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "currently_playing_type", content = "item")]
 enum PlayingTypeObject {
     Track(TrackObject),
@@ -119,7 +119,7 @@ enum PlayingTypeObject {
     // Unknown
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RepeatState {
     Off,

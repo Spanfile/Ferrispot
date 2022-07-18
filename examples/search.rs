@@ -4,7 +4,7 @@ use ferrispot::{
     model::{
         album::CommonAlbumInformation,
         artist::CommonArtistInformation,
-        track::{CommonTrackInformation, FullTrackInformation},
+        track::{CommonTrackInformation, FullTrackInformation, NonLocalTrackInformation},
         ItemType,
     },
 };
@@ -31,10 +31,11 @@ async fn main() {
     println!("First page:");
     for track in first_page.tracks().unwrap().items {
         println!(
-            "{} - {} ({})",
+            "{} - {} ({}) [{}]",
             track.name(),
             track.artists().first().unwrap().name(),
-            track.album().name()
+            track.album().name(),
+            track.id(),
         );
     }
 
@@ -50,10 +51,11 @@ async fn main() {
     println!("\nSecond page:");
     for track in second_page.tracks().unwrap().items {
         println!(
-            "{} - {} ({})",
+            "{} - {} ({}) [{}]",
             track.name(),
             track.artists().first().unwrap().name(),
-            track.album().name()
+            track.album().name(),
+            track.id(),
         );
     }
 }

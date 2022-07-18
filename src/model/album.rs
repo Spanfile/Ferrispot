@@ -1,10 +1,11 @@
 use super::{
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
+    id::{AlbumId, Id},
     object_type::{obj_deserialize, TypeAlbum},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashSet;
 
 mod private {
@@ -117,7 +118,7 @@ where
     }
 
     fn id(&self) -> &str {
-        &self.non_local_fields().id
+        self.non_local_fields().id.id()
     }
 
     fn release_date(&self) -> &str {
@@ -129,7 +130,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum Album {
     Full(Box<FullAlbum>),
     Partial(Box<PartialAlbum>),
@@ -138,7 +139,7 @@ pub enum Album {
 
 /// This struct covers all the possible album responses from Spotify's API. It has a function that converts it into an
 /// [Album], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct AlbumObject {
     /// Fields available in every album
     #[serde(flatten)]
@@ -153,7 +154,7 @@ pub(crate) struct AlbumObject {
     full: Option<FullAlbumFields>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct CommonAlbumFields {
     // basic information
     name: String,
@@ -170,7 +171,7 @@ struct CommonAlbumFields {
     restrictions: Restrictions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct FullAlbumFields {
     copyrights: Vec<Copyright>,
     external_ids: ExternalIds,
@@ -181,33 +182,33 @@ struct FullAlbumFields {
     // TODO: the artist album thing with the album group field
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct NonLocalAlbumFields {
     album_type: AlbumType,
-    id: String,
+    id: AlbumId<'static>,
     release_date: String, // TODO: proper date type pls
     release_date_precision: DatePrecision,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FullAlbum {
     common: CommonAlbumFields,
     non_local: NonLocalAlbumFields,
     full: FullAlbumFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PartialAlbum {
     common: CommonAlbumFields,
     non_local: NonLocalAlbumFields,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalAlbum {
     common: CommonAlbumFields,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AlbumType {
     #[serde(alias = "ALBUM")]
