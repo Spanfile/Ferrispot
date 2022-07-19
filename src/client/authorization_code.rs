@@ -28,7 +28,7 @@ use sha2::Digest;
 use std::sync::{Arc, RwLock};
 
 /// A client that uses the authorization code flow to authenticate an user with Spotify. May optionally use PKCE if the
-/// client secret is not available. See the module-level docs for more information.
+/// client secret is not available. See the [module-level docs](self) for more information.
 ///
 /// Implements all the [scoped](crate::client::ScopedClient) and [unscoped endpoints](crate::client::UnscopedClient).
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ struct AuthorizationCodeUserClientRef {
 ///
 /// The client has been configured, and it has to be [finalized](IncompleteAuthorizationCodeUserClient::finalize) by
 /// directing the user to the [authorize URL](IncompleteAuthorizationCodeUserClient::authorize) and retrieving an
-/// authorization code from the redirect callback URL.
+/// authorization code and a state parameter from the redirect callback URL.
 #[derive(Debug)]
 pub struct IncompleteAuthorizationCodeUserClient {
     client_id: String,
@@ -155,6 +155,21 @@ impl AuthorizationCodeUserClient {
             }),
             http_client,
         })
+    }
+
+    /// Returns the current refresh token.
+    ///
+    /// The refresh token may be saved and reused later when creating a new client with the
+    /// [`authorization_code_client_with_refresh_token`-function](crate::client::SpotifyClientWithSecret::authorization_code_client_with_refresh_token)
+    /// or the [`authorization_code_client_with_refresh_token_and_pkce`-function](crate::client::SpotifyClient::authorization_code_client_with_refresh_token_and_pkce).
+    ///
+    /// This function returns an owned String by cloning the internal refresh token.
+    pub fn get_refresh_token(&self) -> String {
+        self.inner
+            .refresh_token
+            .read()
+            .expect("refresh token rwlock poisoned")
+            .to_owned()
     }
 }
 

@@ -13,13 +13,14 @@
 //! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using an user-authorized
 //! [AuthorizationCodeUserClient with PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant
 //! flow is also supported](SpotifyClient::implicit_grant_client), however it is not recommended for use.
-//!
-//! | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token refresh](AccessTokenRefresh) |
-//! |-|-|-|-|
-//! | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
-//! | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
-//! | [ImplicitGrantUserClient](implicit_grant) | Yes | No | No |
-//! | [Client credentials](SpotifyClientWithSecret) | No | Yes | Yes |
+
+// TODO: this table would be really neat to have if rustfmt didn't mess it up
+// | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token
+// refresh](AccessTokenRefresh) | |-|-|-|-|
+// | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
+// | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
+// | [ImplicitGrantUserClient](implicit_grant) | Yes | No | No |
+// | [Client credentials](SpotifyClientWithSecret) | No | Yes | Yes |
 
 pub mod authorization_code;
 pub mod implicit_grant;
@@ -240,7 +241,7 @@ const ACCOUNTS_API_TOKEN_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "api/toke
 /// this trait, since even though it has an access token, it cannot be automatically refreshed.
 #[async_trait]
 pub trait AccessTokenRefresh: private::Sealed {
-    /// Request a new access token from Spotify using a refresh token and save it internally in the client.
+    /// Request a new access token from Spotify and save it internally in the client.
     async fn refresh_access_token(&self) -> Result<()>;
 }
 
