@@ -1,6 +1,11 @@
 [package]
+authors = ["Spanfile <me@spans.fi>"]
+description = "A wrapper for the Spotify Web API"
 edition = "2021"
+keywords = ["spotify"]
+license = "MIT OR Apache-2.0"
 name = "ferrispot"
+repository = "https://github.com/Spanfile/Ferrispot"
 version = "0.1.0"
 
 [dependencies]
