@@ -1,17 +1,20 @@
 use super::{private, API_CURRENTLY_PLAYING_TRACK_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT};
 use crate::{
-    client::API_PLAYER_PLAY_ENDPOINT,
+    client::{
+        API_PLAYER_DEVICES_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_QUEUE_ENDPOINT,
+        API_PLAYER_REPEAT_ENDPOINT, API_PLAYER_SHUFFLE_ENDPOINT, API_PLAYER_VOLUME_ENDPOINT,
+    },
     error::{Error, Result},
     model::{
         error::{ApiErrorMessage, ApiErrorResponse},
         id::{IdTrait, PlayableContext, PlayableItem},
-        playback::{CurrentlyPlayingTrack, PlaybackState},
+        playback::{CurrentlyPlayingTrack, Device, PlaybackState, RepeatState},
     },
 };
 use async_trait::async_trait;
 use log::{debug, error, warn};
 use reqwest::{Method, Response, StatusCode, Url};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
@@ -78,8 +81,6 @@ pub trait ScopedClient<'a>:
         Ok(Some(currently_playing_trtack))
     }
 
-    // TODO: I'm pretty sure if there's no currently active device and no device_id is given, Spotify responds with a
-    // 404. this of course is not in the documentation
     /// Start playing a collection of playable items in order; tracks or episodes.
     ///
     /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
@@ -98,7 +99,7 @@ pub trait ScopedClient<'a>:
             uris: Vec<Cow<'a, str>>,
         }
 
-        let url = build_play_url(device_id);
+        let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
 
         // first gather all the IDs into a vector
         let tracks: Vec<_> = tracks.into_iter().map(|id| id.into()).collect();
@@ -114,7 +115,7 @@ pub trait ScopedClient<'a>:
         let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
         debug!("Play response: {:?}", response);
 
-        handle_play_response(response).await
+        handle_player_control_response(response).await
     }
 
     // TODO: offset
@@ -130,7 +131,7 @@ pub trait ScopedClient<'a>:
             context_uri: Cow<'a, str>,
         }
 
-        let url = build_play_url(device_id);
+        let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
 
         let body = Body {
             context_uri: context.uri(),
@@ -141,23 +142,153 @@ pub trait ScopedClient<'a>:
         let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
         debug!("Play response: {:?}", response);
 
-        handle_play_response(response).await
+        handle_player_control_response(response).await
+    }
+
+    /// Resume current playback.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    async fn resume(&'a self, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
+        let response = self.send_http_request(Method::PUT, url).send().await?;
+        debug!("Resume response: {:?}", response);
+
+        handle_player_control_response(response).await
+    }
+
+    /// Pause current playback.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    async fn pause(&'a self, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(API_PLAYER_PAUSE_ENDPOINT, &[("device_id", device_id)]);
+        let response = self.send_http_request(Method::PUT, url).send().await?;
+        debug!("Pause response: {:?}", response);
+
+        handle_player_control_response(response).await
+    }
+
+    /// Set the repeat state for the current playback.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    async fn repeat_state(&'a self, repeat_state: RepeatState, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(
+            API_PLAYER_REPEAT_ENDPOINT,
+            &[("repeat_state:", Some(repeat_state.as_str())), ("device_id", device_id)],
+        );
+
+        let response = self.send_http_request(Method::PUT, url).send().await?;
+        debug!("Set repeat state response: {:?}", response);
+
+        handle_player_control_response(response).await
+    }
+
+    /// Set the shuffle mode for the current playback.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    async fn shuffle(&'a self, shuffle: bool, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(
+            API_PLAYER_SHUFFLE_ENDPOINT,
+            &[
+                ("shuffle:", Some(if shuffle { "true" } else { "false" })),
+                ("device_id", device_id),
+            ],
+        );
+
+        let response = self.send_http_request(Method::PUT, url).send().await?;
+        debug!("Set shuffle response: {:?}", response);
+
+        handle_player_control_response(response).await
+    }
+
+    /// Set the volume for the current playback. `volume_percent` is an integer between 0 and 100 inclusive.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    async fn volume<U>(&'a self, volume_percent: U, device_id: Option<&str>) -> Result<()>
+    where
+        U: Into<u8> + Send,
+    {
+        let volume_percent = volume_percent.into().to_string();
+        let url = build_play_url(
+            API_PLAYER_VOLUME_ENDPOINT,
+            &[("volume_percent:", Some(&volume_percent)), ("device_id", device_id)],
+        );
+
+        let response = self.send_http_request(Method::PUT, url).send().await?;
+        debug!("Set volume response: {:?}", response);
+
+        handle_player_control_response(response).await
+    }
+
+    /// Add  a playable item to the end of the current playback queue.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    async fn add_to_queue(&'a self, item: PlayableItem<'a>, device_id: Option<&str>) -> Result<()> {
+        let uri = item.uri();
+        let url = build_play_url(
+            API_PLAYER_QUEUE_ENDPOINT,
+            &[("uri:", Some(&uri)), ("device_id", device_id)],
+        );
+
+        let response = self.send_http_request(Method::POST, url).send().await?;
+        debug!("Add to queue response: {:?}", response);
+
+        handle_player_control_response(response).await
+    }
+
+    /// Get information about the user's available devices.
+    async fn devices(&'a self) -> Result<Vec<Device>> {
+        #[derive(Debug, Deserialize)]
+        struct DevicesResponse {
+            devices: Vec<Device>,
+        }
+
+        let url = build_play_url(API_PLAYER_DEVICES_ENDPOINT, &[]);
+
+        let response = self.send_http_request(Method::GET, url).send().await?;
+        debug!("Devices response: {:?}", response);
+
+        // TODO: is this really the way to return an error from an error response?
+        response.error_for_status_ref()?;
+
+        let devices_response: DevicesResponse = response.json().await?;
+        debug!("Devices: {:?}", devices_response);
+
+        Ok(devices_response.devices)
     }
 }
 
 #[async_trait]
 impl<'a, C> ScopedClient<'a> for C where C: private::SendHttpRequest<'a> + private::UserAuthenticatedClient + Sync {}
 
-fn build_play_url(device_id: Option<&str>) -> Url {
-    if let Some(device_id) = device_id {
-        Url::parse_with_params(API_PLAYER_PLAY_ENDPOINT, [("device_id", device_id)])
-            .expect("failed to build player play endpoint URL")
-    } else {
-        Url::parse(API_PLAYER_PLAY_ENDPOINT).expect("failed to build player play endpoint URL")
-    }
+fn build_play_url(endpoint: &str, params: &[(&'static str, Option<&str>)]) -> Url {
+    let params: Vec<_> = params
+        .iter()
+        .filter_map(|(key, value)| value.map(|value| (key, value)))
+        .collect();
+
+    // this will fail only if the endpoint is an invalid URL, which would mean a bug in the library
+    Url::parse_with_params(endpoint, &params).expect("failed to build player URL")
 }
 
-async fn handle_play_response(response: Response) -> Result<()> {
+async fn handle_player_control_response(response: Response) -> Result<()> {
     match response.status() {
         StatusCode::NO_CONTENT => Ok(()),
 
@@ -167,19 +298,19 @@ async fn handle_play_response(response: Response) -> Result<()> {
 
             match error_response.error.message {
                 ApiErrorMessage::NoActiveDevice => {
-                    warn!("Could not play context: no active device");
+                    warn!("Player call failed: no active device");
                     Err(Error::NoActiveDevice)
                 }
 
                 other => {
-                    error!("Unexpected Spotify error response to call: {:?}", other);
+                    error!("Unexpected Spotify error response to player call: {:?}", other);
                     Err(Error::UnhandledSpotifyError(401, format!("{:?}", other)))
                 }
             }
         }
 
         other => {
-            warn!("Got unexpected response status to play call: {}", other);
+            warn!("Got unexpected response status to player call: {}", other);
             Ok(())
         }
     }

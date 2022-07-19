@@ -42,6 +42,9 @@ async fn main() {
     // optionally, if you have a valid refresh token (with the correct scope), you may use it as such:
     // let user_client = spotify_client.authorization_code_client_with_refresh_token("refresh token").await.unwrap();
 
+    let devices = user_client.devices().await.expect("failed to get available devices");
+    println!("Available devices: {:#?}", devices);
+
     user_client
         .play_items(
             [
@@ -51,7 +54,9 @@ async fn main() {
                 PlayableItem::from_uri("spotify:track:3mXLyNsVeLelMakgpGUp1f").expect("failed to parse track URI"),
                 PlayableItem::from_url("https://open.spotify.com/track/367IrkRR4wk5WtSL41rONn?si=asdasdasdasd")
                     .expect("failed to parse track URL"),
-                Id::<TrackId>::from_bare("1GxzaUNoSvzNqL4JB9ztXq").expect("").into(),
+                Id::<TrackId>::from_bare("1GxzaUNoSvzNqL4JB9ztXq")
+                    .expect("failed to parse bare ID")
+                    .into(),
             ],
             None,
         )

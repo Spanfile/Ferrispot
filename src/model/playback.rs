@@ -128,30 +128,38 @@ pub enum RepeatState {
 }
 
 impl Device {
+    /// The name of the device.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// The device ID.
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// The current volume as a percentage between 0 and 100 inclusive.
     pub fn volume_percent(&self) -> u8 {
         self.volume_percent
     }
 
+    /// If this device is the currently active device.
     pub fn is_active(&self) -> bool {
         self.is_active
     }
 
+    /// If this device is currently in a private session.
     pub fn is_private_session(&self) -> bool {
         self.is_private_session
     }
 
+    /// Whether controlling this device is restricted. At present if this is `true` when no Web API commands will be
+    /// accepted by this device.
     pub fn is_restricted(&self) -> bool {
         self.is_restricted
     }
 
+    /// The type of the device.
     pub fn device_type(&self) -> DeviceType {
         self.device_type
     }
@@ -205,6 +213,16 @@ impl PublicPlayingItem {
     pub fn item(&self) -> PlayingType {
         match &self.item {
             PlayingTypeObject::Track(track_obj) => PlayingType::Track(track_obj.to_owned().into()),
+        }
+    }
+}
+
+impl RepeatState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RepeatState::Off => "off",
+            RepeatState::Track => "track",
+            RepeatState::Context => "context",
         }
     }
 }
