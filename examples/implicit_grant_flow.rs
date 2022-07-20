@@ -28,7 +28,6 @@ async fn main() {
 
     let user_client = incomplete_implicit_grant_client
         .finalize(access_token.trim(), state.trim())
-        .await
         .expect("failed to finalize implicit grant flow client");
 
     let playback_state = user_client.playback_state().await.unwrap();

@@ -1,6 +1,7 @@
 //! Contains the [ImplicitGrantUserClient](ImplicitGrantUserClient) and its builder structs.
 //!
 //! # Note
+//!
 //! The implicit grant user client is not recommended for use. The access token is returned in the callback URL instead
 //! through a trusted channel, and the token cannot be automatically refreshed.
 //!
@@ -14,9 +15,52 @@
 //! A new [ImplicitGrantUserClient] can be built with the [`implicit_grant_client`-function in
 //! SpotifyClient](crate::client::SpotifyClient::implicit_grant_client).
 //!
-//! ```
-//! // TODO
-//! ```
+//! ```no_run
+//! # use ferrispot::client::SpotifyClientBuilder;
+//! # use ferrispot::scope::Scope;
+//! # async fn foo() {
+//! // build a new Spotify client that doesn't have the application secret
+//! let spotify_client = SpotifyClientBuilder::new("application client ID")
+//!     .build();
+//!
+//! // begin building a new ImplicitGrantUserClient
+//! let incomplete_implicit_grant_client = spotify_client
+//!     // the callback URL here should match one of the callback URLs
+//!     // specified in your Spotify application
+//!     .implicit_grant_client("http://localhost/callback")
+//!     // specify any (or none) of the scopes you require access to
+//!     .scopes([Scope::UserReadPlaybackState])
+//!     // in case the user has already approved the application, this may be
+//!     // set to `true` for force the user approve
+//!     // the application again
+//!     .show_dialog(true)
+//!     .build();
+//!
+//! // at this point the client is configured but not yet ready for use; it is
+//! // still missing the user authorization
+//!
+//! // generate an authorization URL for the user. this URL takes the user to a
+//! // Spotify page where they are prompted to give the application access to
+//! // their account and all the scopes you've specified earlier
+//! let authorize_url = incomplete_implicit_grant_client.get_authorize_url();
+//!
+//! // the user should now be directed to this URL in some manner
+//!
+//! // when the user accepts, they are redirected to the previously specified
+//! // callback URL, which will contain an access token (`access_token`) and a
+//! // state code (`state`) in the query parameters. you should extract both of
+//! // them from the URL in some manner
+//! # let access_token = "";
+//! # let state = "";
+//!
+//! // finalize the client with the access token and state. the client will use
+//! // the access token to access the API. once the access token expires, this
+//! // client creation flow will have to be gone through again to get a new
+//! // access token and client
+//! let user_client = incomplete_implicit_grant_client
+//!     .finalize(access_token, state)
+//!     .expect("failed to finalize implicit grant flow client");
+//! # }
 
 use super::{
     private, ScopedClient, SpotifyClientRef, UnscopedClient, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
@@ -32,8 +76,8 @@ use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
 use std::sync::Arc;
 
-/// A client that uses the implicit grant flow to authenticate an user with Spotify. See the module-level docs for more
-/// information.
+/// A client that uses the implicit grant flow to authenticate an user with Spotify. See the [module-level docs](self)
+/// for more information.
 #[derive(Debug, Clone)]
 pub struct ImplicitGrantUserClient {
     access_token: String,
@@ -87,7 +131,7 @@ impl IncompleteImplicitGrantUserClient {
         authorize_url.into()
     }
 
-    pub async fn finalize<S>(self, access_token: S, state: &str) -> Result<ImplicitGrantUserClient>
+    pub fn finalize<S>(self, access_token: S, state: &str) -> Result<ImplicitGrantUserClient>
     where
         S: Into<String>,
     {

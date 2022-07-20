@@ -17,7 +17,8 @@ A lot of the functionality is largely opinionated for my own use. So far only th
 
 -   `tokio_sleep`: react to API rate limits using Tokio's sleep function
 -   `async_std_sleep`: react to API rate limits using async-std's sleep function
--   In case both `tokio_sleep` and `async_std_sleep` are enabled, Tokio's sleep function will be used
+    -   In case both `tokio_sleep` and `async_std_sleep` are enabled, Tokio's sleep function will be used
+    -   In case neither are enabled, the library will return a rate limit error when it occurs
 
 ## Attribution
 

@@ -2,17 +2,25 @@
 //!
 //! # Which authorization flow to use?
 //!
+//! - If you require access to user-specific scoped endpoints, or cannot store the application client secret safely, use
+//!   the [authorization code flow client](authorization_code). The client supports PKCE if the application client
+//!   secret is unavailable.
+//! - If you do not require access to user-specific scoped endpoints and have the application client secret available,
+//!   use the [client credentials flow client](SpotifyClientWithSecret).
+//!
 //! Every client requires an application client ID. You can create a new application in the
-//! [Spotify developer dashboard](https://developer.spotify.com/dashboard). If the application's client secret can be
-//! safely stored in your environment, you may build a [SpotifyClientWithSecret] which can access all [unscoped
-//! endpoints](UnscopedClient). From there, you can retrieve an user-authorized
-//! [AuthorizationCodeUserClient](authorization_code) which can access all [scoped endpoints](ScopedClient) in addition
-//! to the [unscoped endpoints](UnscopedClient).
+//! [Spotify developer dashboard](https://developer.spotify.com/dashboard), from where you get the application's client
+//! ID and secret. If the secret can be safely stored in your environment, you may use the client credentials flow by
+//! building a [SpotifyClientWithSecret] which can access all [unscoped endpoints](UnscopedClient). From there, you can
+//! retrieve a user-authorized [authorization code flow client](authorization_code) which can access all [scoped
+//! endpoints](ScopedClient) in addition to the [unscoped endpoints](UnscopedClient).
 //!
 //! However, if the client secret cannot be safely stored in your environment, you may still access all
-//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using an user-authorized
-//! [AuthorizationCodeUserClient with PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant
-//! flow is also supported](SpotifyClient::implicit_grant_client), however it is not recommended for use.
+//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using an the [authorization code flow with
+//! PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant flow is also
+//! supported](SpotifyClient::implicit_grant_client), but it is not recommended for use.
+//!
+//! [Spotify documentation on authorization.](https://developer.spotify.com/documentation/general/guides/authorization/)
 
 // TODO: this table would be really neat to have if rustfmt didn't mess it up
 // | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token
@@ -311,7 +319,8 @@ impl SpotifyClient {
     /// # Note
     ///
     /// The implicit grant user client is not recommended for use. The access token is returned in the callback URL
-    /// instead of through a trusted channel, and the token cannot be automatically refreshed.
+    /// instead of through a trusted channel, and the token cannot be automatically refreshed. It is recommended to use
+    /// the [authorization code flow with PKCE flow](SpotifyClient::authorization_code_client_with_pkce) instead.
     pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder
     where
         S: Into<String>,

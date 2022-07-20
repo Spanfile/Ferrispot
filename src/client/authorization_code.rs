@@ -1,13 +1,96 @@
-//! Contains the [AuthorizationCodeUserClient](AuthorizationCodeUserClient) and its builder structs.
+//! Contains the [AuthorizationCodeUserClient](AuthorizationCodeUserClient) and its builder structs. The client
+//! implements the authorization code flow with optional PKCE.
+//!
+//! [Spotify documentation on the authorization code flow.](https://developer.spotify.com/documentation/general/guides/authorization/code-flow/).
 //!
 //! # Usage
 //!
-//! A new [AuthorizationCodeUserClient] can be built with the [`authorization_code_client`-function in
-//! SpotifyClientWithSecret](crate::client::SpotifyClientWithSecret::authorization_code_client).
+//! A new [AuthorizationCodeUserClient] may be built with the
+//! [`authorization_code_client`-function](crate::client::SpotifyClientWithSecret::authorization_code_client) in
+//! [SpotifyClientWithSecret](crate::client::SpotifyClientWithSecret).
 //!
+//! ```no_run
+//! # use ferrispot::client::SpotifyClientBuilder;
+//! # use ferrispot::scope::Scope;
+//! # async fn foo() {
+//! // build a new Spotify client that has the application secret
+//! let spotify_client = SpotifyClientBuilder::new("application client ID")
+//!     .client_secret("application client secret")
+//!     .build()
+//!     .await
+//!     .expect("failed to build Spotify client");
+//!
+//! // begin building a new AuthorizationCodeUserClient
+//! let incomplete_auth_code_client = spotify_client
+//!     // the callback URL here should match one of the callback URLs
+//!     // specified in your Spotify application
+//!     .authorization_code_client("http://localhost/callback")
+//!     // specify any (or none) of the scopes you require access to
+//!     .scopes([Scope::UserReadPlaybackState])
+//!     // in case the user has already approved the application, this may be
+//!     // set to `true` for force the user approve
+//!     // the application again
+//!     .show_dialog(true)
+//!     .build();
+//!
+//! // at this point the client is configured but not yet ready for use; it is
+//! // still missing the user authorization
+//!
+//! // generate an authorization URL for the user. this URL takes the user to a
+//! // Spotify page where they are prompted to give the application access to
+//! // their account and all the scopes you've specified earlier
+//! let authorize_url = incomplete_auth_code_client.get_authorize_url();
+//!
+//! // the user should now be directed to this URL in some manner
+//!
+//! // when the user accepts, they are redirected to the previously specified
+//! // callback URL, which will contain an authorization code (`code`) and a
+//! // state code (`state`) in the query parameters. you should extract both of
+//! // them from the URL in some manner
+//! # let code = "";
+//! # let state = "";
+//!
+//! // finalize the client with the authorization code and state. the client
+//! // will use the authorization code to request an access token and a refresh
+//! // token from Spotify, which it will use to access the API
+//! let user_client = incomplete_auth_code_client
+//!     .finalize(code, state)
+//!     .await
+//!     .expect("failed to finalize authorization code flow client");
+//! # }
 //! ```
-//! // TODO
-//! ```
+//!
+//! # Usage with PKCE
+//!
+//! In case the application's client secret cannot be safely stored in the environment, PKCE may still be used to
+//! strongly authenticate the client with Spotify. A new [AuthorizationCodeUserClient] that uses PKCE may be built with
+//! the [`authorization_code_client_with_pkce`-function](crate::client::SpotifyClient::authorization_code_client_with_pkce)
+//! in [SpotifyClient](crate::client::SpotifyClient).
+//!
+//! ```no_run
+//! # use ferrispot::client::SpotifyClientBuilder;
+//! # use ferrispot::scope::Scope;
+//! # async fn foo() {
+//! // build a new Spotify client that doesn't have the application secret
+//! let spotify_client = SpotifyClientBuilder::new("application client ID")
+//!     .build();
+//!
+//! // begin building a new AuthorizationCodeUserClient that uses PKCE
+//! let incomplete_auth_code_client = spotify_client
+//!     // the callback URL here should match one of the callback URLs
+//!     // specified in your Spotify application
+//!     .authorization_code_client_with_pkce("http://localhost/callback")
+//!     // specify any (or none) of the scopes you require access to
+//!     .scopes([Scope::UserReadPlaybackState])
+//!     // in case the user has already approved the application, this may be
+//!     // set to `true` for force the user approve
+//!     // the application again
+//!     .show_dialog(true)
+//!     .build();
+//!
+//! // from here on out, the usage is identical as with the usual client. refer
+//! // to the documentation above
+//! # }
 
 use super::{
     private, AccessTokenRefresh, ScopedClient, UnscopedClient, ACCOUNTS_API_TOKEN_ENDPOINT,
@@ -27,8 +110,8 @@ use serde::Deserialize;
 use sha2::Digest;
 use std::sync::{Arc, RwLock};
 
-/// A client that uses the authorization code flow to authenticate an user with Spotify. May optionally use PKCE if the
-/// client secret is not available. See the [module-level docs](self) for more information.
+/// A client that implements the authorization code flow to authenticate an user with Spotify. May optionally use PKCE
+/// if the client secret is not available. See the [module-level docs](self) for more information.
 ///
 /// Implements all the [scoped](crate::client::ScopedClient) and [unscoped endpoints](crate::client::UnscopedClient).
 #[derive(Debug, Clone)]
