@@ -182,7 +182,7 @@ pub trait ScopedClient<'a>:
     async fn repeat_state(&'a self, repeat_state: RepeatState, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(
             API_PLAYER_REPEAT_ENDPOINT,
-            &[("repeat_state:", Some(repeat_state.as_str())), ("device_id", device_id)],
+            &[("repeat_state", Some(repeat_state.as_str())), ("device_id", device_id)],
         );
 
         let response = self.send_http_request(Method::PUT, url).send().await?;
@@ -201,7 +201,7 @@ pub trait ScopedClient<'a>:
         let url = build_play_url(
             API_PLAYER_SHUFFLE_ENDPOINT,
             &[
-                ("shuffle:", Some(if shuffle { "true" } else { "false" })),
+                ("shuffle", Some(if shuffle { "true" } else { "false" })),
                 ("device_id", device_id),
             ],
         );
@@ -225,7 +225,7 @@ pub trait ScopedClient<'a>:
         let volume_percent = volume_percent.into().to_string();
         let url = build_play_url(
             API_PLAYER_VOLUME_ENDPOINT,
-            &[("volume_percent:", Some(&volume_percent)), ("device_id", device_id)],
+            &[("volume_percent", Some(&volume_percent)), ("device_id", device_id)],
         );
 
         let response = self.send_http_request(Method::PUT, url).send().await?;
@@ -244,7 +244,7 @@ pub trait ScopedClient<'a>:
         let uri = item.uri();
         let url = build_play_url(
             API_PLAYER_QUEUE_ENDPOINT,
-            &[("uri:", Some(&uri)), ("device_id", device_id)],
+            &[("uri", Some(&uri)), ("device_id", device_id)],
         );
 
         let response = self.send_http_request(Method::POST, url).send().await?;
