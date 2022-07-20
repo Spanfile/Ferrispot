@@ -58,24 +58,26 @@
 //! which kind of ID it is.
 //!
 //! ```
+//! # use ferrispot::model::id::{PlayableContext, PlayableItem};
+//! # use ferrispot::prelude::*;
 //! let track_uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
 //! let track_url_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
 //! let album_uri_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
-//! let album_url_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P"
+//! let album_url_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
 //!
 //! // both of these are PlayableItem::Track(Id::<TrackId>)
 //! let track_from_uri = PlayableItem::from_uri(track_uri_string).unwrap();
-//! let track_from_url = PlayableItem::from_url(track_url_string).unrwap();
+//! let track_from_url = PlayableItem::from_url(track_url_string).unwrap();
 //!
 //! // both of these are PlayableContext::Album(Id::<AlbumId>)
 //! let album_from_uri = PlayableContext::from_uri(album_uri_string).unwrap();
-//! let album_from_url = PlayableContext::from_url(album_url_string).unrwap();
+//! let album_from_url = PlayableContext::from_url(album_url_string).unwrap();
 //! ```
 //!
 //! Attempting to parse an ID of the wrong type will fail:
 //!
 //! ```
-//! # use ferrispot::model::id::{Id, AlbumId};
+//! # use ferrispot::model::id::PlayableContext;
 //! # use ferrispot::prelude::*;
 //! let uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
 //!
@@ -88,8 +90,10 @@
 //! into a single type. Like with [PlayableItem] and [PlayableContext], bare IDs are not supported.
 //!
 //! ```
+//! # use ferrispot::model::id::SpotifyId;
+//! # use ferrispot::prelude::*;
 //! let track_uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//! let album_url_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P"
+//! let album_url_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
 //! let artist_url_string = "https://open.spotify.com/artist/6pNgnvzBa6Bthsv8SrZJYl";
 //!
 //! // SpotifyId::Item(PlayableItem::Track(Id::<TrackId>))
@@ -103,7 +107,12 @@
 //! ```
 
 use super::ItemType;
-use crate::error::{IdError, Result};
+
+use crate::{
+    error::{IdError, Result},
+    util::maybe_split_once::MaybeSplitOnce,
+};
+
 use serde::{
     de::{self, Visitor},
     Deserialize,
@@ -561,7 +570,7 @@ impl<'a> IdFromUrl<'a> for SpotifyId<'a> {
         C: Into<Cow<'a, str>>,
     {
         let url: Cow<'a, str> = url.into();
-        let (item_type, id_index) = parse_item_type_and_id_from_uri(&url)?;
+        let (item_type, id_index) = parse_item_type_and_id_from_url(&url)?;
 
         match item_type {
             ItemType::Track => Ok(Self::Item(PlayableItem::Track(Id {
@@ -787,6 +796,225 @@ impl<'a> From<Id<'a, ShowId>> for PlayableContext<'a> {
     }
 }
 
+impl<'de> Deserialize<'de> for SpotifyId<'static> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct IdVisitor;
+
+        impl<'de> Visitor<'de> for IdVisitor {
+            type Value = SpotifyId<'static>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a Spotify URI or a Spotify URL (bare IDs cannot be deserialized into SpotifyIds)")
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_string(v.to_owned())
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let (item_type, kind) = if v.starts_with(URI_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
+                    (item_type, IdKind::Uri(id_index))
+                } else if v.starts_with(URL_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+                    (item_type, IdKind::Url(id_index))
+                } else {
+                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
+                };
+
+                // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
+                // different types even though they look the same
+                match item_type {
+                    ItemType::Track => Ok(SpotifyId::Item(PlayableItem::Track(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    }))),
+
+                    ItemType::Episode => Ok(SpotifyId::Item(PlayableItem::Episode(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    }))),
+
+                    ItemType::Album => Ok(SpotifyId::Context(PlayableContext::Album(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    }))),
+
+                    ItemType::Artist => Ok(SpotifyId::Context(PlayableContext::Artist(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    }))),
+
+                    ItemType::Playlist => Ok(SpotifyId::Context(PlayableContext::Playlist(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    }))),
+
+                    ItemType::Show => Ok(SpotifyId::Context(PlayableContext::Show(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    }))),
+                }
+            }
+        }
+
+        deserializer.deserialize_string(IdVisitor)
+    }
+}
+
+impl<'de> Deserialize<'de> for PlayableItem<'static> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct IdVisitor;
+
+        impl<'de> Visitor<'de> for IdVisitor {
+            type Value = PlayableItem<'static>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter
+                    .write_str("a Spotify URI or a Spotify URL (bare IDs cannot be deserialized into PlayableItems)")
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_string(v.to_owned())
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let (item_type, kind) = if v.starts_with(URI_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
+                    (item_type, IdKind::Uri(id_index))
+                } else if v.starts_with(URL_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+                    (item_type, IdKind::Url(id_index))
+                } else {
+                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
+                };
+
+                // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
+                // different types even though they look the same
+                match item_type {
+                    ItemType::Track => Ok(PlayableItem::Track(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    })),
+
+                    ItemType::Episode => Ok(PlayableItem::Episode(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    })),
+
+                    _ => Err(de::Error::invalid_type(de::Unexpected::Str(&v), &self)),
+                }
+            }
+        }
+
+        deserializer.deserialize_string(IdVisitor)
+    }
+}
+
+impl<'de> Deserialize<'de> for PlayableContext<'static> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct IdVisitor;
+
+        impl<'de> Visitor<'de> for IdVisitor {
+            type Value = PlayableContext<'static>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter
+                    .write_str("a Spotify URI or a Spotify URL (bare IDs cannot be deserialized into PlayableItems)")
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_string(v.to_owned())
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                let (item_type, kind) = if v.starts_with(URI_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
+                    (item_type, IdKind::Uri(id_index))
+                } else if v.starts_with(URL_PREFIX) {
+                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+                    (item_type, IdKind::Url(id_index))
+                } else {
+                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
+                };
+
+                // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
+                // different types even though they look the same
+                match item_type {
+                    ItemType::Album => Ok(PlayableContext::Album(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    })),
+
+                    ItemType::Artist => Ok(PlayableContext::Artist(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    })),
+
+                    ItemType::Playlist => Ok(PlayableContext::Playlist(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    })),
+
+                    ItemType::Show => Ok(PlayableContext::Show(Id {
+                        value: Cow::Owned(v),
+                        kind,
+                        phantom: PhantomData,
+                    })),
+
+                    _ => Err(de::Error::invalid_type(de::Unexpected::Str(&v), &self)),
+                }
+            }
+        }
+
+        deserializer.deserialize_string(IdVisitor)
+    }
+}
+
 impl<'de, T> Deserialize<'de> for Id<'static, T>
 where
     T: ItemTypeId,
@@ -813,8 +1041,6 @@ where
             where
                 E: de::Error,
             {
-                // TODO: is it actually possible to borrow everything from the source string? the string would have to
-                // be kept alive as long as the resulting IDs as well which makes me think it's not possible
                 self.visit_string(v.to_owned())
             }
 
@@ -885,8 +1111,9 @@ fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, usize)> {
         // split by / to get "track" and "3mXLyNsVeLelMakgpGUp1f?si=AAAAAAAAAAAAAAAA"
         .and_then(|prefix_removed| prefix_removed.split_once('/'))
         // remove the possible query from the path to get just the ID
-        .and_then(|(item_type, id_with_possible_query)| {
-            Some(item_type).zip(id_with_possible_query.split_once('?').map(|(id, _)| id))
+        .map(|(item_type_str, id_with_possible_query)| {
+            let (left, _) = id_with_possible_query.maybe_split_once('?');
+            (item_type_str, left)
         })
     {
         let item_type: ItemType = item_type_str.parse()?;
@@ -915,4 +1142,73 @@ fn verify_valid_id(id: &str) -> bool {
     }
 
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn track_id_from_uri() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn track_id_from_url() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn track_id_from_bare() {
+        let id_string = "2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_bare(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn album_id_from_uri() {
+        let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
+        let id = Id::<AlbumId>::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn album_id_from_url() {
+        let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
+        let id = Id::<AlbumId>::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn album_id_from_bare() {
+        let id_string = "0tDsHtvN9YNuZjlqHvDY2P";
+        let id = Id::<AlbumId>::from_bare(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn spotify_id_from_album_uri() {
+        let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
+        let id = SpotifyId::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn spotify_id_from_album_url() {
+        let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
+        let id = SpotifyId::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
 }
