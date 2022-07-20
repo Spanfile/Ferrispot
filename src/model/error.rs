@@ -1,3 +1,5 @@
+//! Abstraction over the different errors the Spotify API may return.
+
 use crate::error::Error;
 use serde::{de::Visitor, Deserialize};
 
@@ -18,7 +20,8 @@ pub(crate) struct ApiError {
     pub message: ApiErrorMessage,
 }
 
-// TODO: should this be crate-public?
+// TODO: can this be made crate-public?
+/// The different causes for OAuth-authentication to fail.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthenticationErrorKind {

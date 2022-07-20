@@ -1,4 +1,16 @@
 //! Everything related to tracks.
+//!
+//! Contains the three different kinds of tracks; [FullTrack], [PartialTrack] and [LocalTrack].
+//!
+//! - [FullTrack]: may contain all possible information about a track. Generally retrieved from the
+//!   [track-](crate::client::UnscopedClient::track) and [tracks-functions](crate::client::UnscopedClient::tracks).
+//! - [PartialTrack]: contains most information about a track. Generally retrieved as part of a response to, for
+//!   example, an album listing (TODO: make a link to the album endpoint once it exists).
+//! - [LocalTrack]: contains only the basic information about a track. Only retrieved through a playlist that contains
+//!   local tracks.
+//!
+//! The track object Spotify returns from the API is not directly available.
+//! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
 
 use super::{
     album::{AlbumObject, PartialAlbum},
@@ -28,28 +40,48 @@ mod private {
     }
 }
 
+/// Functions for retrieving information that is common to every track type.
 pub trait CommonTrackInformation: super::private::Sealed {
+    /// The track's name.
     fn name(&self) -> &str;
+    /// The artists of the track.
     fn artists(&self) -> Vec<PartialArtist>;
+    /// The track's number in its corresponding disc.
     fn track_number(&self) -> u32;
+    /// The track's disc's number.
     fn disc_number(&self) -> u32;
+    /// The track's duration.
     fn duration(&self) -> Duration;
+    /// Whether or not the track is rated as explicit.
     fn explicit(&self) -> bool;
+    /// An URL to a 30 second preview of the track.
     fn preview_url(&self) -> Option<&str>;
+    /// The external URLs for the track.
     fn external_urls(&self) -> &ExternalUrls;
+    /// The countries the track is available in.
     fn available_markets(&self) -> &HashSet<CountryCode>;
+    /// Whether or not the track is playable.
     fn is_playable(&self) -> Option<bool>;
+    /// When [track relinking](https://developer.spotify.com/documentation/general/guides/track-relinking-guide/) is
+    /// applied, the original track this track is linked from.
     fn linked_from(&self) -> Option<&LinkedTrack>;
+    /// The restrictions on the track.
     fn restrictions(&self) -> &Restrictions;
 }
 
+/// Functions for retrieving information only in full tracks.
 pub trait FullTrackInformation: super::private::Sealed {
+    /// The album this track is in.
     fn album(&self) -> PartialAlbum;
+    /// The external IDs for the track.
     fn external_ids(&self) -> &ExternalIds;
+    /// The track's popularity.
     fn popularity(&self) -> u32;
 }
 
+/// Functions for retrieving information that is available in non-local tracks.
 pub trait NonLocalTrackInformation: super::private::Sealed {
+    /// The track's Spotify ID.
     fn id(&self) -> &str;
 }
 
@@ -136,6 +168,7 @@ where
     }
 }
 
+/// An enum that encompasses all track types.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum Track {
     Full(Box<FullTrack>),
@@ -143,6 +176,8 @@ pub enum Track {
     Local(Box<LocalTrack>),
 }
 
+/// This struct covers all the possible track responses from Spotify's API. It has a function that converts it into a
+/// [Track], depending on which fields are set.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct TrackObject {
     /// Fields available in every track
@@ -197,6 +232,8 @@ struct NonLocalTrackFields {
     id: Id<'static, TrackId>,
 }
 
+/// A full track. Contains [full information](self::FullTrackInformation), in addition to all
+/// [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation) information about a track.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FullTrack {
     common: CommonTrackFields,
@@ -204,17 +241,22 @@ pub struct FullTrack {
     full: FullTrackFields,
 }
 
+/// A partial track. Contains all [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation)
+/// information about a track.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PartialTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
 }
 
+/// A local track. Contains only the information [common to every album](self::CommonTrackInformation).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalTrack {
     common: CommonTrackFields,
 }
 
+/// Contains information about a linked track when
+/// [track relinking](https://developer.spotify.com/documentation/general/guides/track-relinking-guide/) is applied
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LinkedTrack {
     #[serde(default)]

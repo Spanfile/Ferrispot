@@ -1,3 +1,17 @@
+//! Everything related to artists.
+//!
+//! Contains the three different kinds of artists; [FullArtist], [PartialArtist] and [LocalArtist].
+//!
+//! - [FullArtist]: may contain all possible information about an artist. Generally retrieved from the artist- and
+//!   artists-endpoints (TODO: make links once implemented)
+//! - [PartialArtist]: contains most information about an artist. Generally retrieved as part of a response to, for
+//!   example, a [track listing](crate::client::UnscopedClient::track).
+//! - [LocalArtist]: contains only the basic information about an artist. Only retrieved through a playlist that
+//!   contains local tracks.
+//!
+//! The artist object Spotify returns from the API is not directly available.
+//! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
+
 use super::{
     id::{ArtistId, Id, IdTrait},
     object_type::{obj_deserialize, TypeArtist},
@@ -21,18 +35,27 @@ mod private {
     }
 }
 
+/// Functions for retrieving information that is common to every artist type.
 pub trait CommonArtistInformation: super::private::Sealed {
+    /// The artist's name.
     fn name(&self) -> &str;
+    /// The external URLs for the artist.
     fn external_urls(&self) -> &ExternalUrls;
 }
 
+/// Functions for retrieving information only in full artists.
 pub trait FullArtistInformation: super::private::Sealed {
+    /// Genres the artist is associated with.
     fn genres(&self) -> &[String];
+    /// Images for the artist.
     fn images(&self) -> &[Image];
+    /// The artist's popularity.
     fn popularity(&self) -> u32;
 }
 
+/// Functions for retrieving information that is available in non-local artists.
 pub trait NonLocalArtistInformation: super::private::Sealed {
+    /// The artist's Spotify ID.
     fn id(&self) -> &str;
 }
 
@@ -75,6 +98,7 @@ where
     }
 }
 
+/// An enum that encompasses all artist types.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum Artist {
     Full(Box<FullArtist>),
@@ -82,6 +106,8 @@ pub enum Artist {
     Local(Box<LocalArtist>),
 }
 
+/// This struct covers all the possible artist responses from Spotify's API. It has a function that converts it into an
+/// [Artist], depending on which fields are set.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct ArtistObject {
     /// Fields available in every artist
@@ -119,6 +145,9 @@ struct NonLocalArtistFields {
     id: Id<'static, ArtistId>,
 }
 
+/// A full artist. Contains [full information](self::FullArtistInformation), in addition to all
+/// [common](self::CommonArtistInformation) and [non-local](self::NonLocalArtistInformation) information about an
+/// artist.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FullArtist {
     common: CommonArtistFields,
@@ -126,12 +155,15 @@ pub struct FullArtist {
     full: FullArtistFields,
 }
 
+/// A partial artist. Contains all [common](self::CommonArtistInformation) and
+/// [non-local](self::NonLocalArtistInformation) information about an artist.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PartialArtist {
     common: CommonArtistFields,
     non_local: NonLocalArtistFields,
 }
 
+/// A local artist. Contains only the information [common to every album](self::CommonArtistInformation).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalArtist {
     common: CommonArtistFields,

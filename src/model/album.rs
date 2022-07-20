@@ -1,3 +1,17 @@
+//! Everything related to albums.
+//!
+//! Contains the three different kinds of albums; [FullAlbum], [PartialAlbum] and [LocalAlbum].
+//!
+//! - [FullAlbum]: may contain all possible information about an album. Generally retrieved from the album- and
+//!   albums-endpoints (TODO: make links once implemented)
+//! - [PartialAlbum]: contains most information about an album. Generally retrieved as part of a response to, for
+//!   example, an artist listing (TODO: make a link to the artist endpoint once it exists).
+//! - [LocalAlbum]: contains only the basic information about an album. Only retrieved through a playlist that contains
+//!   local tracks.
+//!
+//! The album object Spotify returns from the API is not directly available.
+//! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
+
 use super::{
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
@@ -24,30 +38,48 @@ mod private {
     }
 }
 
+/// Functions for retrieving information that is common to every album type.
 pub trait CommonAlbumInformation: super::private::Sealed {
+    /// The album's name.
     fn name(&self) -> &str;
+    /// The artists of the album.
     fn artists(&self) -> Vec<PartialArtist>;
+    /// The images for the album.
     fn images(&self) -> &[Image];
+    /// The external URLs for the album.
     fn external_urls(&self) -> &ExternalUrls;
+    /// The countries the album is available in.
     fn available_markets(&self) -> &HashSet<CountryCode>;
+    /// The restrictions on the album.
     fn restrictions(&self) -> &Restrictions;
 }
 
+/// Functions for retrieving information only in full albums.
 pub trait FullAlbumInformation: super::private::Sealed {
     // pub tracks: Page<PartialTrack>, // TODO: paging
     // TODO: the artist album thing with the album group field
 
+    /// The album's copyrights.
     fn copyrights(&self) -> &[Copyright];
+    /// The external IDs for the album.
     fn external_ids(&self) -> &ExternalIds;
+    /// The album's genres.
     fn genres(&self) -> &[String];
+    /// The album's label.
     fn label(&self) -> &str;
+    /// The album's popularity.
     fn popularity(&self) -> u32;
 }
 
+/// Functions for retrieving information that is available in non-local albums.
 pub trait NonLocalAlbumInformation: super::private::Sealed {
+    /// The album's type.
     fn album_type(&self) -> AlbumType;
+    /// The album's Spotify ID.
     fn id(&self) -> &str;
+    /// The album's release date.
     fn release_date(&self) -> &str;
+    /// The album's release date's precision.
     fn release_date_precision(&self) -> DatePrecision;
 }
 
@@ -130,6 +162,7 @@ where
     }
 }
 
+/// An enum that encompasses all album types.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum Album {
     Full(Box<FullAlbum>),
@@ -190,6 +223,8 @@ struct NonLocalAlbumFields {
     release_date_precision: DatePrecision,
 }
 
+/// A full album. Contains [full information](self::FullAlbumInformation), in addition to all
+/// [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation) information about an album.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct FullAlbum {
     common: CommonAlbumFields,
@@ -197,17 +232,21 @@ pub struct FullAlbum {
     full: FullAlbumFields,
 }
 
+/// A partial album. Contains all [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation)
+/// information about an album.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PartialAlbum {
     common: CommonAlbumFields,
     non_local: NonLocalAlbumFields,
 }
 
+/// A local album. Contains only the information [common to every album](self::CommonAlbumInformation).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalAlbum {
     common: CommonAlbumFields,
 }
 
+/// An album's type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AlbumType {
