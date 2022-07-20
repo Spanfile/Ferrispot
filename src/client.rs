@@ -40,13 +40,6 @@ mod private {
 
     pub trait Sealed {}
 
-    /// Marker trait for signifying a Spotify client that includes user authentication;
-    /// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and
-    /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient). This is used to separate the
-    /// clients into [scoped clients](crate::client::ScopedClient) and [unscoped
-    /// clients](crate::client::UnscopedClient).
-    pub trait UserAuthenticatedClient: Sealed {}
-
     /// Every Spotify client implements this trait.
     pub trait BuildHttpRequest: Sealed {
         /// Returns a new [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g. authentication
@@ -318,7 +311,7 @@ impl SpotifyClient {
     /// # Note
     ///
     /// The implicit grant user client is not recommended for use. The access token is returned in the callback URL
-    /// instead through a trusted channel, and the token cannot be automatically refreshed.
+    /// instead of through a trusted channel, and the token cannot be automatically refreshed.
     pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder
     where
         S: Into<String>,
@@ -453,8 +446,8 @@ impl SpotifyClientWithSecretBuilder {
             .await?;
 
         let response = extract_authentication_error(response).await.map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidClient, _) = err {
-                Error::InvalidClient
+            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidClient, description) = err {
+                Error::InvalidClient(description)
             } else {
                 err
             }
@@ -484,6 +477,9 @@ impl private::BuildHttpRequest for SpotifyClientWithSecret {
 }
 
 #[async_trait]
+impl<'a> UnscopedClient<'a> for SpotifyClientWithSecret {}
+
+#[async_trait]
 impl AccessTokenRefresh for SpotifyClientWithSecret {
     async fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
@@ -498,7 +494,7 @@ impl AccessTokenRefresh for SpotifyClientWithSecret {
 
         let response = extract_authentication_error(response).await.map_err(|err| {
             if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
-                Error::InvalidRefreshToken(description)
+                Error::InvalidClient(description)
             } else {
                 err
             }

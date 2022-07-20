@@ -137,9 +137,6 @@ where
     }
 }
 
-#[async_trait]
-impl<'a, C> UnscopedClient<'a> for C where C: private::SendHttpRequest<'a> + Sync {}
-
 /// A builder for a search in Spotify's catalog. New instances are returned by the
 /// [search-function](UnscopedClient::search) in [UnscopedClient](UnscopedClient).
 pub struct SearchBuilder<'a, C, S>

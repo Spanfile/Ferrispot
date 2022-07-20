@@ -18,7 +18,9 @@
 //! // TODO
 //! ```
 
-use super::{private, SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH};
+use super::{
+    private, ScopedClient, SpotifyClientRef, UnscopedClient, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
+};
 use crate::{
     error::{Error, Result},
     scope::ToScopesString,
@@ -171,7 +173,6 @@ impl ImplicitGrantUserClientBuilder {
 }
 
 impl private::Sealed for ImplicitGrantUserClient {}
-impl private::UserAuthenticatedClient for ImplicitGrantUserClient {}
 
 impl private::BuildHttpRequest for ImplicitGrantUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
@@ -180,6 +181,12 @@ impl private::BuildHttpRequest for ImplicitGrantUserClient {
             .bearer_auth(self.access_token.as_str())
     }
 }
+
+#[async_trait]
+impl<'a> ScopedClient<'a> for ImplicitGrantUserClient {}
+
+#[async_trait]
+impl<'a> UnscopedClient<'a> for ImplicitGrantUserClient {}
 
 #[async_trait]
 impl private::AccessTokenExpiry for ImplicitGrantUserClient {

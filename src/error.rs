@@ -37,7 +37,7 @@ pub enum Error {
 
     /// The client credentails (ID and possible secret) are invalid.
     #[error("The client ID and/or secret is invalid")]
-    InvalidClient,
+    InvalidClient(String),
 
     /// Request rate limit was hit. The required wait time is included.
     #[error("Request rate limit hit; retry after {0} seconds")]

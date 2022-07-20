@@ -21,9 +21,7 @@ use std::borrow::Cow;
 /// certain user. [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and
 /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient) implement this trait.
 #[async_trait]
-pub trait ScopedClient<'a>:
-    private::SendHttpRequest<'a> + private::AccessTokenExpiry + private::UserAuthenticatedClient
-{
+pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenExpiry {
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.
     ///
@@ -274,9 +272,6 @@ pub trait ScopedClient<'a>:
         Ok(devices_response.devices)
     }
 }
-
-#[async_trait]
-impl<'a, C> ScopedClient<'a> for C where C: private::SendHttpRequest<'a> + private::UserAuthenticatedClient + Sync {}
 
 fn build_play_url(endpoint: &str, params: &[(&'static str, Option<&str>)]) -> Url {
     let params: Vec<_> = params

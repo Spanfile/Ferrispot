@@ -8,11 +8,12 @@ pub mod artist;
 pub mod country_code;
 pub mod error;
 pub mod id;
-pub mod object_type;
 pub mod page;
 pub mod playback;
 pub mod search;
 pub mod track;
+
+pub(crate) mod object_type;
 
 use crate::error::IdError;
 use serde::{Deserialize, Serialize};

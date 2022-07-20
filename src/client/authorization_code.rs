@@ -10,8 +10,8 @@
 //! ```
 
 use super::{
-    private, AccessTokenRefresh, ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH,
-    RANDOM_STATE_LENGTH,
+    private, AccessTokenRefresh, ScopedClient, UnscopedClient, ACCOUNTS_API_TOKEN_ENDPOINT,
+    ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
 };
 use crate::{
     error::{Error, Result},
@@ -47,8 +47,8 @@ struct AuthorizationCodeUserClientRef {
 /// An incomplete authorization code user client.
 ///
 /// The client has been configured, and it has to be [finalized](IncompleteAuthorizationCodeUserClient::finalize) by
-/// directing the user to the [authorize URL](IncompleteAuthorizationCodeUserClient::authorize) and retrieving an
-/// authorization code and a state parameter from the redirect callback URL.
+/// directing the user to the [authorize URL](IncompleteAuthorizationCodeUserClient::get_authorize_url) and retrieving
+/// an authorization code and a state parameter from the redirect callback URL.
 #[derive(Debug)]
 pub struct IncompleteAuthorizationCodeUserClient {
     client_id: String,
@@ -294,6 +294,7 @@ impl AuthorizationCodeUserClientBuilder {
         }
     }
 
+    /// Generates a PKCE code verifier to be used in the authentication process.
     pub(super) fn with_pkce(self) -> Self {
         let code_verifier = rand::thread_rng()
             .sample_iter(&Alphanumeric)
@@ -318,7 +319,8 @@ impl AuthorizationCodeUserClientBuilder {
     //     }
     // }
 
-    /// Specify the [OAuth authorization scopes](crate::Scope) that the user is asked to grant for the application.
+    /// Specify the [OAuth authorization scopes](crate::scope::Scope) that the user is asked to grant for the
+    /// application.
     pub fn scopes<T>(self, scopes: T) -> Self
     where
         T: ToScopesString,
@@ -364,7 +366,6 @@ impl AuthorizationCodeUserClientBuilder {
 }
 
 impl private::Sealed for AuthorizationCodeUserClient {}
-impl private::UserAuthenticatedClient for AuthorizationCodeUserClient {}
 
 impl private::BuildHttpRequest for AuthorizationCodeUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
@@ -372,6 +373,12 @@ impl private::BuildHttpRequest for AuthorizationCodeUserClient {
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
 }
+
+#[async_trait]
+impl<'a> ScopedClient<'a> for AuthorizationCodeUserClient {}
+
+#[async_trait]
+impl<'a> UnscopedClient<'a> for AuthorizationCodeUserClient {}
 
 #[async_trait]
 impl AccessTokenRefresh for AuthorizationCodeUserClient {
