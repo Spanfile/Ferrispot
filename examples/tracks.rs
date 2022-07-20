@@ -1,12 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::{
-    client::{SpotifyClientBuilder, UnscopedClient},
-    model::{
-        album::CommonAlbumInformation,
-        artist::CommonArtistInformation,
-        track::{CommonTrackInformation, FullTrackInformation},
-    },
-};
+use ferrispot::{self, client::SpotifyClientBuilder, prelude::*};
 
 #[tokio::main]
 async fn main() {

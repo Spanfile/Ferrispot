@@ -1,8 +1,9 @@
 use dotenvy::dotenv;
 use ferrispot::{
     client::{ScopedClient, SpotifyClientBuilder},
-    model::id::{Id, IdFromBare, IdFromUri, IdFromUrl, PlayableItem, TrackId},
-    Scope,
+    model::id::{Id, PlayableItem, TrackId},
+    prelude::*,
+    scope::Scope,
 };
 
 #[tokio::main]

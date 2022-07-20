@@ -1,3 +1,5 @@
+//! Contains the [Scope]-enum that represents an OAuth authorization scope and various utilities surrounding it.
+
 use std::fmt::Display;
 
 /// Trait for converting an object to a scopes string. This is currently implemented for all iterators of

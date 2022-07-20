@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::client::{AccessTokenRefresh, SpotifyClientBuilder};
+use ferrispot::{client::SpotifyClientBuilder, prelude::*};
 
 #[tokio::main]
 async fn main() {

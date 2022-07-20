@@ -1,3 +1,5 @@
+//! Various error types exposed by the crate.
+
 use crate::model::{error::AuthenticationErrorKind, ItemType};
 use thiserror::Error;
 
