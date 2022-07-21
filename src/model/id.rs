@@ -58,10 +58,35 @@
 //! assert!(Id::<AlbumId>::from_uri(uri_string).is_err());
 //! ```
 //!
-//! [Id] internally stores the originally given string in a [Cow] which helps avoid string allocations in certain cases.
-//! For example, most Spotify API endpoints require an input ID in the URI form, so if the ID is originally parsed from
-//! an URI, the entire original string can be used instead of having to allocate a new string. You may also retrieve the
-//! ID in an URL form, so if the original string was also an URL, no new strings are allocated.
+//! ### Efficiency
+//!
+//! [Id] internally stores the originally given string in a [Cow]. This means it will borrow the input string if it is
+//! given as an `&str`, which helps avoid string allocations in certain cases. For example, most Spotify API endpoints
+//! require an input ID in the URI form, so if the ID is originally parsed from an URI, the entire original string can
+//! be used instead of having to allocate a new string. You may also retrieve the ID in an URL form, so if the original
+//! string was also an URL, no new strings are allocated.
+//!
+//! You may convert an [Id] that borrows the original input into a static [Id] that owns its value by using the
+//! [`as_static`](IdTrait::as_static)-method. Note that cloning a borrowing [Id] does not turn it into an owning [Id]!
+//!
+//! ```
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let id_string = String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu");
+//!
+//! // this Id borrows the input string and shares the borrow's lifetime
+//! let track_id = Id::<TrackId>::from_url_or_uri(&id_string).unwrap();
+//!
+//! // dropping the original string is invalid, since it's borrowed in the Id
+//! // drop(id_string);
+//!
+//! // convert the Id into a static Id by cloning the internal borrowed string and drop the borrowind Id
+//! let owning_track_id = track_id.as_static();
+//! drop(track_id);
+//!
+//! // dropping the original string is now possible, since it's not borrowed anymore
+//! drop(id_string);
+//! ```
 //!
 //! ## `PlayableItem` and `PlayableContext`
 //!
@@ -152,6 +177,9 @@ pub trait ItemTypeId: private::Sealed {
 ///
 /// See the [module-level docs](self) for information on how to work with IDs.
 pub trait IdTrait<'a>: private::Sealed {
+    /// This type that has the `'static` lifetime.
+    type StaticSelf: 'static;
+
     /// Returns this ID as a bare Spotify ID.
     fn id(&'a self) -> &'a str;
 
@@ -166,6 +194,9 @@ pub trait IdTrait<'a>: private::Sealed {
     /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
     /// original ID string this ID was constructed from is already an URL. Otherwise, it will allocate a new URL string.
     fn url(&'a self) -> Cow<'a, str>;
+
+    /// Returns a new Id that clones the value from this Id and owns it.
+    fn as_static(&'a self) -> Self::StaticSelf;
 }
 
 /// Trait for parsing any string-looking type that contains a Spotify URL or URI into an ID type.
@@ -230,7 +261,7 @@ where
 }
 
 /// Specifies a kind of ID.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IdKind {
     /// The ID is a Spotify URI. The field is the index of the ID in the original string.
     Uri(usize),
@@ -624,8 +655,10 @@ impl<'a> IdFromKnownKind<'a> for SpotifyId<'a> {
 
 impl<'a, T> IdTrait<'a> for Id<'a, T>
 where
-    T: ItemTypeId,
+    T: ItemTypeId + 'static,
 {
+    type StaticSelf = Id<'static, T>;
+
     fn id(&self) -> &str {
         match self.kind {
             IdKind::Uri(index) => &self.value[index..],
@@ -667,9 +700,19 @@ where
             IdKind::Bare => Cow::Owned(format!("https://open.spotify.com/{}/{}", T::ITEM_TYPE, self.value)),
         }
     }
+
+    fn as_static(&'a self) -> Self::StaticSelf {
+        Id {
+            value: Cow::Owned(self.value.clone().into_owned()),
+            kind: self.kind,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<'a> IdTrait<'a> for SpotifyId<'a> {
+    type StaticSelf = SpotifyId<'static>;
+
     fn id(&'a self) -> &'a str {
         match self {
             SpotifyId::Item(item) => item.id(),
@@ -690,9 +733,18 @@ impl<'a> IdTrait<'a> for SpotifyId<'a> {
             SpotifyId::Context(context) => context.url(),
         }
     }
+
+    fn as_static(&'a self) -> Self::StaticSelf {
+        match self {
+            SpotifyId::Item(item) => SpotifyId::Item(item.as_static()),
+            SpotifyId::Context(context) => SpotifyId::Context(context.as_static()),
+        }
+    }
 }
 
 impl<'a> IdTrait<'a> for PlayableItem<'a> {
+    type StaticSelf = PlayableItem<'static>;
+
     fn id(&self) -> &str {
         match self {
             PlayableItem::Track(track) => track.id(),
@@ -713,9 +765,18 @@ impl<'a> IdTrait<'a> for PlayableItem<'a> {
             PlayableItem::Episode(episode) => episode.url(),
         }
     }
+
+    fn as_static(&'a self) -> Self::StaticSelf {
+        match self {
+            PlayableItem::Track(track) => PlayableItem::Track(track.as_static()),
+            PlayableItem::Episode(episode) => PlayableItem::Episode(episode.as_static()),
+        }
+    }
 }
 
 impl<'a> IdTrait<'a> for PlayableContext<'a> {
+    type StaticSelf = PlayableContext<'static>;
+
     fn id(&self) -> &str {
         match self {
             PlayableContext::Artist(artist) => artist.id(),
@@ -740,6 +801,15 @@ impl<'a> IdTrait<'a> for PlayableContext<'a> {
             PlayableContext::Album(album) => album.url(),
             PlayableContext::Playlist(playlist) => playlist.url(),
             PlayableContext::Show(show) => show.url(),
+        }
+    }
+
+    fn as_static(&'a self) -> Self::StaticSelf {
+        match self {
+            PlayableContext::Artist(artist) => PlayableContext::Artist(artist.as_static()),
+            PlayableContext::Album(album) => PlayableContext::Album(album.as_static()),
+            PlayableContext::Playlist(playlist) => PlayableContext::Playlist(playlist.as_static()),
+            PlayableContext::Show(show) => PlayableContext::Show(show.as_static()),
         }
     }
 }
