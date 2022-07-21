@@ -7,9 +7,10 @@
 //! - URLs: `https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu`. The URL may contain any query prameters.
 //! - Bare IDs: `2pDPOMX0kWA7kcPBcDCQBu`
 //!
-//! The IDs are split into two kinds: [PlayableItem] and [PlayableContext]. Playable items are individual items that can
+//! The IDs are split into two kinds: playable items and playable contexts. Playable items are individual items that can
 //! be played; tracks or episodes. Playable contexts are collections of one or more playable items; artists, albums,
-//! playlists or shows. These two kinds are grouped into one common [SpotifyId] that encompasses all of them.
+//! playlists or shows. The enums [PlayableItem] and [PlayableContext] represent the two kinds. These two kinds are
+//! grouped into one common [SpotifyId] that encompasses all of them.
 //!
 //! ## The core ID type
 //!
@@ -33,6 +34,18 @@
 //! let id_from_url = Id::<TrackId>::from_url(url_string).unwrap();
 //! let track_id_from_bare = Id::<TrackId>::from_bare(bare_track_string).unwrap();
 //! let album_id_from_bare = Id::<AlbumId>::from_bare(bare_album_string).unwrap();
+//! ```
+//!
+//! You may also let the parser figure out if the input is an URL or an URI:
+//!
+//! ```
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let track_uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+//! let track_url_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+//!
+//! let track_from_uri = Id::<TrackId>::from_url_or_uri(track_uri_string).unwrap();
+//! let track_from_url = Id::<TrackId>::from_url_or_uri(track_url_string).unwrap();
 //! ```
 //!
 //! Attempting to parse an ID of the wrong type will fail:
@@ -155,10 +168,10 @@ pub trait IdTrait<'a>: private::Sealed {
     fn url(&'a self) -> Cow<'a, str>;
 }
 
-/// Trait for parsing any string-looking type that contains a Spotify URI into an ID type.
+/// Trait for parsing any string-looking type that contains a Spotify URL or URI into an ID type.
 ///
 /// See the [module-level docs](self) for information on how to work with IDs.
-pub trait IdFromUri<'a>: private::Sealed
+pub trait IdFromKnownKind<'a>: private::Sealed
 where
     Self: Sized,
 {
@@ -166,19 +179,27 @@ where
     fn from_uri<C>(uri: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>;
-}
 
-/// Trait for parsing any string-looking type that contains a Spotify URL into an ID type.
-///
-/// See the [module-level docs](self) for information on how to work with IDs.
-pub trait IdFromUrl<'a>: private::Sealed
-where
-    Self: Sized,
-{
     /// Parses a Spotify URL into an ID.
     fn from_url<C>(url: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>;
+
+    /// Parses either a Spotify URL or Spotify URI into an ID.
+    fn from_url_or_uri<C>(url_or_uri: C) -> Result<Self>
+    where
+        C: Into<Cow<'a, str>>,
+    {
+        let url_or_uri = url_or_uri.into();
+
+        if url_or_uri.starts_with(URI_PREFIX) {
+            Self::from_uri(url_or_uri)
+        } else if url_or_uri.starts_with(URL_PREFIX) {
+            Self::from_url(url_or_uri)
+        } else {
+            Err(IdError::MalformedString(url_or_uri.to_string()).into())
+        }
+    }
 }
 
 /// Trait for parsing any string-looking type that contains a bare Spotify ID into an ID type.
@@ -320,7 +341,7 @@ impl ItemTypeId for ShowId {
     const ITEM_TYPE: ItemType = ItemType::Show;
 }
 
-impl<'a, T> IdFromUri<'a> for Id<'a, T>
+impl<'a, T> IdFromKnownKind<'a> for Id<'a, T>
 where
     T: ItemTypeId,
 {
@@ -341,12 +362,7 @@ where
             Err(IdError::WrongItemType(item_type).into())
         }
     }
-}
 
-impl<'a, T> IdFromUrl<'a> for Id<'a, T>
-where
-    T: ItemTypeId,
-{
     fn from_url<C>(url: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -388,7 +404,7 @@ where
     }
 }
 
-impl<'a> IdFromUri<'a> for PlayableItem<'a> {
+impl<'a> IdFromKnownKind<'a> for PlayableItem<'a> {
     fn from_uri<C>(uri: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -412,9 +428,7 @@ impl<'a> IdFromUri<'a> for PlayableItem<'a> {
             item_type => Err(IdError::WrongItemType(item_type).into()),
         }
     }
-}
 
-impl<'a> IdFromUrl<'a> for PlayableItem<'a> {
     fn from_url<C>(url: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -440,7 +454,7 @@ impl<'a> IdFromUrl<'a> for PlayableItem<'a> {
     }
 }
 
-impl<'a> IdFromUri<'a> for PlayableContext<'a> {
+impl<'a> IdFromKnownKind<'a> for PlayableContext<'a> {
     fn from_uri<C>(uri: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -476,9 +490,7 @@ impl<'a> IdFromUri<'a> for PlayableContext<'a> {
             item_type => Err(IdError::WrongItemType(item_type).into()),
         }
     }
-}
 
-impl<'a> IdFromUrl<'a> for PlayableContext<'a> {
     fn from_url<C>(url: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -516,7 +528,7 @@ impl<'a> IdFromUrl<'a> for PlayableContext<'a> {
     }
 }
 
-impl<'a> IdFromUri<'a> for SpotifyId<'a> {
+impl<'a> IdFromKnownKind<'a> for SpotifyId<'a> {
     fn from_uri<C>(uri: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -562,9 +574,7 @@ impl<'a> IdFromUri<'a> for SpotifyId<'a> {
             }))),
         }
     }
-}
 
-impl<'a> IdFromUrl<'a> for SpotifyId<'a> {
     fn from_url<C>(url: C) -> Result<Self>
     where
         C: Into<Cow<'a, str>>,
@@ -911,7 +921,7 @@ impl<'de> Deserialize<'de> for PlayableItem<'static> {
                     (item_type, IdKind::Uri(id_index))
                 } else if v.starts_with(URL_PREFIX) {
                     let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
                     (item_type, IdKind::Url(id_index))
                 } else {
                     return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
@@ -973,7 +983,7 @@ impl<'de> Deserialize<'de> for PlayableContext<'static> {
                     (item_type, IdKind::Uri(id_index))
                 } else if v.starts_with(URL_PREFIX) {
                     let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
                     (item_type, IdKind::Url(id_index))
                 } else {
                     return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
@@ -1059,7 +1069,7 @@ where
                     }
                 } else if v.starts_with(URL_PREFIX) {
                     let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
+                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
                     if item_type == T::ITEM_TYPE {
                         (IdKind::Url(id_index), Cow::Owned(v))
@@ -1104,7 +1114,7 @@ fn parse_item_type_and_id_from_uri(uri: &str) -> Result<(ItemType, usize)> {
 
 fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, usize)> {
     // a whole URL could look like: https://open.spotify.com/track/3mXLyNsVeLelMakgpGUp1f?si=AAAAAAAAAAAAAAAA
-    // TODO: definitely gonna need some unit tests for this shit
+
     if let Some((item_type_str, id)) = url
         // remove the leading domain
         .strip_prefix(URL_PREFIX)
@@ -1147,6 +1157,7 @@ fn verify_valid_id(id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::Error;
 
     #[test]
     fn track_id_from_uri() {
@@ -1159,6 +1170,14 @@ mod tests {
     #[test]
     fn track_id_from_url() {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn track_id_from_url_with_query() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu?si=AAAAAAAAAA";
         let id = Id::<TrackId>::from_url(id_string).unwrap();
 
         assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
@@ -1197,6 +1216,126 @@ mod tests {
     }
 
     #[test]
+    fn artist_id_from_uri() {
+        let id_string = "spotify:artist:6pNgnvzBa6Bthsv8SrZJYl";
+        let id = Id::<ArtistId>::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "6pNgnvzBa6Bthsv8SrZJYl");
+    }
+
+    #[test]
+    fn artist_id_from_url() {
+        let id_string = "https://open.spotify.com/artist/6pNgnvzBa6Bthsv8SrZJYl";
+        let id = Id::<ArtistId>::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "6pNgnvzBa6Bthsv8SrZJYl");
+    }
+
+    #[test]
+    fn artist_id_from_bare() {
+        let id_string = "6pNgnvzBa6Bthsv8SrZJYl";
+        let id = Id::<ArtistId>::from_bare(id_string).unwrap();
+
+        assert_eq!(id.id(), "6pNgnvzBa6Bthsv8SrZJYl");
+    }
+
+    #[test]
+    fn playlist_id_from_uri() {
+        let id_string = "spotify:playlist:37i9dQZF1DWZipvLjDtZYe";
+        let id = Id::<PlaylistId>::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "37i9dQZF1DWZipvLjDtZYe");
+    }
+
+    #[test]
+    fn playlist_id_from_url() {
+        let id_string = "https://open.spotify.com/playlist/37i9dQZF1DWZipvLjDtZYe";
+        let id = Id::<PlaylistId>::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "37i9dQZF1DWZipvLjDtZYe");
+    }
+
+    #[test]
+    fn playlist_id_from_bare() {
+        let id_string = "37i9dQZF1DWZipvLjDtZYe";
+        let id = Id::<PlaylistId>::from_bare(id_string).unwrap();
+
+        assert_eq!(id.id(), "37i9dQZF1DWZipvLjDtZYe");
+    }
+
+    #[test]
+    fn playable_item_id_from_track_uri() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = PlayableItem::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn playable_item_id_from_track_url() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = PlayableItem::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn playable_item_id_from_track_url_with_query() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu?si=AAAAAAAAAA";
+        let id = PlayableItem::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn playable_context_id_from_album_uri() {
+        let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
+        let id = PlayableContext::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn playable_context_id_from_album_url() {
+        let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
+        let id = PlayableContext::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn playable_context_id_from_album_url_with_query() {
+        let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P?si=AAAAAAAAAA";
+        let id = PlayableContext::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn spotify_id_from_track_uri() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = SpotifyId::from_uri(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn spotify_id_from_track_url() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = SpotifyId::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn spotify_id_from_track_url_with_query() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu?si=AAAAAAAAAA";
+        let id = SpotifyId::from_url(id_string).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
     fn spotify_id_from_album_uri() {
         let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
         let id = SpotifyId::from_uri(id_string).unwrap();
@@ -1210,5 +1349,168 @@ mod tests {
         let id = SpotifyId::from_url(id_string).unwrap();
 
         assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn spotify_id_from_track_uri_and_url() {
+        let url_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+
+        let url_id = SpotifyId::from_url_or_uri(url_string).unwrap();
+        let uri_id = SpotifyId::from_url_or_uri(uri_string).unwrap();
+
+        assert_eq!(url_id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(uri_id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn wrong_url_prefix() {
+        let id_string = "https://google.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_url(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::MalformedString(_)))))
+    }
+
+    #[test]
+    fn wrong_uri_prefix() {
+        let id_string = "wrong:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_uri(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::MalformedString(_)))))
+    }
+
+    #[test]
+    fn wrong_id_type_in_url() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<ArtistId>::from_url(id_string);
+
+        assert!(matches!(
+            id,
+            Err(Error::InvalidSpotifyId(IdError::WrongItemType(ItemType::Track)))
+        ))
+    }
+
+    #[test]
+    fn wrong_id_type_in_uri() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<ArtistId>::from_uri(id_string);
+
+        assert!(matches!(
+            id,
+            Err(Error::InvalidSpotifyId(IdError::WrongItemType(ItemType::Track)))
+        ))
+    }
+
+    #[test]
+    fn unknown_id_type_in_uri() {
+        let id_string = "spotify:wrong:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_uri(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidItemType(_)))))
+    }
+
+    #[test]
+    fn unknown_id_type_in_url() {
+        let id_string = "https://open.spotify.com/wrong/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_url(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidItemType(_)))))
+    }
+
+    #[test]
+    fn invalid_id_too_short() {
+        let id_string = "_";
+        let id = Id::<TrackId>::from_bare(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+    }
+
+    #[test]
+    fn invalid_id_too_long() {
+        let id_string = "2pDPOMX0kWA7kcPBcDCQBu_";
+        let id = Id::<TrackId>::from_bare(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+    }
+
+    #[test]
+    fn invalid_id_illegal_characters() {
+        let id_string = "2pDPOMX0kWA7kcPBcDCQB_";
+        let id = Id::<TrackId>::from_bare(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+    }
+
+    #[test]
+    fn invalid_id_in_url() {
+        let id_string = "https://open.spotify.com/track/_";
+        let id = Id::<TrackId>::from_url(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+    }
+
+    #[test]
+    fn invalid_id_in_uri() {
+        let id_string = "spotify:track:_";
+        let id = Id::<TrackId>::from_uri(id_string);
+
+        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+    }
+
+    #[test]
+    fn uri_from_uri_borrows() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_uri(id_string).unwrap();
+
+        let uri = id.uri();
+        assert!(matches!(uri, Cow::Borrowed("spotify:track:2pDPOMX0kWA7kcPBcDCQBu")));
+    }
+
+    #[test]
+    fn url_from_url_borrows() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_url(id_string).unwrap();
+
+        let url = id.url();
+        assert!(matches!(
+            url,
+            Cow::Borrowed("https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu")
+        ));
+    }
+
+    #[test]
+    fn uri_from_url_allocates() {
+        let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_url(id_string).unwrap();
+
+        let uri = id.uri();
+        assert!(matches!(uri, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn url_from_uri_allocates() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_uri(id_string).unwrap();
+
+        let url = id.url();
+        assert!(matches!(url, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn uri_from_bare_allocates() {
+        let id_string = "2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_bare(id_string).unwrap();
+
+        let uri = id.uri();
+        assert!(matches!(uri, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn url_from_bare_allocates() {
+        let id_string = "2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_bare(id_string).unwrap();
+
+        let url = id.url();
+        assert!(matches!(url, Cow::Owned(_)));
     }
 }

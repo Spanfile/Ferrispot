@@ -43,7 +43,7 @@ pub mod prelude {
         model::{
             album::{CommonAlbumInformation, FullAlbumInformation, NonLocalAlbumInformation},
             artist::{CommonArtistInformation, FullArtistInformation, NonLocalArtistInformation},
-            id::{IdFromBare, IdFromUri, IdFromUrl, IdTrait},
+            id::{IdFromBare, IdFromKnownKind, IdTrait},
             search::ToTypesString,
             track::{CommonTrackInformation, FullTrackInformation, NonLocalTrackInformation},
         },
