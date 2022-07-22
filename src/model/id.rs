@@ -901,17 +901,8 @@ impl<'de> Deserialize<'de> for SpotifyId<'static> {
             where
                 E: de::Error,
             {
-                let (item_type, kind) = if v.starts_with(URI_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-                    (item_type, IdKind::Uri(id_index))
-                } else if v.starts_with(URL_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &"a Spotify URL"))?;
-                    (item_type, IdKind::Url(id_index))
-                } else {
-                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
-                };
+                let (item_type, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
+                    .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
                 // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
                 // different types even though they look the same
@@ -985,17 +976,8 @@ impl<'de> Deserialize<'de> for PlayableItem<'static> {
             where
                 E: de::Error,
             {
-                let (item_type, kind) = if v.starts_with(URI_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-                    (item_type, IdKind::Uri(id_index))
-                } else if v.starts_with(URL_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-                    (item_type, IdKind::Url(id_index))
-                } else {
-                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
-                };
+                let (item_type, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
+                    .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
                 // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
                 // different types even though they look the same
@@ -1047,17 +1029,8 @@ impl<'de> Deserialize<'de> for PlayableContext<'static> {
             where
                 E: de::Error,
             {
-                let (item_type, kind) = if v.starts_with(URI_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-                    (item_type, IdKind::Uri(id_index))
-                } else if v.starts_with(URL_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-                    (item_type, IdKind::Url(id_index))
-                } else {
-                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
-                };
+                let (item_type, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
+                    .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
                 // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
                 // different types even though they look the same
@@ -1128,32 +1101,25 @@ where
             where
                 E: de::Error,
             {
-                let (kind, value) = if v.starts_with(URI_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_uri(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-
-                    if item_type == T::ITEM_TYPE {
-                        (IdKind::Uri(id_index), Cow::Owned(v))
-                    } else {
-                        return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
-                    }
-                } else if v.starts_with(URL_PREFIX) {
-                    let (item_type, id_index) = parse_item_type_and_id_from_url(&v)
-                        .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
-
-                    if item_type == T::ITEM_TYPE {
-                        (IdKind::Url(id_index), Cow::Owned(v))
-                    } else {
-                        return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
-                    }
-                } else if verify_valid_id(&v) {
-                    (IdKind::Bare, Cow::Owned(v))
-                } else {
-                    return Err(de::Error::invalid_value(de::Unexpected::Str(&v), &self));
-                };
+                let (_, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
+                    .or_else(|_| {
+                        if verify_valid_id(&v) {
+                            Ok((T::ITEM_TYPE, IdKind::Bare))
+                        } else {
+                            Err(IdError::InvalidId(v.clone()))
+                        }
+                    })
+                    .and_then(|(item_type, kind)| {
+                        if item_type == T::ITEM_TYPE {
+                            Ok((item_type, kind))
+                        } else {
+                            Err(IdError::WrongItemType(item_type))
+                        }
+                    })
+                    .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
                 Ok(Id {
-                    value,
+                    value: Cow::Owned(v),
                     kind,
                     phantom: PhantomData,
                 })
@@ -1161,6 +1127,20 @@ where
         }
 
         deserializer.deserialize_string(IdVisitor::<T> { phantom: PhantomData })
+    }
+}
+
+fn parse_item_type_and_kind_from_url_or_uri(url_or_uri: &str) -> Result<(ItemType, IdKind)> {
+    if url_or_uri.starts_with(URI_PREFIX) {
+        let (item_type, id_index) = parse_item_type_and_id_from_uri(url_or_uri)?;
+
+        Ok((item_type, IdKind::Uri(id_index)))
+    } else if url_or_uri.starts_with(URL_PREFIX) {
+        let (item_type, id_index) = parse_item_type_and_id_from_url(url_or_uri)?;
+
+        Ok((item_type, IdKind::Url(id_index)))
+    } else {
+        Err(IdError::MalformedString(url_or_uri.to_string()).into())
     }
 }
 
