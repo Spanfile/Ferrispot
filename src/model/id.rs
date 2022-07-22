@@ -1583,4 +1583,106 @@ mod tests {
         let url = id.url();
         assert!(matches!(url, Cow::Owned(_)));
     }
+
+    #[test]
+    fn deserialize_id_from_uri() {
+        let json = "\"spotify:track:2pDPOMX0kWA7kcPBcDCQBu\"";
+        let id: Id<TrackId> = serde_json::from_str(json).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn deserialize_id_from_url() {
+        let json = "\"https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu\"";
+        let id: Id<TrackId> = serde_json::from_str(json).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn deserialize_id_from_bare() {
+        let json = "\"2pDPOMX0kWA7kcPBcDCQBu\"";
+        let id: Id<TrackId> = serde_json::from_str(json).unwrap();
+
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn deserialize_playable_item_from_uri() {
+        let json = "\"spotify:track:2pDPOMX0kWA7kcPBcDCQBu\"";
+        let id: PlayableItem = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(id, PlayableItem::Track(_)));
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn deserialize_playable_item_from_url() {
+        let json = "\"https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu\"";
+        let id: PlayableItem = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(id, PlayableItem::Track(_)));
+        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn cannot_deserialize_playable_item_from_bare() {
+        let json = "\"2pDPOMX0kWA7kcPBcDCQBu\"";
+        let result: std::result::Result<PlayableItem, _> = serde_json::from_str(json);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn deserialize_playable_context_from_uri() {
+        let json = "\"spotify:album:0tDsHtvN9YNuZjlqHvDY2P\"";
+        let id: PlayableContext = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(id, PlayableContext::Album(_)));
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn deserialize_playable_context_from_url() {
+        let json = "\"https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P\"";
+        let id: PlayableContext = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(id, PlayableContext::Album(_)));
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn cannot_deserialize_playable_context_from_bare() {
+        let json = "\"0tDsHtvN9YNuZjlqHvDY2P\"";
+        let result: std::result::Result<PlayableContext, _> = serde_json::from_str(json);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn deserialize_spotify_id_from_uri() {
+        let json = "\"spotify:album:0tDsHtvN9YNuZjlqHvDY2P\"";
+        let id: SpotifyId = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(id, SpotifyId::Context(PlayableContext::Album(_))));
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn deserialize_spotify_id_from_url() {
+        let json = "\"https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P\"";
+        let id: SpotifyId = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(id, SpotifyId::Context(PlayableContext::Album(_))));
+        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+    }
+
+    #[test]
+    fn cannot_deserialize_spotify_id_from_bare() {
+        let json = "\"0tDsHtvN9YNuZjlqHvDY2P\"";
+        let result: std::result::Result<SpotifyId, _> = serde_json::from_str(json);
+
+        assert!(result.is_err());
+    }
 }
