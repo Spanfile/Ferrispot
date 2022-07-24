@@ -336,7 +336,7 @@ pub struct PlaylistId;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShowId;
 
-impl<'a, T> private::Sealed for Id<'a, T> where T: ItemTypeId {}
+impl<T> private::Sealed for Id<'_, T> where T: ItemTypeId {}
 impl private::Sealed for TrackId {}
 impl private::Sealed for EpisodeId {}
 impl private::Sealed for ArtistId {}
@@ -372,6 +372,20 @@ impl ItemTypeId for ShowId {
     const ITEM_TYPE: ItemType = ItemType::Show;
 }
 
+impl<'a, T> Id<'a, T>
+where
+    T: ItemTypeId,
+{
+    /// When calling this function, be absolutely sure the value matches the ID kind.
+    fn new(value: Cow<'a, str>, kind: IdKind) -> Self {
+        Self {
+            value,
+            kind,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<'a, T> IdFromKnownKind<'a> for Id<'a, T>
 where
     T: ItemTypeId,
@@ -384,11 +398,7 @@ where
         let (item_type, id_index) = parse_item_type_and_id_from_uri(&uri)?;
 
         if item_type == T::ITEM_TYPE {
-            Ok(Self {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })
+            Ok(Id::new(uri, IdKind::Uri(id_index)))
         } else {
             Err(IdError::WrongItemType(item_type).into())
         }
@@ -444,17 +454,8 @@ impl<'a> IdFromKnownKind<'a> for PlayableItem<'a> {
         let (item_type, id_index) = parse_item_type_and_id_from_uri(&uri)?;
 
         match item_type {
-            ItemType::Track => Ok(Self::Track(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Episode => Ok(Self::Episode(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })),
+            ItemType::Track => Ok(Self::Track(Id::new(uri, IdKind::Uri(id_index)))),
+            ItemType::Episode => Ok(Self::Episode(Id::new(uri, IdKind::Uri(id_index)))),
 
             item_type => Err(IdError::WrongItemType(item_type).into()),
         }
@@ -468,17 +469,8 @@ impl<'a> IdFromKnownKind<'a> for PlayableItem<'a> {
         let (item_type, id_index) = parse_item_type_and_id_from_url(&url)?;
 
         match item_type {
-            ItemType::Track => Ok(Self::Track(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Episode => Ok(Self::Episode(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            })),
+            ItemType::Track => Ok(Self::Track(Id::new(url, IdKind::Url(id_index)))),
+            ItemType::Episode => Ok(Self::Episode(Id::new(url, IdKind::Url(id_index)))),
 
             item_type => Err(IdError::WrongItemType(item_type).into()),
         }
@@ -494,29 +486,10 @@ impl<'a> IdFromKnownKind<'a> for PlayableContext<'a> {
         let (item_type, id_index) = parse_item_type_and_id_from_uri(&uri)?;
 
         match item_type {
-            ItemType::Album => Ok(Self::Album(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Artist => Ok(Self::Artist(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Playlist => Ok(Self::Playlist(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Show => Ok(Self::Show(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            })),
+            ItemType::Album => Ok(Self::Album(Id::new(uri, IdKind::Uri(id_index)))),
+            ItemType::Artist => Ok(Self::Artist(Id::new(uri, IdKind::Uri(id_index)))),
+            ItemType::Playlist => Ok(Self::Playlist(Id::new(uri, IdKind::Uri(id_index)))),
+            ItemType::Show => Ok(Self::Show(Id::new(uri, IdKind::Uri(id_index)))),
 
             item_type => Err(IdError::WrongItemType(item_type).into()),
         }
@@ -530,29 +503,10 @@ impl<'a> IdFromKnownKind<'a> for PlayableContext<'a> {
         let (item_type, id_index) = parse_item_type_and_id_from_url(&url)?;
 
         match item_type {
-            ItemType::Album => Ok(Self::Album(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Artist => Ok(Self::Artist(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Playlist => Ok(Self::Playlist(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            })),
-
-            ItemType::Show => Ok(Self::Show(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            })),
+            ItemType::Album => Ok(Self::Album(Id::new(url, IdKind::Url(id_index)))),
+            ItemType::Artist => Ok(Self::Artist(Id::new(url, IdKind::Url(id_index)))),
+            ItemType::Playlist => Ok(Self::Playlist(Id::new(url, IdKind::Url(id_index)))),
+            ItemType::Show => Ok(Self::Show(Id::new(url, IdKind::Url(id_index)))),
 
             item_type => Err(IdError::WrongItemType(item_type).into()),
         }
@@ -568,41 +522,28 @@ impl<'a> IdFromKnownKind<'a> for SpotifyId<'a> {
         let (item_type, id_index) = parse_item_type_and_id_from_uri(&uri)?;
 
         match item_type {
-            ItemType::Track => Ok(Self::Item(PlayableItem::Track(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Track => Ok(Self::Item(PlayableItem::Track(Id::new(uri, IdKind::Uri(id_index))))),
+            ItemType::Episode => Ok(Self::Item(PlayableItem::Episode(Id::new(uri, IdKind::Uri(id_index))))),
 
-            ItemType::Episode => Ok(Self::Item(PlayableItem::Episode(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Album => Ok(Self::Context(PlayableContext::Album(Id::new(
+                uri,
+                IdKind::Uri(id_index),
+            )))),
 
-            ItemType::Album => Ok(Self::Context(PlayableContext::Album(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Artist => Ok(Self::Context(PlayableContext::Artist(Id::new(
+                uri,
+                IdKind::Uri(id_index),
+            )))),
 
-            ItemType::Artist => Ok(Self::Context(PlayableContext::Artist(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Playlist => Ok(Self::Context(PlayableContext::Playlist(Id::new(
+                uri,
+                IdKind::Uri(id_index),
+            )))),
 
-            ItemType::Playlist => Ok(Self::Context(PlayableContext::Playlist(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            }))),
-
-            ItemType::Show => Ok(Self::Context(PlayableContext::Show(Id {
-                value: uri,
-                kind: IdKind::Uri(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Show => Ok(Self::Context(PlayableContext::Show(Id::new(
+                uri,
+                IdKind::Uri(id_index),
+            )))),
         }
     }
 
@@ -614,41 +555,28 @@ impl<'a> IdFromKnownKind<'a> for SpotifyId<'a> {
         let (item_type, id_index) = parse_item_type_and_id_from_url(&url)?;
 
         match item_type {
-            ItemType::Track => Ok(Self::Item(PlayableItem::Track(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Track => Ok(Self::Item(PlayableItem::Track(Id::new(url, IdKind::Url(id_index))))),
+            ItemType::Episode => Ok(Self::Item(PlayableItem::Episode(Id::new(url, IdKind::Url(id_index))))),
 
-            ItemType::Episode => Ok(Self::Item(PlayableItem::Episode(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Album => Ok(Self::Context(PlayableContext::Album(Id::new(
+                url,
+                IdKind::Url(id_index),
+            )))),
 
-            ItemType::Album => Ok(Self::Context(PlayableContext::Album(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Artist => Ok(Self::Context(PlayableContext::Artist(Id::new(
+                url,
+                IdKind::Url(id_index),
+            )))),
 
-            ItemType::Artist => Ok(Self::Context(PlayableContext::Artist(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Playlist => Ok(Self::Context(PlayableContext::Playlist(Id::new(
+                url,
+                IdKind::Url(id_index),
+            )))),
 
-            ItemType::Playlist => Ok(Self::Context(PlayableContext::Playlist(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            }))),
-
-            ItemType::Show => Ok(Self::Context(PlayableContext::Show(Id {
-                value: url,
-                kind: IdKind::Url(id_index),
-                phantom: PhantomData,
-            }))),
+            ItemType::Show => Ok(Self::Context(PlayableContext::Show(Id::new(
+                url,
+                IdKind::Url(id_index),
+            )))),
         }
     }
 }
@@ -702,11 +630,7 @@ where
     }
 
     fn as_static(&'a self) -> Self::StaticSelf {
-        Id {
-            value: Cow::Owned(self.value.clone().into_owned()),
-            kind: self.kind,
-            phantom: PhantomData,
-        }
+        Id::new(Cow::Owned(self.value.clone().into_owned()), self.kind)
     }
 }
 
@@ -894,6 +818,10 @@ impl<'de> Deserialize<'de> for SpotifyId<'static> {
             where
                 E: de::Error,
             {
+                // Id, and therefore SpotifyId, always store the input string in its entirety in themselves for
+                // efficiency. when deserializing a string, it's impossible to reliably borrow the input here since the
+                // `v` parameter isn't guaranteed to outlive the visitor. hence, convert it into an owned String and
+                // deserialize that
                 self.visit_string(v.to_owned())
             }
 
@@ -904,44 +832,22 @@ impl<'de> Deserialize<'de> for SpotifyId<'static> {
                 let (item_type, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
                     .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
-                // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
-                // different types even though they look the same
                 match item_type {
-                    ItemType::Track => Ok(SpotifyId::Item(PlayableItem::Track(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    }))),
+                    ItemType::Track => Ok(SpotifyId::Item(PlayableItem::Track(Id::new(Cow::Owned(v), kind)))),
+                    ItemType::Episode => Ok(SpotifyId::Item(PlayableItem::Episode(Id::new(Cow::Owned(v), kind)))),
+                    ItemType::Album => Ok(SpotifyId::Context(PlayableContext::Album(Id::new(Cow::Owned(v), kind)))),
 
-                    ItemType::Episode => Ok(SpotifyId::Item(PlayableItem::Episode(Id {
-                        value: Cow::Owned(v),
+                    ItemType::Artist => Ok(SpotifyId::Context(PlayableContext::Artist(Id::new(
+                        Cow::Owned(v),
                         kind,
-                        phantom: PhantomData,
-                    }))),
+                    )))),
 
-                    ItemType::Album => Ok(SpotifyId::Context(PlayableContext::Album(Id {
-                        value: Cow::Owned(v),
+                    ItemType::Playlist => Ok(SpotifyId::Context(PlayableContext::Playlist(Id::new(
+                        Cow::Owned(v),
                         kind,
-                        phantom: PhantomData,
-                    }))),
+                    )))),
 
-                    ItemType::Artist => Ok(SpotifyId::Context(PlayableContext::Artist(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    }))),
-
-                    ItemType::Playlist => Ok(SpotifyId::Context(PlayableContext::Playlist(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    }))),
-
-                    ItemType::Show => Ok(SpotifyId::Context(PlayableContext::Show(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    }))),
+                    ItemType::Show => Ok(SpotifyId::Context(PlayableContext::Show(Id::new(Cow::Owned(v), kind)))),
                 }
             }
         }
@@ -969,6 +875,10 @@ impl<'de> Deserialize<'de> for PlayableItem<'static> {
             where
                 E: de::Error,
             {
+                // Id, and therefore PlayableItem, always store the input string in its entirety in themselves for
+                // efficiency. when deserializing a string, it's impossible to reliably borrow the input here since the
+                // `v` parameter isn't guaranteed to outlive the visitor. hence, convert it into an owned String and
+                // deserialize that
                 self.visit_string(v.to_owned())
             }
 
@@ -979,20 +889,9 @@ impl<'de> Deserialize<'de> for PlayableItem<'static> {
                 let (item_type, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
                     .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
-                // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
-                // different types even though they look the same
                 match item_type {
-                    ItemType::Track => Ok(PlayableItem::Track(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    })),
-
-                    ItemType::Episode => Ok(PlayableItem::Episode(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    })),
+                    ItemType::Track => Ok(PlayableItem::Track(Id::new(Cow::Owned(v), kind))),
+                    ItemType::Episode => Ok(PlayableItem::Episode(Id::new(Cow::Owned(v), kind))),
 
                     _ => Err(de::Error::invalid_type(de::Unexpected::Str(&v), &self)),
                 }
@@ -1022,6 +921,10 @@ impl<'de> Deserialize<'de> for PlayableContext<'static> {
             where
                 E: de::Error,
             {
+                // Id, and therefore PlayableContext, always store the input string in its entirety in themselves for
+                // efficiency. when deserializing a string, it's impossible to reliably borrow the input here since the
+                // `v` parameter isn't guaranteed to outlive the visitor. hence, convert it into an owned String and
+                // deserialize that
                 self.visit_string(v.to_owned())
             }
 
@@ -1032,32 +935,11 @@ impl<'de> Deserialize<'de> for PlayableContext<'static> {
                 let (item_type, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
                     .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
-                // TODO: this would really benefit from a refactor wrt. creating the Ids, but how? they're all actually
-                // different types even though they look the same
                 match item_type {
-                    ItemType::Album => Ok(PlayableContext::Album(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    })),
-
-                    ItemType::Artist => Ok(PlayableContext::Artist(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    })),
-
-                    ItemType::Playlist => Ok(PlayableContext::Playlist(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    })),
-
-                    ItemType::Show => Ok(PlayableContext::Show(Id {
-                        value: Cow::Owned(v),
-                        kind,
-                        phantom: PhantomData,
-                    })),
+                    ItemType::Album => Ok(PlayableContext::Album(Id::new(Cow::Owned(v), kind))),
+                    ItemType::Artist => Ok(PlayableContext::Artist(Id::new(Cow::Owned(v), kind))),
+                    ItemType::Playlist => Ok(PlayableContext::Playlist(Id::new(Cow::Owned(v), kind))),
+                    ItemType::Show => Ok(PlayableContext::Show(Id::new(Cow::Owned(v), kind))),
 
                     _ => Err(de::Error::invalid_type(de::Unexpected::Str(&v), &self)),
                 }
@@ -1094,6 +976,9 @@ where
             where
                 E: de::Error,
             {
+                // Id always stores the input string in its entirety in it for efficiency. when deserializing a string,
+                // it's impossible to reliably borrow the input here since the `v` parameter isn't guaranteed to outlive
+                // the visitor. hence, convert it into an owned String and deserialize that
                 self.visit_string(v.to_owned())
             }
 
@@ -1118,11 +1003,7 @@ where
                     })
                     .map_err(|_| de::Error::invalid_value(de::Unexpected::Str(&v), &self))?;
 
-                Ok(Id {
-                    value: Cow::Owned(v),
-                    kind,
-                    phantom: PhantomData,
-                })
+                Ok(Id::new(Cow::Owned(v), kind))
             }
         }
 
