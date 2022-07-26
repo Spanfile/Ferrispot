@@ -33,7 +33,7 @@ async fn main() {
         );
     }
 
-    let second_page = first_page.next_page().await.unwrap().unwrap();
+    let second_page = first_page.next_page(&spotify_client).await.unwrap().unwrap();
 
     println!("\nSecond page:");
     for track in second_page.items() {
@@ -46,7 +46,7 @@ async fn main() {
         );
     }
 
-    let third_page = second_page.next_page().await.unwrap().unwrap();
+    let third_page = second_page.next_page(&spotify_client).await.unwrap().unwrap();
 
     println!("\nThird page:");
     for track in third_page.items() {

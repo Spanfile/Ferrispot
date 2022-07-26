@@ -17,10 +17,12 @@ use super::{
     country_code::CountryCode,
     id::{AlbumId, Id, IdTrait},
     object_type::{obj_deserialize, TypeAlbum},
+    page::{Page, PageInformation, PageObject},
+    track::{PartialTrack, TrackObject},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
 use serde::Deserialize;
-use std::collections::HashSet;
+use std::{collections::HashSet, marker::PhantomData};
 
 mod private {
     use super::{CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
@@ -56,9 +58,10 @@ pub trait CommonAlbumInformation: crate::private::Sealed {
 
 /// Functions for retrieving information only in full albums.
 pub trait FullAlbumInformation: crate::private::Sealed {
-    // pub tracks: Page<PartialTrack>, // TODO: paging
     // TODO: the artist album thing with the album group field
 
+    /// The tracks in the album.
+    fn tracks(&self) -> Page<AlbumTracks, PartialTrack>;
     /// The album's copyrights.
     fn copyrights(&self) -> &[Copyright];
     /// The external IDs for the album.
@@ -120,6 +123,13 @@ impl<T> FullAlbumInformation for T
 where
     T: private::FullFields + crate::private::Sealed,
 {
+    fn tracks(&self) -> Page<AlbumTracks, PartialTrack> {
+        Page {
+            inner: self.full_fields().tracks.clone(),
+            phantom: PhantomData,
+        }
+    }
+
     fn copyrights(&self) -> &[Copyright] {
         &self.full_fields().copyrights
     }
@@ -187,6 +197,17 @@ pub(crate) struct AlbumObject {
     full: Option<FullAlbumFields>,
 }
 
+/// A page of tracks in an album.
+///
+/// This object is retrieved only through the [tracks](FullAlbumInformation::tracks)-function. You won't be interacting
+/// objects of this type directly.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[doc(hidden)]
+pub struct AlbumTracks {
+    #[serde(flatten)]
+    page: PageObject<TrackObject, PartialTrack>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 struct CommonAlbumFields {
     // basic information
@@ -211,7 +232,7 @@ struct FullAlbumFields {
     genres: Vec<String>,
     label: String,
     popularity: u32,
-    // pub tracks: Page<PartialTrack>, // TODO: paging
+    tracks: AlbumTracks,
     // TODO: the artist album thing with the album group field
 }
 
@@ -380,6 +401,7 @@ impl From<AlbumObject> for LocalAlbum {
 impl crate::private::Sealed for FullAlbum {}
 impl crate::private::Sealed for PartialAlbum {}
 impl crate::private::Sealed for LocalAlbum {}
+impl crate::private::Sealed for AlbumTracks {}
 
 impl private::CommonFields for FullAlbum {
     fn common_fields(&self) -> &CommonAlbumFields {
@@ -414,5 +436,21 @@ impl private::NonLocalFields for PartialAlbum {
 impl private::FullFields for FullAlbum {
     fn full_fields(&self) -> &FullAlbumFields {
         &self.full
+    }
+}
+
+impl PageInformation<PartialTrack> for AlbumTracks {
+    type Items = Vec<PartialTrack>;
+
+    fn items(&self) -> Self::Items {
+        self.page.items()
+    }
+
+    fn take_items(self) -> Self::Items {
+        self.page.take_items()
+    }
+
+    fn next(&self) -> Option<&str> {
+        self.page.next()
     }
 }

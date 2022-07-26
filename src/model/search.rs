@@ -6,8 +6,6 @@ use super::{
     ItemType,
 };
 
-use crate::client::private::SendHttpRequest;
-
 use serde::Deserialize;
 use std::marker::PhantomData;
 
@@ -23,12 +21,8 @@ pub trait ToTypesString: crate::private::Sealed {
 
 /// First pages of search results from a [search](crate::client::unscoped::UnscopedClient::search).
 #[derive(Debug)]
-pub struct SearchResults<'a, C>
-where
-    C: SendHttpRequest<'a>,
-{
+pub struct SearchResults {
     pub(crate) inner: SearchResultsObject,
-    pub(crate) client: &'a C,
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,20 +68,16 @@ pub struct AlbumSearchResults {
     albums: PageObject<AlbumObject, FullAlbum>,
 }
 
-impl<'a, C> SearchResults<'a, C>
-where
-    C: SendHttpRequest<'a>,
-{
+impl SearchResults {
     /// Return the tracks in these search results as a [Page] of [FullTracks](FullTrack).
     ///
     /// If no tracks matched the search query, this will return None. Therefore, the returned page will always contain
     /// some items.
-    pub fn tracks(self) -> Option<Page<'a, TrackSearchResults, FullTrack, C>> {
+    pub fn tracks(self) -> Option<Page<TrackSearchResults, FullTrack>> {
         self.inner.tracks.and_then(|page| {
             if !page.items().is_empty() {
                 Some(Page {
                     inner: TrackSearchResults { tracks: page },
-                    client: self.client,
                     phantom: PhantomData,
                 })
             } else {
@@ -100,12 +90,11 @@ where
     ///
     /// If no artists matched the search query, this will return None. Therefore, the returned page will always contain
     /// some items.
-    pub fn artists(self) -> Option<Page<'a, ArtistSearchResults, FullArtist, C>> {
+    pub fn artists(self) -> Option<Page<ArtistSearchResults, FullArtist>> {
         self.inner.artists.and_then(|page| {
             if !page.items().is_empty() {
                 Some(Page {
                     inner: ArtistSearchResults { artists: page },
-                    client: self.client,
                     phantom: PhantomData,
                 })
             } else {
@@ -118,12 +107,11 @@ where
     ///
     /// If no albums matched the search query, this will return None. Therefore, the returned page will always contain
     /// some items.
-    pub fn albums(self) -> Option<Page<'a, AlbumSearchResults, FullAlbum, C>> {
+    pub fn albums(self) -> Option<Page<AlbumSearchResults, FullAlbum>> {
         self.inner.albums.and_then(|page| {
             if !page.items().is_empty() {
                 Some(Page {
                     inner: AlbumSearchResults { albums: page },
-                    client: self.client,
                     phantom: PhantomData,
                 })
             } else {

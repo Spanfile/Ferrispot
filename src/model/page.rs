@@ -28,18 +28,18 @@ where
 
 /// A page of items.
 #[derive(Debug)]
-pub struct Page<'a, TInner, TItem, C>
+pub struct Page<TInner, TItem>
 where
     TInner: PageInformation<TItem> + DeserializeOwned + Debug,
-    C: SendHttpRequest<'a>,
 {
     pub(crate) inner: TInner,
-    pub(crate) client: &'a C,
-
-    pub(crate) phantom: PhantomData<&'a TItem>,
+    pub(crate) phantom: PhantomData<TItem>,
 }
 
-#[derive(Debug, Deserialize)]
+/// A page object returned from Spotify.
+///
+/// This object is only referenced through [Page] and the various wrapper types for paged information.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct PageObject<TItem, TReturn>
 where
     TItem: ToOwned,
@@ -87,10 +87,9 @@ where
     }
 }
 
-impl<'a, TInner, TItem, C> Page<'a, TInner, TItem, C>
+impl<TInner, TItem> Page<TInner, TItem>
 where
     TInner: PageInformation<TItem> + DeserializeOwned + Debug,
-    C: SendHttpRequest<'a>,
 {
     /// Return the items in this page. The internal items will have to be cloned and converted into the return type.
     pub fn items(&self) -> TInner::Items {
@@ -104,13 +103,16 @@ where
     }
 
     /// Return the next page from this page, if it exists.
-    pub async fn next_page(self) -> Result<Option<Page<'a, TInner, TItem, C>>> {
+    pub async fn next_page<'a, C>(self, client: &'a C) -> Result<Option<Page<TInner, TItem>>>
+    where
+        C: SendHttpRequest<'a>,
+    {
         if let Some(url) = self.inner.next() {
             // this will only fail if Spotify returns a malformed URL
             // TODO: maybe it's an error case?
             let url = Url::parse(url).expect("failed to parse next page URL");
 
-            let response = self.client.send_http_request(Method::GET, url).send().await?;
+            let response = client.send_http_request(Method::GET, url).send().await?;
             debug!("Next page response: {:?}", response);
 
             response.error_for_status_ref()?;
@@ -120,7 +122,6 @@ where
 
             Ok(Some(Page {
                 inner: next_page,
-                client: self.client,
                 phantom: PhantomData,
             }))
         } else {

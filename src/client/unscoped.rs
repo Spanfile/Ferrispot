@@ -211,7 +211,7 @@ where
     }
 
     /// Send the search and return a collection of results.
-    pub async fn send(self) -> Result<SearchResults<'a, C>> {
+    pub async fn send(self) -> Result<SearchResults> {
         let limit = self.limit.to_string();
         let offset = self.offset.to_string();
 
@@ -237,9 +237,6 @@ where
         let search_results: SearchResultsObject = response.json().await?;
         debug!("Search results object: {:?}", search_results);
 
-        Ok(SearchResults {
-            inner: search_results,
-            client: self.client,
-        })
+        Ok(SearchResults { inner: search_results })
     }
 }
