@@ -6,7 +6,7 @@ use crate::{
     error::Result,
     model::{
         country_code::CountryCode,
-        search::{SearchResults, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
+        search::{SearchResults, SearchResultsObject, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
         track::{FullTrack, TrackObject},
     },
 };
@@ -211,7 +211,7 @@ where
     }
 
     /// Send the search and return a collection of results.
-    pub async fn send(self) -> Result<SearchResults> {
+    pub async fn send(self) -> Result<SearchResults<'a, C>> {
         let limit = self.limit.to_string();
         let offset = self.offset.to_string();
 
@@ -230,11 +230,16 @@ where
             .expect("failed to parse API tracks endpoint as URL (this is a bug in the library)");
 
         let response = self.client.send_http_request(Method::GET, url).send().await?;
+        debug!("Search results response: {:?}", response);
+
         response.error_for_status_ref()?;
 
-        let search_results: SearchResults = response.json().await?;
+        let search_results: SearchResultsObject = response.json().await?;
         debug!("Search results object: {:?}", search_results);
 
-        Ok(search_results)
+        Ok(SearchResults {
+            inner: search_results,
+            client: self.client,
+        })
     }
 }

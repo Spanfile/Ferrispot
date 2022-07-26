@@ -31,6 +31,10 @@ pub mod scope;
 
 mod util;
 
+pub(crate) mod private {
+    pub trait Sealed {}
+}
+
 pub mod prelude {
     //! Re-exports of all common traits in the crate.
     //!

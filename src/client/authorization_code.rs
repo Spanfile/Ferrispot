@@ -448,7 +448,7 @@ impl AuthorizationCodeUserClientBuilder {
     }
 }
 
-impl private::Sealed for AuthorizationCodeUserClient {}
+impl crate::private::Sealed for AuthorizationCodeUserClient {}
 
 impl private::BuildHttpRequest for AuthorizationCodeUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {

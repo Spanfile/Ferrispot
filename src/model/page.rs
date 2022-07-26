@@ -1,48 +1,130 @@
-use serde::Deserialize;
+use crate::{client::private::SendHttpRequest, error::Result};
 
-// pub struct Pages<'a, T>
-// where
-//     T: ApiObject,
-//     <T as ApiObject>::SourceObject: Into<T>,
-// {
-//     // current_page: Page<<T as ApiObject>::SourceObject>,
-//     current_page: IteratorPage<<T as ApiObject>::SourceObject>,
-//     client: &'a dyn SendHttpRequest,
-// }
+use log::debug;
+use reqwest::{Method, Url};
+use serde::{de::DeserializeOwned, Deserialize};
+use std::{fmt::Debug, marker::PhantomData};
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct Page<O> {
-    pub items: Vec<O>,
-    pub limit: usize,
-    pub offset: usize,
-    pub total: usize,
+/// A trait describing a page-like object that is returned from Spotify's search API.
+///
+/// You do not have to use this trait directly.
+#[doc(hidden)]
+pub trait PageInformation<T>
+where
+    Self: crate::private::Sealed,
+{
+    /// The iterator type this page contains.
+    type Items: IntoIterator<Item = T>;
+
+    /// Return the items in this page.
+    fn items(&self) -> Self::Items;
+
+    /// Return the items in this page while consuming the page.
+    fn take_items(self) -> Self::Items;
+
+    /// Returns the URL for the next page from this page, if it exists.
+    fn next(&self) -> Option<&str>;
 }
 
-impl<O> IntoIterator for Page<O> {
-    type Item = O;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+/// A page of items.
+#[derive(Debug)]
+pub struct Page<'a, TInner, TItem, C>
+where
+    TInner: PageInformation<TItem> + DeserializeOwned + Debug,
+    C: SendHttpRequest<'a>,
+{
+    pub(crate) inner: TInner,
+    pub(crate) client: &'a C,
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.items.into_iter()
+    pub(crate) phantom: PhantomData<&'a TItem>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct PageObject<TItem, TReturn>
+where
+    TItem: ToOwned,
+    TReturn: From<<TItem as ToOwned>::Owned>,
+{
+    items: Vec<TItem>,
+    next: Option<String>,
+
+    // these fields aren't actually needed but keep them around for logging purposes
+    #[allow(dead_code)]
+    limit: usize,
+    #[allow(dead_code)]
+    offset: usize,
+    #[allow(dead_code)]
+    total: usize,
+
+    #[serde(default)]
+    phantom: PhantomData<TReturn>,
+}
+
+impl<TItem, TReturn> crate::private::Sealed for PageObject<TItem, TReturn>
+where
+    TItem: ToOwned,
+    TReturn: From<<TItem as ToOwned>::Owned>,
+{
+}
+
+impl<TItem, TReturn> PageInformation<TReturn> for PageObject<TItem, TReturn>
+where
+    TItem: ToOwned + Into<TReturn>,
+    TReturn: From<<TItem as ToOwned>::Owned>,
+{
+    type Items = Vec<TReturn>;
+
+    fn items(&self) -> Self::Items {
+        self.items.iter().map(|item| item.to_owned().into()).collect()
+    }
+
+    fn take_items(self) -> Self::Items {
+        self.items.into_iter().map(|item| item.into()).collect()
+    }
+
+    fn next(&self) -> Option<&str> {
+        self.next.as_deref()
     }
 }
 
-// impl<'a, T> Pages<'a, T>
-// where
-//     T: ApiObject,
-//     <T as ApiObject>::SourceObject: 'static + Into<T>,
-// {
-//     pub(crate) fn new(first_page: Page<<T as ApiObject>::SourceObject>, client: &'a dyn SendHttpRequest) -> Self {
-//         Self {
-//             current_page: IteratorPage {
-//                 len: first_page.items.len(),
-//                 items: Box::new(first_page.items.into_iter()),
-//                 // limit: first_page.limit,
-//                 // offset: first_page.offset,
-//                 total: first_page.total,
-//                 next: first_page.next,
-//             },
-//             client,
-//         }
-//     }
-// }
+impl<'a, TInner, TItem, C> Page<'a, TInner, TItem, C>
+where
+    TInner: PageInformation<TItem> + DeserializeOwned + Debug,
+    C: SendHttpRequest<'a>,
+{
+    /// Return the items in this page. The internal items will have to be cloned and converted into the return type.
+    pub fn items(&self) -> TInner::Items {
+        self.inner.items()
+    }
+
+    /// Return the items in this page while consuming the page. This helps avoid cloning the internal items, which may
+    /// be quite large.
+    pub fn take_items(self) -> TInner::Items {
+        self.inner.take_items()
+    }
+
+    /// Return the next page from this page, if it exists.
+    pub async fn next_page(self) -> Result<Option<Page<'a, TInner, TItem, C>>> {
+        if let Some(url) = self.inner.next() {
+            // this will only fail if Spotify returns a malformed URL
+            // TODO: maybe it's an error case?
+            let url = Url::parse(url).expect("failed to parse next page URL");
+
+            let response = self.client.send_http_request(Method::GET, url).send().await?;
+            debug!("Next page response: {:?}", response);
+
+            response.error_for_status_ref()?;
+
+            let next_page: TInner = response.json().await?;
+            debug!("Next page: {:?}", next_page);
+
+            Ok(Some(Page {
+                inner: next_page,
+                client: self.client,
+                phantom: PhantomData,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}

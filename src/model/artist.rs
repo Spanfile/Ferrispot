@@ -36,7 +36,7 @@ mod private {
 }
 
 /// Functions for retrieving information that is common to every artist type.
-pub trait CommonArtistInformation: super::private::Sealed {
+pub trait CommonArtistInformation: crate::private::Sealed {
     /// The artist's name.
     fn name(&self) -> &str;
     /// The external URLs for the artist.
@@ -44,7 +44,7 @@ pub trait CommonArtistInformation: super::private::Sealed {
 }
 
 /// Functions for retrieving information only in full artists.
-pub trait FullArtistInformation: super::private::Sealed {
+pub trait FullArtistInformation: crate::private::Sealed {
     /// Genres the artist is associated with.
     fn genres(&self) -> &[String];
     /// Images for the artist.
@@ -54,14 +54,14 @@ pub trait FullArtistInformation: super::private::Sealed {
 }
 
 /// Functions for retrieving information that is available in non-local artists.
-pub trait NonLocalArtistInformation: super::private::Sealed {
+pub trait NonLocalArtistInformation: crate::private::Sealed {
     /// The artist's Spotify ID.
     fn id(&self) -> &str;
 }
 
 impl<T> CommonArtistInformation for T
 where
-    T: private::CommonFields + super::private::Sealed,
+    T: private::CommonFields + crate::private::Sealed,
 {
     fn name(&self) -> &str {
         &self.common_fields().name
@@ -74,7 +74,7 @@ where
 
 impl<T> FullArtistInformation for T
 where
-    T: private::FullFields + super::private::Sealed,
+    T: private::FullFields + crate::private::Sealed,
 {
     fn genres(&self) -> &[String] {
         &self.full_fields().genres
@@ -91,7 +91,7 @@ where
 
 impl<T> NonLocalArtistInformation for T
 where
-    T: private::NonLocalFields + super::private::Sealed,
+    T: private::NonLocalFields + crate::private::Sealed,
 {
     fn id(&self) -> &str {
         self.non_local_fields().id.id()
@@ -288,9 +288,9 @@ impl From<ArtistObject> for LocalArtist {
     }
 }
 
-impl super::private::Sealed for FullArtist {}
-impl super::private::Sealed for PartialArtist {}
-impl super::private::Sealed for LocalArtist {}
+impl crate::private::Sealed for FullArtist {}
+impl crate::private::Sealed for PartialArtist {}
+impl crate::private::Sealed for LocalArtist {}
 
 impl private::CommonFields for FullArtist {
     fn common_fields(&self) -> &CommonArtistFields {

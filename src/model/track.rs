@@ -41,7 +41,7 @@ mod private {
 }
 
 /// Functions for retrieving information that is common to every track type.
-pub trait CommonTrackInformation: super::private::Sealed {
+pub trait CommonTrackInformation: crate::private::Sealed {
     /// The track's name.
     fn name(&self) -> &str;
     /// The artists of the track.
@@ -70,7 +70,7 @@ pub trait CommonTrackInformation: super::private::Sealed {
 }
 
 /// Functions for retrieving information only in full tracks.
-pub trait FullTrackInformation: super::private::Sealed {
+pub trait FullTrackInformation: crate::private::Sealed {
     /// The album this track is in.
     fn album(&self) -> PartialAlbum;
     /// The external IDs for the track.
@@ -80,14 +80,14 @@ pub trait FullTrackInformation: super::private::Sealed {
 }
 
 /// Functions for retrieving information that is available in non-local tracks.
-pub trait NonLocalTrackInformation: super::private::Sealed {
+pub trait NonLocalTrackInformation: crate::private::Sealed {
     /// The track's Spotify ID.
     fn id(&self) -> &str;
 }
 
 impl<T> CommonTrackInformation for T
 where
-    T: private::CommonFields + super::private::Sealed,
+    T: private::CommonFields + crate::private::Sealed,
 {
     fn name(&self) -> &str {
         &self.common_fields().name
@@ -144,7 +144,7 @@ where
 
 impl<T> FullTrackInformation for T
 where
-    T: private::FullFields + super::private::Sealed,
+    T: private::FullFields + crate::private::Sealed,
 {
     fn album(&self) -> PartialAlbum {
         self.full_fields().album.to_owned().into()
@@ -161,7 +161,7 @@ where
 
 impl<T> NonLocalTrackInformation for T
 where
-    T: private::NonLocalFields + super::private::Sealed,
+    T: private::NonLocalFields + crate::private::Sealed,
 {
     fn id(&self) -> &str {
         self.non_local_fields().id.id()
@@ -383,9 +383,9 @@ impl From<TrackObject> for LocalTrack {
     }
 }
 
-impl super::private::Sealed for FullTrack {}
-impl super::private::Sealed for PartialTrack {}
-impl super::private::Sealed for LocalTrack {}
+impl crate::private::Sealed for FullTrack {}
+impl crate::private::Sealed for PartialTrack {}
+impl crate::private::Sealed for LocalTrack {}
 
 impl private::CommonFields for FullTrack {
     fn common_fields(&self) -> &CommonTrackFields {

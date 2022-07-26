@@ -216,7 +216,7 @@ impl ImplicitGrantUserClientBuilder {
     }
 }
 
-impl private::Sealed for ImplicitGrantUserClient {}
+impl crate::private::Sealed for ImplicitGrantUserClient {}
 
 impl private::BuildHttpRequest for ImplicitGrantUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {

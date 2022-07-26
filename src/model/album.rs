@@ -39,7 +39,7 @@ mod private {
 }
 
 /// Functions for retrieving information that is common to every album type.
-pub trait CommonAlbumInformation: super::private::Sealed {
+pub trait CommonAlbumInformation: crate::private::Sealed {
     /// The album's name.
     fn name(&self) -> &str;
     /// The artists of the album.
@@ -55,7 +55,7 @@ pub trait CommonAlbumInformation: super::private::Sealed {
 }
 
 /// Functions for retrieving information only in full albums.
-pub trait FullAlbumInformation: super::private::Sealed {
+pub trait FullAlbumInformation: crate::private::Sealed {
     // pub tracks: Page<PartialTrack>, // TODO: paging
     // TODO: the artist album thing with the album group field
 
@@ -72,7 +72,7 @@ pub trait FullAlbumInformation: super::private::Sealed {
 }
 
 /// Functions for retrieving information that is available in non-local albums.
-pub trait NonLocalAlbumInformation: super::private::Sealed {
+pub trait NonLocalAlbumInformation: crate::private::Sealed {
     /// The album's type.
     fn album_type(&self) -> AlbumType;
     /// The album's Spotify ID.
@@ -85,7 +85,7 @@ pub trait NonLocalAlbumInformation: super::private::Sealed {
 
 impl<T> CommonAlbumInformation for T
 where
-    T: private::CommonFields + super::private::Sealed,
+    T: private::CommonFields + crate::private::Sealed,
 {
     fn name(&self) -> &str {
         &self.common_fields().name
@@ -118,7 +118,7 @@ where
 
 impl<T> FullAlbumInformation for T
 where
-    T: private::FullFields + super::private::Sealed,
+    T: private::FullFields + crate::private::Sealed,
 {
     fn copyrights(&self) -> &[Copyright] {
         &self.full_fields().copyrights
@@ -143,7 +143,7 @@ where
 
 impl<T> NonLocalAlbumInformation for T
 where
-    T: private::NonLocalFields + super::private::Sealed,
+    T: private::NonLocalFields + crate::private::Sealed,
 {
     fn album_type(&self) -> AlbumType {
         self.non_local_fields().album_type
@@ -377,9 +377,9 @@ impl From<AlbumObject> for LocalAlbum {
     }
 }
 
-impl super::private::Sealed for FullAlbum {}
-impl super::private::Sealed for PartialAlbum {}
-impl super::private::Sealed for LocalAlbum {}
+impl crate::private::Sealed for FullAlbum {}
+impl crate::private::Sealed for PartialAlbum {}
+impl crate::private::Sealed for LocalAlbum {}
 
 impl private::CommonFields for FullAlbum {
     fn common_fields(&self) -> &CommonAlbumFields {

@@ -13,15 +13,17 @@ async fn main() {
             .await
             .expect("failed to build Spotify client");
 
-    let first_page = spotify_client
+    let search_results = spotify_client
         .search("hatsune miku")
         .types([ItemType::Track])
         .send()
         .await
         .unwrap();
 
+    let first_page = search_results.tracks().unwrap();
+
     println!("First page:");
-    for track in first_page.tracks().unwrap().items {
+    for track in first_page.items() {
         println!(
             "{} - {} ({}) [{}]",
             track.name(),
@@ -31,17 +33,23 @@ async fn main() {
         );
     }
 
-    let second_page = spotify_client
-        .search("hatsune miku")
-        .types([ItemType::Track])
-        // there are 20 items in a page by default, so offset the search by 20 to get the second page
-        .offset(20)
-        .send()
-        .await
-        .unwrap();
+    let second_page = first_page.next_page().await.unwrap().unwrap();
 
     println!("\nSecond page:");
-    for track in second_page.tracks().unwrap().items {
+    for track in second_page.items() {
+        println!(
+            "{} - {} ({}) [{}]",
+            track.name(),
+            track.artists().first().unwrap().name(),
+            track.album().name(),
+            track.id(),
+        );
+    }
+
+    let third_page = second_page.next_page().await.unwrap().unwrap();
+
+    println!("\nThird page:");
+    for track in third_page.items() {
         println!(
             "{} - {} ({}) [{}]",
             track.name(),

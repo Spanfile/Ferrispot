@@ -21,10 +21,6 @@ use std::{fmt, str::FromStr};
 
 // TODO: really gotta do a pass of what all derives are actually useful for everything
 
-mod private {
-    pub trait Sealed {}
-}
-
 /// Contains an URL to an image and its dimensions, if specified.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Image {
@@ -103,7 +99,7 @@ pub enum ItemType {
     Episode,
 }
 
-impl private::Sealed for ItemType {}
+impl crate::private::Sealed for ItemType {}
 
 impl fmt::Display for ItemType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

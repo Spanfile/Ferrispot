@@ -36,7 +36,7 @@ pub mod implicit_grant;
 pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
-mod private {
+pub(crate) mod private {
     use crate::{
         error::{Error, Result},
         model::error::{ApiErrorMessage, ApiErrorResponse},
@@ -46,10 +46,8 @@ mod private {
     use reqwest::{header, Method, RequestBuilder, Response, StatusCode, Url};
     use serde::Serialize;
 
-    pub trait Sealed {}
-
     /// Every Spotify client implements this trait.
-    pub trait BuildHttpRequest: Sealed {
+    pub trait BuildHttpRequest: crate::private::Sealed {
         /// Returns a new [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g. authentication
         /// headers) filled in. You probably shouldn't call this function directly; instead use
         /// [send_http_request](crate::client::private::SendHttpRequest::send_http_request).
@@ -67,7 +65,7 @@ mod private {
 
     /// Every Spotify client implements this trait.
     #[async_trait]
-    pub trait AccessTokenExpiry: Sealed {
+    pub trait AccessTokenExpiry: crate::private::Sealed {
         // if specialisation was a thing, this function could be refactored into two generic trait impls
         async fn handle_access_token_expired(&self) -> Result<AccessTokenExpiryResult>;
     }
@@ -247,7 +245,7 @@ const ACCOUNTS_API_TOKEN_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "api/toke
 /// Note that [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient) does *not* implement
 /// this trait, since even though it has an access token, it cannot be automatically refreshed.
 #[async_trait]
-pub trait AccessTokenRefresh: private::Sealed {
+pub trait AccessTokenRefresh: crate::private::Sealed {
     /// Request a new access token from Spotify and save it internally in the client.
     async fn refresh_access_token(&self) -> Result<()>;
 }
@@ -476,7 +474,7 @@ impl SpotifyClientWithSecretBuilder {
     }
 }
 
-impl private::Sealed for SpotifyClientWithSecret {}
+impl crate::private::Sealed for SpotifyClientWithSecret {}
 
 impl private::BuildHttpRequest for SpotifyClientWithSecret {
     fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
