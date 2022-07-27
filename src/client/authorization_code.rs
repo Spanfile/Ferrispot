@@ -135,7 +135,7 @@ struct AuthorizationCodeUserClientRef {
 #[derive(Debug)]
 pub struct IncompleteAuthorizationCodeUserClient {
     client_id: String,
-    redirect_uri: String, // TODO: figure if this can be &'a str instead
+    redirect_uri: String,
     state: String,
     scopes: Option<String>,
     show_dialog: bool,
@@ -148,7 +148,7 @@ pub struct IncompleteAuthorizationCodeUserClient {
 #[derive(Debug)]
 pub struct AuthorizationCodeUserClientBuilder {
     client_id: String,
-    redirect_uri: String, // TODO: figure if this can be &'a str instead
+    redirect_uri: String,
     state: Option<String>,
     scopes: Option<String>,
     show_dialog: bool,

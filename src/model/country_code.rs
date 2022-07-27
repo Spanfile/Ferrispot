@@ -1,13 +1,13 @@
 //! Contains the [CountryCode] enum.
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fmt;
 
 /// Represents all possible two-letter country codes.
 ///
 /// Most of the codes here are from the [ISO-3166](https://en.wikipedia.org/wiki/ISO_3166)-specification, however
 /// Spotify may still return some country codes not recognised in ISO-3166. Such are included here as well.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Deserialize)]
 pub enum CountryCode {
     // ====================================
     // country codes recognised in ISO-3166
