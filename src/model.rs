@@ -5,15 +5,19 @@
 
 pub mod album;
 pub mod artist;
-pub mod country_code;
 pub mod error;
 pub mod id;
-pub mod page;
 pub mod playback;
 pub mod search;
 pub mod track;
 
 pub(crate) mod object_type;
+
+mod country_code;
+mod page;
+
+pub use country_code::CountryCode;
+pub use page::Page;
 
 use crate::error::IdError;
 use serde::{Deserialize, Serialize};

@@ -5,9 +5,9 @@ use super::{
 use crate::{
     error::Result,
     model::{
-        country_code::CountryCode,
         search::{SearchResults, SearchResultsObject, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
         track::{FullTrack, TrackObject},
+        CountryCode,
     },
 };
 use async_trait::async_trait;
