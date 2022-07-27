@@ -27,9 +27,9 @@ pub struct SearchResults {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct SearchResultsObject {
-    tracks: Option<PageObject<TrackObject, FullTrack>>,
-    artists: Option<PageObject<ArtistObject, FullArtist>>,
-    albums: Option<PageObject<AlbumObject, FullAlbum>>,
+    tracks: Option<PageObject<TrackObject>>,
+    artists: Option<PageObject<ArtistObject>>,
+    albums: Option<PageObject<AlbumObject>>,
     // playlists: Page<Playlist>,
     // shows: Page<Show>,
     // episodes: Page<Episode>,
@@ -43,7 +43,7 @@ pub(crate) struct SearchResultsObject {
 #[derive(Debug, Deserialize)]
 #[doc(hidden)]
 pub struct TrackSearchResults {
-    tracks: PageObject<TrackObject, FullTrack>,
+    tracks: PageObject<TrackObject>,
 }
 
 /// Continuation page of search results from a [search](crate::client::unscoped::UnscopedClient::search) that contains
@@ -54,7 +54,7 @@ pub struct TrackSearchResults {
 #[derive(Debug, Deserialize)]
 #[doc(hidden)]
 pub struct ArtistSearchResults {
-    artists: PageObject<ArtistObject, FullArtist>,
+    artists: PageObject<ArtistObject>,
 }
 
 /// Continuation page of search results from a [search](crate::client::unscoped::UnscopedClient::search) that contains
@@ -65,7 +65,7 @@ pub struct ArtistSearchResults {
 #[derive(Debug, Deserialize)]
 #[doc(hidden)]
 pub struct AlbumSearchResults {
-    albums: PageObject<AlbumObject, FullAlbum>,
+    albums: PageObject<AlbumObject>,
 }
 
 impl SearchResults {
@@ -75,7 +75,7 @@ impl SearchResults {
     /// some items.
     pub fn tracks(self) -> Option<Page<TrackSearchResults, FullTrack>> {
         self.inner.tracks.and_then(|page| {
-            if !page.items().is_empty() {
+            if !<PageObject<TrackObject> as PageInformation<FullTrack>>::items(&page).is_empty() {
                 Some(Page {
                     inner: TrackSearchResults { tracks: page },
                     phantom: PhantomData,
@@ -92,7 +92,7 @@ impl SearchResults {
     /// some items.
     pub fn artists(self) -> Option<Page<ArtistSearchResults, FullArtist>> {
         self.inner.artists.and_then(|page| {
-            if !page.items().is_empty() {
+            if !<PageObject<ArtistObject> as PageInformation<FullArtist>>::items(&page).is_empty() {
                 Some(Page {
                     inner: ArtistSearchResults { artists: page },
                     phantom: PhantomData,
@@ -109,7 +109,7 @@ impl SearchResults {
     /// some items.
     pub fn albums(self) -> Option<Page<AlbumSearchResults, FullAlbum>> {
         self.inner.albums.and_then(|page| {
-            if !page.items().is_empty() {
+            if !<PageObject<AlbumObject> as PageInformation<FullAlbum>>::items(&page).is_empty() {
                 Some(Page {
                     inner: AlbumSearchResults { albums: page },
                     phantom: PhantomData,
@@ -137,7 +137,7 @@ impl PageInformation<FullTrack> for TrackSearchResults {
     }
 
     fn next(&self) -> Option<&str> {
-        self.tracks.next()
+        <PageObject<TrackObject> as PageInformation<FullTrack>>::next(&self.tracks)
     }
 }
 
@@ -153,7 +153,7 @@ impl PageInformation<FullArtist> for ArtistSearchResults {
     }
 
     fn next(&self) -> Option<&str> {
-        self.artists.next()
+        <PageObject<ArtistObject> as PageInformation<FullArtist>>::next(&self.artists)
     }
 }
 
@@ -169,7 +169,7 @@ impl PageInformation<FullAlbum> for AlbumSearchResults {
     }
 
     fn next(&self) -> Option<&str> {
-        self.albums.next()
+        <PageObject<AlbumObject> as PageInformation<FullAlbum>>::next(&self.albums)
     }
 }
 

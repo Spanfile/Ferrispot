@@ -40,12 +40,8 @@ where
 ///
 /// This object is only referenced through [Page] and the various wrapper types for paged information.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub(crate) struct PageObject<TItem, TReturn>
-where
-    TItem: ToOwned,
-    TReturn: From<<TItem as ToOwned>::Owned>,
-{
-    items: Vec<TItem>,
+pub(crate) struct PageObject<T> {
+    items: Vec<T>,
     next: Option<String>,
 
     // these fields aren't actually needed but keep them around for logging purposes
@@ -55,19 +51,11 @@ where
     offset: usize,
     #[allow(dead_code)]
     total: usize,
-
-    #[serde(default)]
-    phantom: PhantomData<TReturn>,
 }
 
-impl<TItem, TReturn> crate::private::Sealed for PageObject<TItem, TReturn>
-where
-    TItem: ToOwned,
-    TReturn: From<<TItem as ToOwned>::Owned>,
-{
-}
+impl<T> crate::private::Sealed for PageObject<T> {}
 
-impl<TItem, TReturn> PageInformation<TReturn> for PageObject<TItem, TReturn>
+impl<TItem, TReturn> PageInformation<TReturn> for PageObject<TItem>
 where
     TItem: ToOwned + Into<TReturn>,
     TReturn: From<<TItem as ToOwned>::Owned>,

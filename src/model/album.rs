@@ -205,7 +205,7 @@ pub(crate) struct AlbumObject {
 #[doc(hidden)]
 pub struct AlbumTracks {
     #[serde(flatten)]
-    page: PageObject<TrackObject, PartialTrack>,
+    page: PageObject<TrackObject>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -451,6 +451,6 @@ impl PageInformation<PartialTrack> for AlbumTracks {
     }
 
     fn next(&self) -> Option<&str> {
-        self.page.next()
+        <PageObject<TrackObject> as PageInformation<PartialTrack>>::next(&self.page)
     }
 }
