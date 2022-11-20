@@ -16,7 +16,7 @@
 //! endpoints](ScopedClient) in addition to the [unscoped endpoints](UnscopedClient).
 //!
 //! However, if the client secret cannot be safely stored in your environment, you may still access all
-//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using an the [authorization code flow with
+//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using the [authorization code flow with
 //! PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant flow is also
 //! supported](SpotifyClient::implicit_grant_client), but it is not recommended for use.
 //!

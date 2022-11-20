@@ -1,7 +1,3 @@
-use crate::{client::private::SendHttpRequest, error::Result};
-
-use log::debug;
-use reqwest::{Method, Url};
 use serde::{de::DeserializeOwned, Deserialize};
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -89,24 +85,31 @@ where
     pub fn take_items(self) -> TInner::Items {
         self.inner.take_items()
     }
+}
 
+#[cfg(any(feature = "async", feature = "sync"))]
+impl<TInner, TItem> Page<TInner, TItem>
+where
+    TInner: PageInformation<TItem> + DeserializeOwned + Debug,
+{
     /// Return the next page from this page, if it exists.
-    pub async fn next_page<'a, C>(self, client: &'a C) -> Result<Option<Page<TInner, TItem>>>
+    pub async fn next_page<'a, C>(self, client: &'a C) -> crate::error::Result<Option<Page<TInner, TItem>>>
     where
-        C: SendHttpRequest<'a>,
+        C: crate::client::private::SendHttpRequest<'a>,
     {
         if let Some(url) = self.inner.next() {
             // this will only fail if Spotify returns a malformed URL
             // TODO: maybe it's an error case?
-            let url = Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
+            let url =
+                reqwest::Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
 
-            let response = client.send_http_request(Method::GET, url).send().await?;
-            debug!("Next page response: {:?}", response);
+            let response = client.send_http_request(reqwest::Method::GET, url).send().await?;
+            log::debug!("Next page response: {:?}", response);
 
             response.error_for_status_ref()?;
 
             let next_page: TInner = response.json().await?;
-            debug!("Next page: {:?}", next_page);
+            log::debug!("Next page: {:?}", next_page);
 
             Ok(Some(Page {
                 inner: next_page,

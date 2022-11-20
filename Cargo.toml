@@ -10,17 +10,20 @@ version = "0.1.0"
 
 [dependencies]
 # async-stream = "0.3.3"
-async-trait = "0.1.58"
-base64 = "0.13.1"
-const_format = "0.2.30"
 # futures = "0.3.21"
-log = "0.4.17"
-rand = "0.8.5"
-reqwest = {version = "0.11.12", features = ["json"]}
 serde = {version = "1.0.147", features = ["derive"]}
-sha2 = "0.10.6"
 thiserror = "1.0.37"
 
+# async/sync client dependencies
+reqwest = {version = "0.11.12", features = ["json"], optional = true}
+sha2 = {version = "0.10.6", optional = true}
+async-trait = {version = "0.1.58", optional = true}
+log = {version = "0.4.17", optional = true}
+rand = {version = "0.8.5", optional = true}
+base64 = {version = "0.13.1", optional = true}
+const_format = {version = "0.2.30", optional = true}
+
+# rate limit sleep dependencies
 async-std = {version = "1.12.0", optional = true}
 tokio = {version = "1.22.0", features = ["time"], optional = true}
 
@@ -31,9 +34,11 @@ serde_json = "1.0.87"
 tokio = {version = "1.22.0", features = ["rt-multi-thread", "macros"]}
 
 [features]
-default = ["tokio_sleep"]
+default = ["async", "tokio_sleep"]
 # default = ["async_std_sleep"]
 
+async = ["dep:reqwest", "dep:sha2", "dep:async-trait", "dep:log", "dep:rand", "dep:base64", "dep:const_format"]
+sync = ["dep:reqwest", "dep:sha2", "dep:log", "dep:rand", "dep:base64", "dep:const_format", "reqwest?/blocking"]
+
 async_std_sleep = ["dep:async-std"]
-blocking = ["reqwest/blocking"]
 tokio_sleep = ["dep:tokio"]

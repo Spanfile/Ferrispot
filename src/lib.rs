@@ -24,7 +24,9 @@
 //!   - In case neither are enabled, the library will return a [rate limit error](crate::error::Error::RateLimit) when
 //!     it occurs
 
+#[cfg(any(feature = "async", feature = "sync"))]
 pub mod client;
+
 pub mod error;
 pub mod model;
 pub mod scope;
@@ -42,8 +44,10 @@ pub mod prelude {
     //! kind), IDs etc. Their common functionality is grouped into traits. All such traits are re-exported here for
     //! convenience.
 
+    #[cfg(any(feature = "async", feature = "sync"))]
+    pub use crate::client::{scoped::ScopedClient, unscoped::UnscopedClient, AccessTokenRefresh};
+
     pub use crate::{
-        client::{scoped::ScopedClient, unscoped::UnscopedClient, AccessTokenRefresh},
         model::{
             album::{CommonAlbumInformation, FullAlbumInformation, NonLocalAlbumInformation},
             artist::{CommonArtistInformation, FullArtistInformation, NonLocalArtistInformation},

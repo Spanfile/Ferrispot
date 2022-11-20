@@ -1,12 +1,17 @@
 //! Various error types exposed by the crate.
 
-use crate::model::{error::AuthenticationErrorKind, ItemType};
+#[cfg(any(feature = "async", feature = "sync"))]
+use crate::model::error::AuthenticationErrorKind;
+use crate::model::ItemType;
+
 use thiserror::Error;
 
 /// The result type the library returns in the public-facing interface.
+#[cfg(any(feature = "async", feature = "sync"))]
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Covers all errors the library may return.
+#[cfg(any(feature = "async", feature = "sync"))]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum Error {

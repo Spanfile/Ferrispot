@@ -146,10 +146,7 @@
 
 use super::ItemType;
 
-use crate::{
-    error::{IdError, Result},
-    util::maybe_split_once::MaybeSplitOnce,
-};
+use crate::{error::IdError, util::maybe_split_once::MaybeSplitOnce};
 
 use serde::{
     de::{self, Visitor},
@@ -207,17 +204,17 @@ where
     Self: Sized,
 {
     /// Parses a Spotify URI string into an ID.
-    fn from_uri<C>(uri: C) -> Result<Self>
+    fn from_uri<C>(uri: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>;
 
     /// Parses a Spotify URL into an ID.
-    fn from_url<C>(url: C) -> Result<Self>
+    fn from_url<C>(url: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>;
 
     /// Parses either a Spotify URL or Spotify URI into an ID.
-    fn from_url_or_uri<C>(url_or_uri: C) -> Result<Self>
+    fn from_url_or_uri<C>(url_or_uri: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -228,7 +225,7 @@ where
         } else if url_or_uri.starts_with(URL_PREFIX) {
             Self::from_url(url_or_uri)
         } else {
-            Err(IdError::MalformedString(url_or_uri.to_string()).into())
+            Err(IdError::MalformedString(url_or_uri.to_string()))
         }
     }
 }
@@ -241,7 +238,7 @@ where
     Self: Sized,
 {
     /// Parses a bare Spotify ID into an ID.
-    fn from_bare<C>(bare: C) -> Result<Self>
+    fn from_bare<C>(bare: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>;
 }
@@ -390,7 +387,7 @@ impl<'a, T> IdFromKnownKind<'a> for Id<'a, T>
 where
     T: ItemTypeId,
 {
-    fn from_uri<C>(uri: C) -> Result<Self>
+    fn from_uri<C>(uri: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -400,11 +397,11 @@ where
         if item_type == T::ITEM_TYPE {
             Ok(Id::new(uri, IdKind::Uri(id_index)))
         } else {
-            Err(IdError::WrongItemType(item_type).into())
+            Err(IdError::WrongItemType(item_type))
         }
     }
 
-    fn from_url<C>(url: C) -> Result<Self>
+    fn from_url<C>(url: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -418,7 +415,7 @@ where
                 phantom: PhantomData,
             })
         } else {
-            Err(IdError::WrongItemType(item_type).into())
+            Err(IdError::WrongItemType(item_type))
         }
     }
 }
@@ -427,7 +424,7 @@ impl<'a, T> IdFromBare<'a> for Id<'a, T>
 where
     T: ItemTypeId,
 {
-    fn from_bare<C>(bare: C) -> Result<Self>
+    fn from_bare<C>(bare: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -440,13 +437,13 @@ where
                 phantom: PhantomData,
             })
         } else {
-            Err(IdError::InvalidId(bare.to_string()).into())
+            Err(IdError::InvalidId(bare.to_string()))
         }
     }
 }
 
 impl<'a> IdFromKnownKind<'a> for PlayableItem<'a> {
-    fn from_uri<C>(uri: C) -> Result<Self>
+    fn from_uri<C>(uri: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -457,11 +454,11 @@ impl<'a> IdFromKnownKind<'a> for PlayableItem<'a> {
             ItemType::Track => Ok(Self::Track(Id::new(uri, IdKind::Uri(id_index)))),
             ItemType::Episode => Ok(Self::Episode(Id::new(uri, IdKind::Uri(id_index)))),
 
-            item_type => Err(IdError::WrongItemType(item_type).into()),
+            item_type => Err(IdError::WrongItemType(item_type)),
         }
     }
 
-    fn from_url<C>(url: C) -> Result<Self>
+    fn from_url<C>(url: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -472,13 +469,13 @@ impl<'a> IdFromKnownKind<'a> for PlayableItem<'a> {
             ItemType::Track => Ok(Self::Track(Id::new(url, IdKind::Url(id_index)))),
             ItemType::Episode => Ok(Self::Episode(Id::new(url, IdKind::Url(id_index)))),
 
-            item_type => Err(IdError::WrongItemType(item_type).into()),
+            item_type => Err(IdError::WrongItemType(item_type)),
         }
     }
 }
 
 impl<'a> IdFromKnownKind<'a> for PlayableContext<'a> {
-    fn from_uri<C>(uri: C) -> Result<Self>
+    fn from_uri<C>(uri: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -491,11 +488,11 @@ impl<'a> IdFromKnownKind<'a> for PlayableContext<'a> {
             ItemType::Playlist => Ok(Self::Playlist(Id::new(uri, IdKind::Uri(id_index)))),
             ItemType::Show => Ok(Self::Show(Id::new(uri, IdKind::Uri(id_index)))),
 
-            item_type => Err(IdError::WrongItemType(item_type).into()),
+            item_type => Err(IdError::WrongItemType(item_type)),
         }
     }
 
-    fn from_url<C>(url: C) -> Result<Self>
+    fn from_url<C>(url: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -508,13 +505,13 @@ impl<'a> IdFromKnownKind<'a> for PlayableContext<'a> {
             ItemType::Playlist => Ok(Self::Playlist(Id::new(url, IdKind::Url(id_index)))),
             ItemType::Show => Ok(Self::Show(Id::new(url, IdKind::Url(id_index)))),
 
-            item_type => Err(IdError::WrongItemType(item_type).into()),
+            item_type => Err(IdError::WrongItemType(item_type)),
         }
     }
 }
 
 impl<'a> IdFromKnownKind<'a> for SpotifyId<'a> {
-    fn from_uri<C>(uri: C) -> Result<Self>
+    fn from_uri<C>(uri: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -547,7 +544,7 @@ impl<'a> IdFromKnownKind<'a> for SpotifyId<'a> {
         }
     }
 
-    fn from_url<C>(url: C) -> Result<Self>
+    fn from_url<C>(url: C) -> Result<Self, IdError>
     where
         C: Into<Cow<'a, str>>,
     {
@@ -1011,7 +1008,7 @@ where
     }
 }
 
-fn parse_item_type_and_kind_from_url_or_uri(url_or_uri: &str) -> Result<(ItemType, IdKind)> {
+fn parse_item_type_and_kind_from_url_or_uri(url_or_uri: &str) -> Result<(ItemType, IdKind), IdError> {
     if url_or_uri.starts_with(URI_PREFIX) {
         let (item_type, id_index) = parse_item_type_and_id_from_uri(url_or_uri)?;
 
@@ -1021,11 +1018,11 @@ fn parse_item_type_and_kind_from_url_or_uri(url_or_uri: &str) -> Result<(ItemTyp
 
         Ok((item_type, IdKind::Url(id_index)))
     } else {
-        Err(IdError::MalformedString(url_or_uri.to_string()).into())
+        Err(IdError::MalformedString(url_or_uri.to_string()))
     }
 }
 
-fn parse_item_type_and_id_from_uri(uri: &str) -> Result<(ItemType, usize)> {
+fn parse_item_type_and_id_from_uri(uri: &str) -> Result<(ItemType, usize), IdError> {
     if let Some((item_type, id)) = uri
         .strip_prefix(URI_PREFIX)
         .and_then(|prefix_removed| prefix_removed.split_once(':'))
@@ -1036,14 +1033,14 @@ fn parse_item_type_and_id_from_uri(uri: &str) -> Result<(ItemType, usize)> {
             // the ID is always at the end of the string
             Ok((item_type, uri.len() - ID_LENGTH))
         } else {
-            Err(IdError::InvalidId(id.to_owned()).into())
+            Err(IdError::InvalidId(id.to_owned()))
         }
     } else {
-        Err(IdError::MalformedString(uri.to_string()).into())
+        Err(IdError::MalformedString(uri.to_string()))
     }
 }
 
-fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, usize)> {
+fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, usize), IdError> {
     // a whole URL could look like: https://open.spotify.com/track/3mXLyNsVeLelMakgpGUp1f?si=AAAAAAAAAAAAAAAA
 
     if let Some((item_type_str, id)) = url
@@ -1063,10 +1060,10 @@ fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, usize)> {
             // the position of the ID in the string is the domain + the item type + /
             Ok((item_type, URL_PREFIX.len() + item_type_str.len() + 1))
         } else {
-            Err(IdError::InvalidId(id.to_owned()).into())
+            Err(IdError::InvalidId(id.to_owned()))
         }
     } else {
-        Err(IdError::MalformedString(url.to_string()).into())
+        Err(IdError::MalformedString(url.to_string()))
     }
 }
 
@@ -1088,7 +1085,6 @@ fn verify_valid_id(id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::Error;
 
     #[test]
     fn track_id_from_uri() {
@@ -1299,7 +1295,7 @@ mod tests {
         let id_string = "https://google.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_url(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::MalformedString(_)))))
+        assert!(matches!(id, Err(IdError::MalformedString(_))))
     }
 
     #[test]
@@ -1307,7 +1303,7 @@ mod tests {
         let id_string = "wrong:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_uri(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::MalformedString(_)))))
+        assert!(matches!(id, Err(IdError::MalformedString(_))))
     }
 
     #[test]
@@ -1315,10 +1311,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<ArtistId>::from_url(id_string);
 
-        assert!(matches!(
-            id,
-            Err(Error::InvalidSpotifyId(IdError::WrongItemType(ItemType::Track)))
-        ))
+        assert!(matches!(id, Err(IdError::WrongItemType(ItemType::Track))))
     }
 
     #[test]
@@ -1326,10 +1319,7 @@ mod tests {
         let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<ArtistId>::from_uri(id_string);
 
-        assert!(matches!(
-            id,
-            Err(Error::InvalidSpotifyId(IdError::WrongItemType(ItemType::Track)))
-        ))
+        assert!(matches!(id, Err(IdError::WrongItemType(ItemType::Track))))
     }
 
     #[test]
@@ -1337,7 +1327,7 @@ mod tests {
         let id_string = "spotify:wrong:2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_uri(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidItemType(_)))))
+        assert!(matches!(id, Err(IdError::InvalidItemType(_))))
     }
 
     #[test]
@@ -1345,7 +1335,7 @@ mod tests {
         let id_string = "https://open.spotify.com/wrong/2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_url(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidItemType(_)))))
+        assert!(matches!(id, Err(IdError::InvalidItemType(_))))
     }
 
     #[test]
@@ -1353,7 +1343,7 @@ mod tests {
         let id_string = "_";
         let id = Id::<TrackId>::from_bare(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+        assert!(matches!(id, Err(IdError::InvalidId(_))))
     }
 
     #[test]
@@ -1361,7 +1351,7 @@ mod tests {
         let id_string = "2pDPOMX0kWA7kcPBcDCQBu_";
         let id = Id::<TrackId>::from_bare(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+        assert!(matches!(id, Err(IdError::InvalidId(_))))
     }
 
     #[test]
@@ -1369,7 +1359,7 @@ mod tests {
         let id_string = "2pDPOMX0kWA7kcPBcDCQB_";
         let id = Id::<TrackId>::from_bare(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+        assert!(matches!(id, Err(IdError::InvalidId(_))))
     }
 
     #[test]
@@ -1377,7 +1367,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/_";
         let id = Id::<TrackId>::from_url(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+        assert!(matches!(id, Err(IdError::InvalidId(_))))
     }
 
     #[test]
@@ -1385,7 +1375,7 @@ mod tests {
         let id_string = "spotify:track:_";
         let id = Id::<TrackId>::from_uri(id_string);
 
-        assert!(matches!(id, Err(Error::InvalidSpotifyId(IdError::InvalidId(_)))))
+        assert!(matches!(id, Err(IdError::InvalidId(_))))
     }
 
     #[test]

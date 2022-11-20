@@ -1,6 +1,8 @@
 //! Abstraction over the different errors the Spotify API may return.
 
+#[cfg(any(feature = "async", feature = "sync"))]
 use crate::error::Error;
+
 use serde::{de::Visitor, Deserialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -43,6 +45,7 @@ pub(crate) enum ApiErrorMessage {
     Other(String),
 }
 
+#[cfg(any(feature = "async", feature = "sync"))]
 impl AuthenticationErrorResponse {
     pub fn into_unhandled_error(self) -> Error {
         Error::UnhandledAuthenticationError(self.error, self.error_description)
