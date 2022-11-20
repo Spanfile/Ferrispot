@@ -80,7 +80,7 @@
 //! // dropping the original string is invalid, since it's borrowed in the Id
 //! // drop(id_string);
 //!
-//! // convert the Id into a static Id by cloning the internal borrowed string and drop the borrowind Id
+//! // convert the Id into a static Id by cloning the internal borrowed string and drop the borrowing Id
 //! let owning_track_id = track_id.as_static();
 //! drop(track_id);
 //!

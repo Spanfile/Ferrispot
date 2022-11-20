@@ -32,7 +32,8 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         let response = self
             .send_http_request(
                 Method::GET,
-                Url::parse(API_PLAYBACK_STATE_ENDPOINT).expect("failed to build playback state endpoint URL"),
+                Url::parse(API_PLAYBACK_STATE_ENDPOINT)
+                    .expect("failed to build playback state endpoint URL: invalid base URL (this is likely a bug)"),
             )
             .send()
             .await?;
@@ -58,8 +59,9 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         let response = self
             .send_http_request(
                 Method::GET,
-                Url::parse(API_CURRENTLY_PLAYING_TRACK_ENDPOINT)
-                    .expect("failed to build currently playing track endpoint URL"),
+                Url::parse(API_CURRENTLY_PLAYING_TRACK_ENDPOINT).expect(
+                    "failed to build currently playing track endpoint URL: invalid base URL (this is likely a bug)",
+                ),
             )
             .send()
             .await?;
@@ -86,7 +88,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
-    async fn play_items<I, P>(&'a self, tracks: I, device_id: Option<&str>) -> Result<()>
+    async fn play_items<I, P>(&'a self, items: I, device_id: Option<&str>) -> Result<()>
     where
         I: IntoIterator<Item = P> + Send,
         <I as IntoIterator>::IntoIter: Send,
@@ -100,7 +102,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
 
         // first gather all the IDs into a vector
-        let tracks: Vec<_> = tracks.into_iter().map(|id| id.into()).collect();
+        let tracks: Vec<_> = items.into_iter().map(|id| id.into()).collect();
 
         // then create the body which borrows the IDs. this method has to allocate two vectors but whatcha gonna do.
         // TODO
@@ -232,7 +234,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         handle_player_control_response(response).await
     }
 
-    /// Add  a playable item to the end of the current playback queue.
+    /// Add a playable item to the end of the current playback queue.
     ///
     /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
     /// on the user's currently active device.
@@ -252,6 +254,8 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     }
 
     /// Get information about the user's available devices.
+    ///
+    /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
     async fn devices(&'a self) -> Result<Vec<Device>> {
         #[derive(Debug, Deserialize)]
         struct DevicesResponse {
@@ -280,7 +284,8 @@ fn build_play_url(endpoint: &str, params: &[(&'static str, Option<&str>)]) -> Ur
         .collect();
 
     // this will fail only if the endpoint is an invalid URL, which would mean a bug in the library
-    Url::parse_with_params(endpoint, &params).expect("failed to build player URL")
+    Url::parse_with_params(endpoint, &params)
+        .expect("failed to build player URL: invalid base URL (this is likely a bug)")
 }
 
 async fn handle_player_control_response(response: Response) -> Result<()> {

@@ -98,7 +98,7 @@ where
         if let Some(url) = self.inner.next() {
             // this will only fail if Spotify returns a malformed URL
             // TODO: maybe it's an error case?
-            let url = Url::parse(url).expect("failed to parse next page URL");
+            let url = Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
 
             let response = client.send_http_request(Method::GET, url).send().await?;
             debug!("Next page response: {:?}", response);

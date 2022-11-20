@@ -114,6 +114,9 @@ use std::sync::{Arc, RwLock};
 /// if the client secret is not available. See the [module-level docs](self) for more information.
 ///
 /// Implements all the [scoped](crate::client::ScopedClient) and [unscoped endpoints](crate::client::UnscopedClient).
+///
+/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
+/// order to reuse it.
 #[derive(Debug, Clone)]
 pub struct AuthorizationCodeUserClient {
     inner: Arc<AuthorizationCodeUserClientRef>,
@@ -292,11 +295,13 @@ impl IncompleteAuthorizationCodeUserClient {
             // parsing the URL fails only if the base URL is invalid, not the parameters. if this method fails, there's
             // a bug in the library
 
-            // while both these branches end the same way, this one borrows the pkce_challenge string so the URL must be
-            // built before the string falls out of scope
-            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL")
+            // while both these branches end the same way, this one borrows the pkce_challenge string in query_params so
+            // the URL must be built before the string falls out of scope
+            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params)
+                .expect("failed to build authorize URL: invalid base URL (this is likely a bug)")
         } else {
-            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL")
+            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params)
+                .expect("failed to build authorize URL: invalid base URL (this is likely a bug)")
         };
 
         authorize_url.into()

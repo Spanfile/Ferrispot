@@ -256,6 +256,9 @@ pub trait AccessTokenRefresh: crate::private::Sealed {
 /// API. However, it can be used to retrieve either user-authenticated client; [AuthorizationCodeUserClient with
 /// PKCE](authorization_code::AuthorizationCodeUserClient) or an
 /// [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient).
+///
+/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
+/// order to reuse it.
 #[derive(Debug, Clone)]
 pub struct SpotifyClient {
     inner: Arc<SpotifyClientRef>,
@@ -272,6 +275,9 @@ struct SpotifyClientRef {
 /// This client can be used to access all [unscoped Spotify endpoints](UnscopedClient). It can also be used to retrieve
 /// an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that can access
 /// all [scoped endpoints](ScopedClient).
+///
+/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
+/// order to reuse it.
 #[derive(Debug, Clone)]
 pub struct SpotifyClientWithSecret {
     inner: Arc<SpotifyClientWithSecretRef>,
@@ -430,15 +436,17 @@ impl SpotifyClientWithSecretBuilder {
             header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
                 // this can only fail if the header value contains non-ASCII characters, which cannot happen since the
                 // given header value is in base64
-                .expect("failed to insert authorization header into header map"),
+                .expect(
+                    "failed to insert authorization header into header map: non-ASCII characters in value (this is \
+                     likely a bug)",
+                ),
         );
 
         AsyncClient::builder()
             .default_headers(default_headers)
             .build()
-            // this can only fail due to a system error, or if called within an async runtime. we cannot detect the
-            // latter, so it's up to the library user to be careful about it
-            .expect("failed to build blocking HTTP client")
+            // this can only fail due to a system error or system misconfiguration
+            .expect("failed to build blocking HTTP client: system error or system misconfiguration")
     }
 
     pub async fn build(self) -> Result<SpotifyClientWithSecret> {
@@ -526,7 +534,7 @@ impl private::AccessTokenExpiry for SpotifyClientWithSecret {
 
 fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
     let auth = format!("{}:{}", client_id, client_secret);
-    format!("Basic {}", base64::encode(&auth))
+    format!("Basic {}", base64::encode(auth))
 }
 
 /// Takes a response for an authentication request and if its status is 400, parses its body as an authentication error.

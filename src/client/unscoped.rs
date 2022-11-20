@@ -50,7 +50,7 @@ where
         let response = self
             .send_http_request(
                 Method::GET,
-                Url::parse(&url).expect("failed to build tracks endpoint URL"),
+                Url::parse(&url).expect("failed to build tracks endpoint URL: invalid base URL (this is likely a bug)"),
             )
             .send()
             .await?;
@@ -103,7 +103,7 @@ where
             .send_http_request(
                 Method::GET,
                 Url::parse_with_params(API_TRACKS_ENDPOINT, params)
-                    .expect("failed to parse API tracks endpoint as URL (this is a bug in the library)"),
+                    .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)"),
             )
             .send()
             .await?;
@@ -128,7 +128,7 @@ where
     /// string.
     ///
     /// This function returns a [SearchBuilder](self::SearchBuilder) that you can use to configure the various search
-    /// parameters and finally send the search and get the results back.
+    /// parameters and finally send the search query and get the results back.
     fn search<S>(&'a self, query: S) -> SearchBuilder<'a, Self, S>
     where
         S: AsRef<str>,
@@ -227,7 +227,7 @@ where
         };
 
         let url = Url::parse_with_params(API_SEARCH_ENDPOINT, params)
-            .expect("failed to parse API tracks endpoint as URL (this is a bug in the library)");
+            .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)");
 
         let response = self.client.send_http_request(Method::GET, url).send().await?;
         debug!("Search results response: {:?}", response);

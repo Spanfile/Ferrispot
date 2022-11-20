@@ -78,6 +78,8 @@ use std::sync::Arc;
 
 /// A client that uses the implicit grant flow to authenticate an user with Spotify. See the [module-level docs](self)
 /// for more information.
+///
+/// This client uses `Arc` internally, so you do not need to wrap it in an `Arc` in order to reuse it.
 #[derive(Debug, Clone)]
 pub struct ImplicitGrantUserClient {
     access_token: String,
@@ -125,8 +127,8 @@ impl IncompleteImplicitGrantUserClient {
 
         // parsing the URL fails only if the base URL is invalid, not the parameters. if this method fails, there's a
         // bug in the library
-        let authorize_url =
-            Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params).expect("failed to build authorize URL");
+        let authorize_url = Url::parse_with_params(ACCOUNTS_AUTHORIZE_ENDPOINT, &query_params)
+            .expect("failed to build authorize URL: invalid base URL (this is likely a bug)");
 
         authorize_url.into()
     }

@@ -20,7 +20,8 @@ async fn main() {
 
     let incomplete_auth_code_client = spotify_client
         .authorization_code_client("http://localhost/callback")
-        .scopes([Scope::UserModifyPlaybackState])
+        .show_dialog(true)
+        .scopes([Scope::UserModifyPlaybackState, Scope::UserReadPlaybackState])
         .build();
 
     let authorize_url = incomplete_auth_code_client.get_authorize_url();
