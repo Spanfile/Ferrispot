@@ -17,11 +17,11 @@ use super::{
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
     id::{Id, IdTrait, TrackId},
-    object_type::{obj_deserialize, TypeTrack},
+    object_type::{object_type_serialize, TypeTrack},
     ExternalIds, ExternalUrls, Restrictions,
 };
 use crate::util::duration_millis;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, Serializer};
 use std::{collections::HashSet, time::Duration};
 
 mod private {
@@ -169,7 +169,7 @@ where
 }
 
 /// An enum that encompasses all track types.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Track {
     Full(Box<FullTrack>),
     Partial(Box<PartialTrack>),
@@ -178,7 +178,7 @@ pub enum Track {
 
 /// This struct covers all the possible track responses from Spotify's API. It has a function that converts it into a
 /// [Track], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct TrackObject {
     /// Fields available in every track
     #[serde(flatten)]
@@ -193,7 +193,20 @@ pub(crate) struct TrackObject {
     full: Option<FullTrackFields>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// This struct's only purpose is to make serializing more efficient by holding only references to its data. When
+/// attempting to serialize a track object, its fields will be passed as references to this object which is then
+/// serialized. This avoids having to clone the entire track in order to reconstruct a TrackObject.
+#[derive(Serialize)]
+struct TrackObjectRef<'a> {
+    #[serde(flatten)]
+    common: &'a CommonTrackFields,
+    #[serde(flatten)]
+    non_local: Option<&'a NonLocalTrackFields>,
+    #[serde(flatten)]
+    full: Option<&'a FullTrackFields>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct CommonTrackFields {
     // basic information
     name: String,
@@ -207,7 +220,7 @@ pub(crate) struct CommonTrackFields {
     is_local: bool, // TODO: i don't like this field
     #[serde(default)]
     external_urls: ExternalUrls,
-    #[serde(rename = "type", deserialize_with = "obj_deserialize", skip_serializing)]
+    #[serde(rename = "type", with = "object_type_serialize")]
     item_type: TypeTrack,
 
     // track relinking
@@ -219,7 +232,7 @@ pub(crate) struct CommonTrackFields {
     restrictions: Restrictions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FullTrackFields {
     album: AlbumObject,
     #[serde(default)]
@@ -227,14 +240,14 @@ struct FullTrackFields {
     popularity: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct NonLocalTrackFields {
     id: Id<'static, TrackId>,
 }
 
 /// A full track. Contains [full information](self::FullTrackInformation), in addition to all
 /// [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation) information about a track.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FullTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
@@ -243,21 +256,21 @@ pub struct FullTrack {
 
 /// A partial track. Contains all [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation)
 /// information about a track.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartialTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
 }
 
-/// A local track. Contains only the information [common to every album](self::CommonTrackInformation).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// A local track. Contains only the information [common to every track](self::CommonTrackInformation).
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalTrack {
     common: CommonTrackFields,
 }
 
 /// Contains information about a linked track when
 /// [track relinking](https://developer.spotify.com/documentation/general/guides/track-relinking-guide/) is applied
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LinkedTrack {
     #[serde(default)]
     pub external_urls: ExternalUrls,
@@ -383,6 +396,36 @@ impl From<TrackObject> for LocalTrack {
     }
 }
 
+impl From<FullTrack> for TrackObject {
+    fn from(value: FullTrack) -> Self {
+        Self {
+            common: value.common,
+            non_local: Some(value.non_local),
+            full: Some(value.full),
+        }
+    }
+}
+
+impl From<PartialTrack> for TrackObject {
+    fn from(value: PartialTrack) -> Self {
+        Self {
+            common: value.common,
+            non_local: Some(value.non_local),
+            full: None,
+        }
+    }
+}
+
+impl From<LocalTrack> for TrackObject {
+    fn from(value: LocalTrack) -> Self {
+        Self {
+            common: value.common,
+            non_local: None,
+            full: None,
+        }
+    }
+}
+
 impl crate::private::Sealed for FullTrack {}
 impl crate::private::Sealed for PartialTrack {}
 impl crate::private::Sealed for LocalTrack {}
@@ -420,5 +463,60 @@ impl private::NonLocalFields for PartialTrack {
 impl private::FullFields for FullTrack {
     fn full_fields(&self) -> &FullTrackFields {
         &self.full
+    }
+}
+
+impl Serialize for Track {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Track::Full(full_track) => full_track.serialize(serializer),
+            Track::Partial(partial_track) => partial_track.serialize(serializer),
+            Track::Local(local_track) => local_track.serialize(serializer),
+        }
+    }
+}
+
+impl Serialize for FullTrack {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        TrackObjectRef {
+            common: &self.common,
+            non_local: Some(&self.non_local),
+            full: Some(&self.full),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Serialize for PartialTrack {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        TrackObjectRef {
+            common: &self.common,
+            non_local: Some(&self.non_local),
+            full: None,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Serialize for LocalTrack {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        TrackObjectRef {
+            common: &self.common,
+            non_local: None,
+            full: None,
+        }
+        .serialize(serializer)
     }
 }

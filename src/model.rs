@@ -20,11 +20,11 @@ pub use country_code::CountryCode;
 pub use page::Page;
 
 use crate::error::IdError;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
 /// Contains an URL to an image and its dimensions, if specified.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Image {
     pub url: String,
     #[serde(flatten)]
@@ -32,14 +32,14 @@ pub struct Image {
 }
 
 /// An image's dimensions.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageDimensions {
     pub width: u32,
     pub height: u32,
 }
 
 /// A content restriction.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Restrictions {
     // TODO: this can be "market", "product", "explicit" or something else in the future. make it an enum
     /// Reason for the content restriction.
@@ -47,7 +47,7 @@ pub struct Restrictions {
 }
 
 /// A date's precision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DatePrecision {
     Year,
@@ -56,14 +56,14 @@ pub enum DatePrecision {
 }
 
 /// Known external URLs for an object.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalUrls {
     /// The Spotify URL for the object.
     pub spotify: Option<String>,
 }
 
 /// Known external IDs for an object.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExternalIds {
     /// [International Standard Recording Code](https://en.wikipedia.org/wiki/International_Standard_Recording_Code)
     pub isrc: Option<String>,
@@ -75,14 +75,14 @@ pub struct ExternalIds {
 
 // TODO: is this even used anywhere?
 /// A copyright.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Copyright {
     pub text: String,
     pub copyright_type: CopyrightType,
 }
 
 /// The type of a copyright.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CopyrightType {
     #[serde(rename = "P")]
     Performance,
@@ -90,7 +90,7 @@ pub enum CopyrightType {
 }
 
 /// The type of an item in the Spotify catalog.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ItemType {
     Album,

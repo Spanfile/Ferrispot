@@ -1,4 +1,4 @@
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 
 /// A trait describing a page-like object that is returned from Spotify's search API.
@@ -35,8 +35,11 @@ where
 /// A page object returned from Spotify.
 ///
 /// This object is only referenced through [Page] and the various wrapper types for paged information.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub(crate) struct PageObject<T> {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct PageObject<T>
+where
+    T: Serialize,
+{
     items: Vec<T>,
     next: Option<String>,
 
@@ -49,11 +52,11 @@ pub(crate) struct PageObject<T> {
     total: usize,
 }
 
-impl<T> crate::private::Sealed for PageObject<T> {}
+impl<T> crate::private::Sealed for PageObject<T> where T: Serialize {}
 
 impl<TItem, TReturn> PageInformation<TReturn> for PageObject<TItem>
 where
-    TItem: ToOwned + Into<TReturn>,
+    TItem: ToOwned + Into<TReturn> + Serialize,
     TReturn: From<<TItem as ToOwned>::Owned>,
 {
     type Items = Vec<TReturn>;

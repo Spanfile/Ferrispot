@@ -14,10 +14,10 @@
 
 use super::{
     id::{ArtistId, Id, IdTrait},
-    object_type::{obj_deserialize, TypeArtist},
+    object_type::{object_type_serialize, TypeArtist},
     ExternalUrls, Image,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, Serializer};
 
 mod private {
     use super::{CommonArtistFields, FullArtistFields, NonLocalArtistFields};
@@ -108,7 +108,7 @@ pub enum Artist {
 
 /// This struct covers all the possible artist responses from Spotify's API. It has a function that converts it into an
 /// [Artist], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ArtistObject {
     /// Fields available in every artist
     #[serde(flatten)]
@@ -123,16 +123,29 @@ pub(crate) struct ArtistObject {
     full: Option<FullArtistFields>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// This struct's only purpose is to make serializing more efficient by holding only references to its data. When
+/// attempting to serialize an artist object, its fields will be passed as references to this object which is then
+/// serialized. This avoids having to clone the entire artist in order to reconstruct a ArtistObject.
+#[derive(Serialize)]
+struct ArtistObjectRef<'a> {
+    #[serde(flatten)]
+    common: &'a CommonArtistFields,
+    #[serde(flatten)]
+    non_local: Option<&'a NonLocalArtistFields>,
+    #[serde(flatten)]
+    full: Option<&'a FullArtistFields>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct CommonArtistFields {
     name: String,
     #[serde(default)]
     external_urls: ExternalUrls,
-    #[serde(rename = "type", deserialize_with = "obj_deserialize", skip_serializing)]
+    #[serde(rename = "type", with = "object_type_serialize")]
     item_type: TypeArtist,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FullArtistFields {
     // followers: Followers,
     genres: Vec<String>,
@@ -140,7 +153,7 @@ struct FullArtistFields {
     popularity: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct NonLocalArtistFields {
     id: Id<'static, ArtistId>,
 }
@@ -163,6 +176,7 @@ pub struct PartialArtist {
     non_local: NonLocalArtistFields,
 }
 
+// support your local artists
 /// A local artist. Contains only the information [common to every album](self::CommonArtistInformation).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct LocalArtist {
@@ -288,6 +302,36 @@ impl From<ArtistObject> for LocalArtist {
     }
 }
 
+impl From<FullArtist> for ArtistObject {
+    fn from(value: FullArtist) -> Self {
+        Self {
+            common: value.common,
+            non_local: Some(value.non_local),
+            full: Some(value.full),
+        }
+    }
+}
+
+impl From<PartialArtist> for ArtistObject {
+    fn from(value: PartialArtist) -> Self {
+        Self {
+            common: value.common,
+            non_local: Some(value.non_local),
+            full: None,
+        }
+    }
+}
+
+impl From<LocalArtist> for ArtistObject {
+    fn from(value: LocalArtist) -> Self {
+        Self {
+            common: value.common,
+            non_local: None,
+            full: None,
+        }
+    }
+}
+
 impl crate::private::Sealed for FullArtist {}
 impl crate::private::Sealed for PartialArtist {}
 impl crate::private::Sealed for LocalArtist {}
@@ -325,5 +369,60 @@ impl private::NonLocalFields for PartialArtist {
 impl private::FullFields for FullArtist {
     fn full_fields(&self) -> &FullArtistFields {
         &self.full
+    }
+}
+
+impl Serialize for Artist {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Artist::Full(full_artist) => full_artist.serialize(serializer),
+            Artist::Partial(partial_artist) => partial_artist.serialize(serializer),
+            Artist::Local(local_artist) => local_artist.serialize(serializer),
+        }
+    }
+}
+
+impl Serialize for FullArtist {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ArtistObjectRef {
+            common: &self.common,
+            non_local: Some(&self.non_local),
+            full: Some(&self.full),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Serialize for PartialArtist {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ArtistObjectRef {
+            common: &self.common,
+            non_local: Some(&self.non_local),
+            full: None,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Serialize for LocalArtist {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ArtistObjectRef {
+            common: &self.common,
+            non_local: None,
+            full: None,
+        }
+        .serialize(serializer)
     }
 }

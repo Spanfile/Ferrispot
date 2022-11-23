@@ -1,22 +1,33 @@
-use serde::{Deserialize, Deserializer};
-
 pub const TYPE_ALBUM: &str = "album";
 pub const TYPE_TRACK: &str = "track";
 pub const TYPE_ARTIST: &str = "artist";
 
-pub(crate) fn obj_deserialize<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    T: ObjectType + Default,
-    D: Deserializer<'de>,
-{
-    let s: String = Deserialize::deserialize(deserializer)?;
-    if s == T::OBJECT_TYPE {
-        Ok(T::default())
-    } else {
-        Err(serde::de::Error::invalid_value(
-            serde::de::Unexpected::Str(&s),
-            &T::OBJECT_TYPE,
-        ))
+pub(crate) mod object_type_serialize {
+    use super::ObjectType;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub(crate) fn serialize<S, T>(_: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: ObjectType,
+        S: Serializer,
+    {
+        serializer.serialize_str(T::OBJECT_TYPE)
+    }
+
+    pub(crate) fn deserialize<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: ObjectType + Default,
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        if s == T::OBJECT_TYPE {
+            Ok(T::default())
+        } else {
+            Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(&s),
+                &T::OBJECT_TYPE,
+            ))
+        }
     }
 }
 

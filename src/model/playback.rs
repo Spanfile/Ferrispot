@@ -104,7 +104,8 @@ pub struct Disallows {
     transferring_playback: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum PlayingType {
     Track(FullTrack),
 }

@@ -16,12 +16,12 @@ use super::{
     artist::{ArtistObject, PartialArtist},
     country_code::CountryCode,
     id::{AlbumId, Id, IdTrait},
-    object_type::{obj_deserialize, TypeAlbum},
+    object_type::{object_type_serialize, TypeAlbum},
     page::{Page, PageInformation, PageObject},
     track::{PartialTrack, TrackObject},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, Serializer};
 use std::{collections::HashSet, marker::PhantomData};
 
 mod private {
@@ -182,7 +182,7 @@ pub enum Album {
 
 /// This struct covers all the possible album responses from Spotify's API. It has a function that converts it into an
 /// [Album], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct AlbumObject {
     /// Fields available in every album
     #[serde(flatten)]
@@ -197,18 +197,31 @@ pub(crate) struct AlbumObject {
     full: Option<FullAlbumFields>,
 }
 
+/// This struct's only purpose is to make serializing more efficient by holding only references to its data. When
+/// attempting to serialize an album object, its fields will be passed as references to this object which is then
+/// serialized. This avoids having to clone the entire album in order to reconstruct a AlbumObject.
+#[derive(Serialize)]
+struct AlbumObjectRef<'a> {
+    #[serde(flatten)]
+    common: &'a CommonAlbumFields,
+    #[serde(flatten)]
+    non_local: Option<&'a NonLocalAlbumFields>,
+    #[serde(flatten)]
+    full: Option<&'a FullAlbumFields>,
+}
+
 /// A page of tracks in an album.
 ///
 /// This object is retrieved only through the [tracks](FullAlbumInformation::tracks)-function. You won't be interacting
 /// objects of this type directly.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[doc(hidden)]
 pub struct AlbumTracks {
     #[serde(flatten)]
     page: PageObject<TrackObject>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct CommonAlbumFields {
     // basic information
     name: String,
@@ -216,7 +229,7 @@ struct CommonAlbumFields {
     images: Vec<Image>,
     #[serde(default)]
     external_urls: ExternalUrls,
-    #[serde(rename = "type", deserialize_with = "obj_deserialize", skip_serializing)]
+    #[serde(rename = "type", with = "object_type_serialize")]
     item_type: TypeAlbum,
 
     // track relinking
@@ -225,7 +238,7 @@ struct CommonAlbumFields {
     restrictions: Restrictions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FullAlbumFields {
     copyrights: Vec<Copyright>,
     external_ids: ExternalIds,
@@ -236,7 +249,7 @@ struct FullAlbumFields {
     // TODO: the artist album thing with the album group field
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct NonLocalAlbumFields {
     album_type: AlbumType,
     id: Id<'static, AlbumId>,
@@ -268,7 +281,7 @@ pub struct LocalAlbum {
 }
 
 /// An album's type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AlbumType {
     #[serde(alias = "ALBUM")]
@@ -398,6 +411,36 @@ impl From<AlbumObject> for LocalAlbum {
     }
 }
 
+impl From<FullAlbum> for AlbumObject {
+    fn from(value: FullAlbum) -> Self {
+        Self {
+            common: value.common,
+            non_local: Some(value.non_local),
+            full: Some(value.full),
+        }
+    }
+}
+
+impl From<PartialAlbum> for AlbumObject {
+    fn from(value: PartialAlbum) -> Self {
+        Self {
+            common: value.common,
+            non_local: Some(value.non_local),
+            full: None,
+        }
+    }
+}
+
+impl From<LocalAlbum> for AlbumObject {
+    fn from(value: LocalAlbum) -> Self {
+        Self {
+            common: value.common,
+            non_local: None,
+            full: None,
+        }
+    }
+}
+
 impl crate::private::Sealed for FullAlbum {}
 impl crate::private::Sealed for PartialAlbum {}
 impl crate::private::Sealed for LocalAlbum {}
@@ -452,5 +495,60 @@ impl PageInformation<PartialTrack> for AlbumTracks {
 
     fn next(&self) -> Option<&str> {
         <PageObject<TrackObject> as PageInformation<PartialTrack>>::next(&self.page)
+    }
+}
+
+impl Serialize for Album {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Album::Full(full_album) => full_album.serialize(serializer),
+            Album::Partial(partial_album) => partial_album.serialize(serializer),
+            Album::Local(local_album) => local_album.serialize(serializer),
+        }
+    }
+}
+
+impl Serialize for FullAlbum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        AlbumObjectRef {
+            common: &self.common,
+            non_local: Some(&self.non_local),
+            full: Some(&self.full),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Serialize for PartialAlbum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        AlbumObjectRef {
+            common: &self.common,
+            non_local: Some(&self.non_local),
+            full: None,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl Serialize for LocalAlbum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        AlbumObjectRef {
+            common: &self.common,
+            non_local: None,
+            full: None,
+        }
+        .serialize(serializer)
     }
 }

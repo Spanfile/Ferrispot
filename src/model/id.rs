@@ -150,7 +150,7 @@ use crate::{error::IdError, util::maybe_split_once::MaybeSplitOnce};
 
 use serde::{
     de::{self, Visitor},
-    Deserialize,
+    Deserialize, Serialize,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -794,6 +794,56 @@ impl<'a> From<Id<'a, PlaylistId>> for PlayableContext<'a> {
 impl<'a> From<Id<'a, ShowId>> for PlayableContext<'a> {
     fn from(id: Id<'a, ShowId>) -> Self {
         Self::Show(id)
+    }
+}
+
+impl<'a> Serialize for SpotifyId<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            SpotifyId::Item(item) => item.serialize(serializer),
+            SpotifyId::Context(context) => context.serialize(serializer),
+        }
+    }
+}
+
+impl<'a> Serialize for PlayableItem<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            PlayableItem::Track(track_id) => track_id.serialize(serializer),
+            PlayableItem::Episode(episode_id) => episode_id.serialize(serializer),
+        }
+    }
+}
+
+impl<'a> Serialize for PlayableContext<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            PlayableContext::Artist(artist_id) => artist_id.serialize(serializer),
+            PlayableContext::Album(album_id) => album_id.serialize(serializer),
+            PlayableContext::Playlist(playlist_id) => playlist_id.serialize(serializer),
+            PlayableContext::Show(show_id) => show_id.serialize(serializer),
+        }
+    }
+}
+
+impl<'a, T> Serialize for Id<'a, T>
+where
+    T: ItemTypeId,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.value)
     }
 }
 

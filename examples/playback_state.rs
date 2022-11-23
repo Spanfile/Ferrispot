@@ -43,13 +43,13 @@ async fn main() {
 
     if let Some(playback_state) = playback_state {
         if let Some(item) = playback_state.currently_playing_item().public_playing_item() {
-            match item.item() {
-                PlayingType::Track(full_track) => println!(
+            if let PlayingType::Track(full_track) = item.item() {
+                println!(
                     "{} - {} ({})",
                     full_track.name(),
                     full_track.artists().first().unwrap().name(),
                     full_track.album().name()
-                ),
+                )
             }
         }
     }
