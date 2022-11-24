@@ -4,6 +4,7 @@
 use crate::model::error::AuthenticationErrorKind;
 use crate::model::ItemType;
 
+use std::borrow::Cow;
 use thiserror::Error;
 
 /// The result type the library returns in the public-facing interface.
@@ -85,6 +86,13 @@ pub enum Error {
     #[error(transparent)]
     InvalidSpotifyId(#[from] IdError),
 
+    /// Converting a Spotify API response JSON into a model object failed.
+    ///
+    /// If the library returns this error from a standard Spotify API function call, it means there is a mismatch
+    /// between Spotify's API response and the library's object model.
+    #[error(transparent)]
+    Conversion(#[from] ConversionError),
+
     /// A catch-all for errors from reqwest. Getting this error back likely means either the library isn't handling a
     /// known error, or something went wrong with sending a request or receiving a response.
     #[error(transparent)]
@@ -111,4 +119,16 @@ pub enum IdError {
     /// The input string is malformed.
     #[error("Malformed string: {0}")]
     MalformedString(String),
+}
+
+/// Error when converting serialized objects into model objects fails.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct ConversionError(pub(crate) Cow<'static, str>);
+
+impl std::error::Error for ConversionError {}
+impl std::fmt::Display for ConversionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "object conversion failed: {}", self.0)
+    }
 }

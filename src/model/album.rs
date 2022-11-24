@@ -13,7 +13,7 @@
 //! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
 
 use super::{
-    artist::{ArtistObject, PartialArtist},
+    artist::PartialArtist,
     country_code::CountryCode,
     id::{AlbumId, Id, IdTrait},
     object_type::{object_type_serialize, TypeAlbum},
@@ -21,6 +21,7 @@ use super::{
     track::{PartialTrack, TrackObject},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
+use crate::error::ConversionError;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{collections::HashSet, marker::PhantomData};
 
@@ -45,7 +46,7 @@ pub trait CommonAlbumInformation: crate::private::Sealed {
     /// The album's name.
     fn name(&self) -> &str;
     /// The artists of the album.
-    fn artists(&self) -> Vec<PartialArtist>;
+    fn artists(&self) -> &[PartialArtist];
     /// The images for the album.
     fn images(&self) -> &[Image];
     /// The external URLs for the album.
@@ -94,12 +95,8 @@ where
         &self.common_fields().name
     }
 
-    fn artists(&self) -> Vec<PartialArtist> {
-        self.common_fields()
-            .artists
-            .iter()
-            .map(|artist_obj| artist_obj.to_owned().into())
-            .collect()
+    fn artists(&self) -> &[PartialArtist] {
+        &self.common_fields().artists
     }
 
     fn images(&self) -> &[Image] {
@@ -225,7 +222,7 @@ pub struct AlbumTracks {
 struct CommonAlbumFields {
     // basic information
     name: String,
-    artists: Vec<ArtistObject>,
+    artists: Vec<PartialArtist>,
     images: Vec<Image>,
     #[serde(default)]
     external_urls: ExternalUrls,
@@ -260,6 +257,7 @@ struct NonLocalAlbumFields {
 /// A full album. Contains [full information](self::FullAlbumInformation), in addition to all
 /// [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation) information about an album.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "AlbumObject")]
 pub struct FullAlbum {
     common: CommonAlbumFields,
     non_local: NonLocalAlbumFields,
@@ -269,6 +267,7 @@ pub struct FullAlbum {
 /// A partial album. Contains all [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation)
 /// information about an album.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "AlbumObject")]
 pub struct PartialAlbum {
     common: CommonAlbumFields,
     non_local: NonLocalAlbumFields,
@@ -276,6 +275,7 @@ pub struct PartialAlbum {
 
 /// A local album. Contains only the information [common to every album](self::CommonAlbumInformation).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "AlbumObject")]
 pub struct LocalAlbum {
     common: CommonAlbumFields,
 }
@@ -292,27 +292,32 @@ pub enum AlbumType {
     Compilation,
 }
 
-impl From<AlbumObject> for Album {
-    fn from(obj: AlbumObject) -> Self {
+impl TryFrom<AlbumObject> for Album {
+    type Error = ConversionError;
+
+    fn try_from(obj: AlbumObject) -> Result<Self, Self::Error> {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => Self::Full(Box::new(FullAlbum {
+            (Some(non_local), Some(full)) => Ok(Self::Full(Box::new(FullAlbum {
                 common: obj.common,
                 non_local,
                 full,
-            })),
+            }))),
 
-            (Some(non_local), None) => Self::Partial(Box::new(PartialAlbum {
+            (Some(non_local), None) => Ok(Self::Partial(Box::new(PartialAlbum {
                 common: obj.common,
                 non_local,
-            })),
+            }))),
 
-            (None, None) => Self::Local(Box::new(LocalAlbum { common: obj.common })),
+            (None, None) => Ok(Self::Local(Box::new(LocalAlbum { common: obj.common }))),
 
-            (non_local, full) => panic!(
-                "impossible case trying to convert AlbumObject into Album: non-local album fields is {:?} while full \
-                 album fields is {:?}",
-                non_local, full
-            ),
+            (non_local, full) => Err(ConversionError(
+                format!(
+                    "impossible case trying to convert AlbumObject into Album: non-local album fields is {:?} while \
+                     full album fields is {:?}",
+                    non_local, full
+                )
+                .into(),
+            )),
         }
     }
 }
@@ -335,61 +340,81 @@ impl From<LocalAlbum> for Album {
     }
 }
 
-impl From<Album> for FullAlbum {
-    fn from(album: Album) -> Self {
-        match album {
-            Album::Full(full) => *full,
+impl TryFrom<Album> for FullAlbum {
+    type Error = ConversionError;
 
-            Album::Partial(_) => panic!("attempt to convert partial album into full album"),
-            Album::Local(_) => panic!("attempt to convert local album into full album"),
+    fn try_from(album: Album) -> Result<Self, Self::Error> {
+        match album {
+            Album::Full(full) => Ok(*full),
+
+            Album::Partial(_) => Err(ConversionError(
+                "attempt to convert partial album into full album".into(),
+            )),
+
+            Album::Local(_) => Err(ConversionError("attempt to convert local album into full album".into())),
         }
     }
 }
 
-impl From<AlbumObject> for FullAlbum {
-    fn from(obj: AlbumObject) -> Self {
+impl TryFrom<AlbumObject> for FullAlbum {
+    type Error = ConversionError;
+
+    fn try_from(obj: AlbumObject) -> Result<Self, Self::Error> {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => FullAlbum {
+            (Some(non_local), Some(full)) => Ok(FullAlbum {
                 common: obj.common,
                 non_local,
                 full,
-            },
+            }),
 
-            (non_local, full) => panic!(
-                "attempt to convert non-full album object into full album (non-local album fields is {:?}, full album \
-                 fields is {:?})",
-                non_local, full
-            ),
+            (non_local, full) => Err(ConversionError(
+                format!(
+                    "attempt to convert non-full album object into full album (non-local album fields is {:?}, full \
+                     album fields is {:?})",
+                    non_local, full
+                )
+                .into(),
+            )),
         }
     }
 }
 
-impl From<Album> for PartialAlbum {
-    fn from(album: Album) -> Self {
+impl TryFrom<Album> for PartialAlbum {
+    type Error = ConversionError;
+
+    fn try_from(album: Album) -> Result<Self, Self::Error> {
         match album {
-            Album::Full(full) => PartialAlbum {
+            Album::Full(full) => Ok(PartialAlbum {
                 common: full.common,
                 non_local: full.non_local,
-            },
-            Album::Partial(partial) => *partial,
+            }),
 
-            Album::Local(_) => panic!("attempt to convert local album into partial album"),
+            Album::Partial(partial) => Ok(*partial),
+
+            Album::Local(_) => Err(ConversionError(
+                "attempt to convert local album into partial album".into(),
+            )),
         }
     }
 }
 
-impl From<AlbumObject> for PartialAlbum {
-    fn from(obj: AlbumObject) -> Self {
+impl TryFrom<AlbumObject> for PartialAlbum {
+    type Error = ConversionError;
+
+    fn try_from(obj: AlbumObject) -> Result<Self, Self::Error> {
         if let Some(non_local) = obj.non_local {
-            PartialAlbum {
+            Ok(PartialAlbum {
                 common: obj.common,
                 non_local,
-            }
+            })
         } else {
-            panic!(
-                "attempt to convert local album object into partial album (non-local album fields is {:?})",
-                obj.non_local
-            );
+            Err(ConversionError(
+                format!(
+                    "attempt to convert local album object into partial album (non-local album fields is {:?})",
+                    obj.non_local
+                )
+                .into(),
+            ))
         }
     }
 }

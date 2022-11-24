@@ -13,14 +13,14 @@
 //! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
 
 use super::{
-    album::{AlbumObject, PartialAlbum},
-    artist::{ArtistObject, PartialArtist},
+    album::PartialAlbum,
+    artist::PartialArtist,
     country_code::CountryCode,
     id::{Id, IdTrait, TrackId},
     object_type::{object_type_serialize, TypeTrack},
     ExternalIds, ExternalUrls, Restrictions,
 };
-use crate::util::duration_millis;
+use crate::{error::ConversionError, util::duration_millis};
 use serde::{Deserialize, Serialize, Serializer};
 use std::{collections::HashSet, time::Duration};
 
@@ -45,7 +45,7 @@ pub trait CommonTrackInformation: crate::private::Sealed {
     /// The track's name.
     fn name(&self) -> &str;
     /// The artists of the track.
-    fn artists(&self) -> Vec<PartialArtist>;
+    fn artists(&self) -> &[PartialArtist];
     /// The track's number in its corresponding disc.
     fn track_number(&self) -> u32;
     /// The track's disc's number.
@@ -72,7 +72,7 @@ pub trait CommonTrackInformation: crate::private::Sealed {
 /// Functions for retrieving information only in full tracks.
 pub trait FullTrackInformation: crate::private::Sealed {
     /// The album this track is in.
-    fn album(&self) -> PartialAlbum;
+    fn album(&self) -> &PartialAlbum;
     /// The external IDs for the track.
     fn external_ids(&self) -> &ExternalIds;
     /// The track's popularity.
@@ -93,12 +93,8 @@ where
         &self.common_fields().name
     }
 
-    fn artists(&self) -> Vec<PartialArtist> {
-        self.common_fields()
-            .artists
-            .iter()
-            .map(|artist_obj| artist_obj.to_owned().into())
-            .collect()
+    fn artists(&self) -> &[PartialArtist] {
+        &self.common_fields().artists
     }
 
     fn track_number(&self) -> u32 {
@@ -146,8 +142,8 @@ impl<T> FullTrackInformation for T
 where
     T: private::FullFields + crate::private::Sealed,
 {
-    fn album(&self) -> PartialAlbum {
-        self.full_fields().album.to_owned().into()
+    fn album(&self) -> &PartialAlbum {
+        &self.full_fields().album
     }
 
     fn external_ids(&self) -> &ExternalIds {
@@ -210,7 +206,7 @@ struct TrackObjectRef<'a> {
 pub(crate) struct CommonTrackFields {
     // basic information
     name: String,
-    artists: Vec<ArtistObject>,
+    artists: Vec<PartialArtist>,
     track_number: u32,
     disc_number: u32,
     #[serde(rename = "duration_ms", with = "duration_millis")]
@@ -234,7 +230,7 @@ pub(crate) struct CommonTrackFields {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FullTrackFields {
-    album: AlbumObject,
+    album: PartialAlbum,
     #[serde(default)]
     external_ids: ExternalIds,
     popularity: u32,
@@ -247,7 +243,8 @@ struct NonLocalTrackFields {
 
 /// A full track. Contains [full information](self::FullTrackInformation), in addition to all
 /// [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation) information about a track.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "TrackObject")]
 pub struct FullTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
@@ -256,14 +253,16 @@ pub struct FullTrack {
 
 /// A partial track. Contains all [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation)
 /// information about a track.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "TrackObject")]
 pub struct PartialTrack {
     common: CommonTrackFields,
     non_local: NonLocalTrackFields,
 }
 
 /// A local track. Contains only the information [common to every track](self::CommonTrackInformation).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "TrackObject")]
 pub struct LocalTrack {
     common: CommonTrackFields,
 }
@@ -277,27 +276,32 @@ pub struct LinkedTrack {
     pub id: Id<'static, TrackId>,
 }
 
-impl From<TrackObject> for Track {
-    fn from(obj: TrackObject) -> Self {
+impl TryFrom<TrackObject> for Track {
+    type Error = ConversionError;
+
+    fn try_from(obj: TrackObject) -> Result<Self, Self::Error> {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => Self::Full(Box::new(FullTrack {
+            (Some(non_local), Some(full)) => Ok(Self::Full(Box::new(FullTrack {
                 common: obj.common,
                 non_local,
                 full,
-            })),
+            }))),
 
-            (Some(non_local), None) => Self::Partial(Box::new(PartialTrack {
+            (Some(non_local), None) => Ok(Self::Partial(Box::new(PartialTrack {
                 common: obj.common,
                 non_local,
-            })),
+            }))),
 
-            (None, None) => Self::Local(Box::new(LocalTrack { common: obj.common })),
+            (None, None) => Ok(Self::Local(Box::new(LocalTrack { common: obj.common }))),
 
-            (non_local, full) => panic!(
-                "impossible case trying to convert TrackObject into Track: non-local track fields is {:?} while full \
-                 track fields is {:?}",
-                non_local, full
-            ),
+            (non_local, full) => Err(ConversionError(
+                format!(
+                    "impossible case trying to convert TrackObject into Track: non-local track fields is {:?} while \
+                     full track fields is {:?}",
+                    non_local, full
+                )
+                .into(),
+            )),
         }
     }
 }
@@ -320,61 +324,81 @@ impl From<LocalTrack> for Track {
     }
 }
 
-impl From<Track> for FullTrack {
-    fn from(track: Track) -> Self {
-        match track {
-            Track::Full(full) => *full,
+impl TryFrom<Track> for FullTrack {
+    type Error = ConversionError;
 
-            Track::Partial(_) => panic!("attempt to convert partial track into full track"),
-            Track::Local(_) => panic!("attempt to convert local track into full track"),
+    fn try_from(track: Track) -> Result<Self, Self::Error> {
+        match track {
+            Track::Full(full) => Ok(*full),
+
+            Track::Partial(_) => Err(ConversionError(
+                "attempt to convert partial track into full track".into(),
+            )),
+
+            Track::Local(_) => Err(ConversionError("attempt to convert local track into full track".into())),
         }
     }
 }
 
-impl From<TrackObject> for FullTrack {
-    fn from(obj: TrackObject) -> Self {
+impl TryFrom<TrackObject> for FullTrack {
+    type Error = ConversionError;
+
+    fn try_from(obj: TrackObject) -> Result<Self, Self::Error> {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => FullTrack {
+            (Some(non_local), Some(full)) => Ok(FullTrack {
                 common: obj.common,
                 non_local,
                 full,
-            },
+            }),
 
-            (non_local, full) => panic!(
-                "attempt to convert non-full track object into full track (non-local track fields is {:?}, full track \
-                 fields is {:?})",
-                non_local, full
-            ),
+            (non_local, full) => Err(ConversionError(
+                format!(
+                    "attempt to convert non-full track object into full track (non-local track fields is {:?}, full \
+                     track fields is {:?})",
+                    non_local, full
+                )
+                .into(),
+            )),
         }
     }
 }
 
-impl From<Track> for PartialTrack {
-    fn from(track: Track) -> Self {
+impl TryFrom<Track> for PartialTrack {
+    type Error = ConversionError;
+
+    fn try_from(track: Track) -> Result<Self, Self::Error> {
         match track {
-            Track::Full(full) => PartialTrack {
+            Track::Full(full) => Ok(PartialTrack {
                 common: full.common,
                 non_local: full.non_local,
-            },
-            Track::Partial(partial) => *partial,
+            }),
 
-            Track::Local(_) => panic!("attempt to convert local track into partial track"),
+            Track::Partial(partial) => Ok(*partial),
+
+            Track::Local(_) => Err(ConversionError(
+                "attempt to convert local track into partial track".into(),
+            )),
         }
     }
 }
 
-impl From<TrackObject> for PartialTrack {
-    fn from(obj: TrackObject) -> Self {
+impl TryFrom<TrackObject> for PartialTrack {
+    type Error = ConversionError;
+
+    fn try_from(obj: TrackObject) -> Result<Self, Self::Error> {
         if let Some(non_local) = obj.non_local {
-            PartialTrack {
+            Ok(PartialTrack {
                 common: obj.common,
                 non_local,
-            }
+            })
         } else {
-            panic!(
-                "attempt to convert local track object into partial track (non-local track fields is {:?})",
-                obj.non_local
-            );
+            Err(ConversionError(
+                format!(
+                    "attempt to convert local track object into partial track (non-local track fields is {:?})",
+                    obj.non_local
+                )
+                .into(),
+            ))
         }
     }
 }

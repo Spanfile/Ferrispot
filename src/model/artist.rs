@@ -17,6 +17,7 @@ use super::{
     object_type::{object_type_serialize, TypeArtist},
     ExternalUrls, Image,
 };
+use crate::error::ConversionError;
 use serde::{Deserialize, Serialize, Serializer};
 
 mod private {
@@ -162,6 +163,7 @@ struct NonLocalArtistFields {
 /// [common](self::CommonArtistInformation) and [non-local](self::NonLocalArtistInformation) information about an
 /// artist.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "ArtistObject")]
 pub struct FullArtist {
     common: CommonArtistFields,
     non_local: NonLocalArtistFields,
@@ -171,6 +173,7 @@ pub struct FullArtist {
 /// A partial artist. Contains all [common](self::CommonArtistInformation) and
 /// [non-local](self::NonLocalArtistInformation) information about an artist.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "ArtistObject")]
 pub struct PartialArtist {
     common: CommonArtistFields,
     non_local: NonLocalArtistFields,
@@ -179,31 +182,37 @@ pub struct PartialArtist {
 // support your local artists
 /// A local artist. Contains only the information [common to every album](self::CommonArtistInformation).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(try_from = "ArtistObject")]
 pub struct LocalArtist {
     common: CommonArtistFields,
 }
 
-impl From<ArtistObject> for Artist {
-    fn from(obj: ArtistObject) -> Self {
+impl TryFrom<ArtistObject> for Artist {
+    type Error = ConversionError;
+
+    fn try_from(obj: ArtistObject) -> Result<Self, Self::Error> {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => Self::Full(Box::new(FullArtist {
+            (Some(non_local), Some(full)) => Ok(Self::Full(Box::new(FullArtist {
                 common: obj.common,
                 non_local,
                 full,
-            })),
+            }))),
 
-            (Some(non_local), None) => Self::Partial(Box::new(PartialArtist {
+            (Some(non_local), None) => Ok(Self::Partial(Box::new(PartialArtist {
                 common: obj.common,
                 non_local,
-            })),
+            }))),
 
-            (None, None) => Self::Local(Box::new(LocalArtist { common: obj.common })),
+            (None, None) => Ok(Self::Local(Box::new(LocalArtist { common: obj.common }))),
 
-            (non_local, full) => panic!(
-                "impossible case trying to convert ArtistObject into Artist: non-local artist fields is {:?} while \
-                 full artist fields is {:?}",
-                non_local, full
-            ),
+            (non_local, full) => Err(ConversionError(
+                format!(
+                    "impossible case trying to convert ArtistObject into Artist: non-local artist fields is {:?} \
+                     while full artist fields is {:?}",
+                    non_local, full
+                )
+                .into(),
+            )),
         }
     }
 }
@@ -226,61 +235,83 @@ impl From<LocalArtist> for Artist {
     }
 }
 
-impl From<Artist> for FullArtist {
-    fn from(artist: Artist) -> Self {
-        match artist {
-            Artist::Full(full) => *full,
+impl TryFrom<Artist> for FullArtist {
+    type Error = ConversionError;
 
-            Artist::Partial(_) => panic!("attempt to convert partial artist into full artist"),
-            Artist::Local(_) => panic!("attempt to convert local artist into full artist"),
+    fn try_from(artist: Artist) -> Result<Self, Self::Error> {
+        match artist {
+            Artist::Full(full) => Ok(*full),
+
+            Artist::Partial(_) => Err(ConversionError(
+                "attempt to convert partial artist into full artist".into(),
+            )),
+
+            Artist::Local(_) => Err(ConversionError(
+                "attempt to convert local artist into full artist".into(),
+            )),
         }
     }
 }
 
-impl From<ArtistObject> for FullArtist {
-    fn from(obj: ArtistObject) -> Self {
+impl TryFrom<ArtistObject> for FullArtist {
+    type Error = ConversionError;
+
+    fn try_from(obj: ArtistObject) -> Result<Self, Self::Error> {
         match (obj.non_local, obj.full) {
-            (Some(non_local), Some(full)) => FullArtist {
+            (Some(non_local), Some(full)) => Ok(FullArtist {
                 common: obj.common,
                 non_local,
                 full,
-            },
+            }),
 
-            (non_local, full) => panic!(
-                "attempt to convert non-full artist object into full artist (non-local artist fields is {:?}, full \
-                 artist fields is {:?})",
-                non_local, full
-            ),
+            (non_local, full) => Err(ConversionError(
+                format!(
+                    "attempt to convert non-full artist object into full artist (non-local artist fields is {:?}, \
+                     full artist fields is {:?})",
+                    non_local, full
+                )
+                .into(),
+            )),
         }
     }
 }
 
-impl From<Artist> for PartialArtist {
-    fn from(artist: Artist) -> Self {
+impl TryFrom<Artist> for PartialArtist {
+    type Error = ConversionError;
+
+    fn try_from(artist: Artist) -> Result<Self, Self::Error> {
         match artist {
-            Artist::Full(full) => PartialArtist {
+            Artist::Full(full) => Ok(PartialArtist {
                 common: full.common,
                 non_local: full.non_local,
-            },
-            Artist::Partial(partial) => *partial,
+            }),
 
-            Artist::Local(_) => panic!("attempt to convert local artist into partial artist"),
+            Artist::Partial(partial) => Ok(*partial),
+
+            Artist::Local(_) => Err(ConversionError(
+                "attempt to convert local artist into partial artist".into(),
+            )),
         }
     }
 }
 
-impl From<ArtistObject> for PartialArtist {
-    fn from(obj: ArtistObject) -> Self {
+impl TryFrom<ArtistObject> for PartialArtist {
+    type Error = ConversionError;
+
+    fn try_from(obj: ArtistObject) -> Result<Self, Self::Error> {
         if let Some(non_local) = obj.non_local {
-            PartialArtist {
+            Ok(PartialArtist {
                 common: obj.common,
                 non_local,
-            }
+            })
         } else {
-            panic!(
-                "attempt to convert local artist object into partial artist (non-local artist fields is {:?})",
-                obj.non_local
-            );
+            Err(ConversionError(
+                format!(
+                    "attempt to convert local artist object into partial artist (non-local artist fields is {:?})",
+                    obj.non_local
+                )
+                .into(),
+            ))
         }
     }
 }

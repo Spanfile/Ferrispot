@@ -1,7 +1,4 @@
-use super::{
-    track::{FullTrack, TrackObject},
-    ExternalUrls, ItemType,
-};
+use super::{track::FullTrack, ExternalUrls, ItemType};
 use crate::util::duration_millis;
 use serde::Deserialize;
 use std::time::Duration;
@@ -63,7 +60,7 @@ pub struct PublicPlayingItem {
     #[serde(rename = "progress_ms", with = "duration_millis")]
     progress: Duration,
     #[serde(flatten)]
-    item: PlayingTypeObject,
+    item: PlayingType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -104,16 +101,11 @@ pub struct Disallows {
     transferring_playback: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "currently_playing_type", content = "item")]
 #[non_exhaustive]
 pub enum PlayingType {
     Track(FullTrack),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "currently_playing_type", content = "item")]
-enum PlayingTypeObject {
-    Track(TrackObject),
     // TODO:
     // Episode
     // Ad
@@ -211,10 +203,8 @@ impl PublicPlayingItem {
         self.progress
     }
 
-    pub fn item(&self) -> PlayingType {
-        match &self.item {
-            PlayingTypeObject::Track(track_obj) => PlayingType::Track(track_obj.to_owned().into()),
-        }
+    pub fn item(&self) -> &PlayingType {
+        &self.item
     }
 }
 

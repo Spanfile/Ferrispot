@@ -3,7 +3,7 @@ use super::{
     API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT,
 };
 use crate::{
-    error::Result,
+    error::{ConversionError, Result},
     model::{
         search::{SearchResults, SearchResultsObject, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
         track::{FullTrack, TrackObject},
@@ -62,7 +62,7 @@ where
         let track_object: TrackObject = response.json().await?;
         debug!("Track body: {:#?}", track_object);
 
-        let full_track: FullTrack = track_object.into();
+        let full_track: FullTrack = track_object.try_into()?;
         Ok(full_track)
     }
 
@@ -119,8 +119,9 @@ where
         let full_tracks: Vec<_> = tracks_object
             .tracks
             .into_iter()
-            .filter_map(|obj| obj.map(FullTrack::from))
-            .collect();
+            .filter_map(|obj| obj.map(FullTrack::try_from))
+            .collect::<std::result::Result<Vec<_>, ConversionError>>()?;
+
         Ok(full_tracks)
     }
 

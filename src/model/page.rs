@@ -56,17 +56,20 @@ impl<T> crate::private::Sealed for PageObject<T> where T: Serialize {}
 
 impl<TItem, TReturn> PageInformation<TReturn> for PageObject<TItem>
 where
-    TItem: ToOwned + Into<TReturn> + Serialize,
-    TReturn: From<<TItem as ToOwned>::Owned>,
+    TItem: ToOwned + TryInto<TReturn> + Serialize,
+    TReturn: TryFrom<<TItem as ToOwned>::Owned>,
 {
     type Items = Vec<TReturn>;
 
     fn items(&self) -> Self::Items {
-        self.items.iter().map(|item| item.to_owned().into()).collect()
+        self.items
+            .iter()
+            .filter_map(|item| item.to_owned().try_into().ok())
+            .collect()
     }
 
     fn take_items(self) -> Self::Items {
-        self.items.into_iter().map(|item| item.into()).collect()
+        self.items.into_iter().filter_map(|item| item.try_into().ok()).collect()
     }
 
     fn next(&self) -> Option<&str> {
