@@ -41,11 +41,11 @@ pub struct PlaybackState {
     shuffle_state: bool,
 
     #[serde(flatten)]
-    currently_playing: CurrentlyPlayingTrack,
+    currently_playing: CurrentlyPlayingItem,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct CurrentlyPlayingTrack {
+pub struct CurrentlyPlayingItem {
     timestamp: u64, // TODO: this is an unix epoch
     is_playing: bool,
     actions: Actions,
@@ -159,52 +159,81 @@ impl Device {
 }
 
 impl PlaybackState {
+    /// The device currently playing.
     pub fn device(&self) -> &Device {
         &self.device
     }
 
+    /// The device currently playing. Take ownership of the `Device` object.
+    pub fn take_device(self) -> Device {
+        self.device
+    }
+
+    /// The current playback's repeat state.
     pub fn repeat_state(&self) -> RepeatState {
         self.repeat_state
     }
 
+    /// The current playback's shuffle state.
     pub fn shuffle_state(&self) -> bool {
         self.shuffle_state
     }
 
-    pub fn currently_playing_item(&self) -> &CurrentlyPlayingTrack {
+    pub fn currently_playing_item(&self) -> &CurrentlyPlayingItem {
         &self.currently_playing
+    }
+
+    pub fn take_currently_playing_item(self) -> CurrentlyPlayingItem {
+        self.currently_playing
     }
 }
 
-impl CurrentlyPlayingTrack {
+impl CurrentlyPlayingItem {
+    /// The item's timestamp.
     pub fn timestamp(&self) -> u64 {
         self.timestamp
     }
 
+    /// Whether or not the item is playing.
     pub fn is_playing(&self) -> bool {
         self.is_playing
     }
 
+    /// The actions that may be taken on the item.
     pub fn actions(&self) -> Actions {
         self.actions
     }
 
+    /// The currently playing public item.
     pub fn public_playing_item(&self) -> Option<&PublicPlayingItem> {
         self.public_playing_track.as_ref()
+    }
+
+    /// The currently playing public item. Take ownership of the value.
+    pub fn take_public_playing_item(self) -> Option<PublicPlayingItem> {
+        self.public_playing_track
     }
 }
 
 impl PublicPlayingItem {
+    /// The item's context.
     pub fn context(&self) -> &Context {
         &self.context
     }
 
+    /// The item's playback progress.
     pub fn progress(&self) -> Duration {
         self.progress
     }
 
+    /// The playing item.
     pub fn item(&self) -> &PlayingType {
         &self.item
+    }
+
+    /// The playing item. Take ownership of the item.
+    pub fn take_item(self) -> PlayingType {
+        self.item
     }
 }
 

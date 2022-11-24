@@ -408,7 +408,6 @@ impl From<Track> for LocalTrack {
         match track {
             Track::Full(full) => LocalTrack { common: full.common },
             Track::Partial(partial) => LocalTrack { common: partial.common },
-
             Track::Local(local) => *local,
         }
     }

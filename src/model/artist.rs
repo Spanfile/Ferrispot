@@ -321,7 +321,6 @@ impl From<Artist> for LocalArtist {
         match artist {
             Artist::Full(full) => LocalArtist { common: full.common },
             Artist::Partial(partial) => LocalArtist { common: partial.common },
-
             Artist::Local(local) => *local,
         }
     }

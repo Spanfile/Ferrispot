@@ -8,7 +8,7 @@ use crate::{
     model::{
         error::{ApiErrorMessage, ApiErrorResponse},
         id::{IdTrait, PlayableContext, PlayableItem},
-        playback::{CurrentlyPlayingTrack, Device, PlaybackState, RepeatState},
+        playback::{CurrentlyPlayingItem, Device, PlaybackState, RepeatState},
     },
 };
 use async_trait::async_trait;
@@ -55,7 +55,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     /// Get the object currently being played on the user's Spotify account.
     ///
     /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
-    async fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingTrack>> {
+    async fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
         let response = self
             .send_http_request(
                 Method::GET,

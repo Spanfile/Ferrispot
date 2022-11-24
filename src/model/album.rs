@@ -424,7 +424,6 @@ impl From<Album> for LocalAlbum {
         match album {
             Album::Full(full) => LocalAlbum { common: full.common },
             Album::Partial(partial) => LocalAlbum { common: partial.common },
-
             Album::Local(local) => *local,
         }
     }
