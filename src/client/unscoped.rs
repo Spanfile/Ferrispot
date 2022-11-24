@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use log::debug;
+use log::{debug, trace};
 use reqwest::{Method, Url};
 use serde::Deserialize;
 use std::{
@@ -54,13 +54,14 @@ where
             )
             .send()
             .await?;
-        debug!("Track response: {:?}", response);
+
+        trace!("Track response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
         response.error_for_status_ref()?;
 
         let track_object: TrackObject = response.json().await?;
-        debug!("Track body: {:#?}", track_object);
+        trace!("Track body: {:?}", track_object);
 
         let full_track: FullTrack = track_object.try_into()?;
         Ok(full_track)
@@ -108,13 +109,13 @@ where
             .send()
             .await?;
 
-        debug!("Tracks response: {:?}", response);
+        trace!("Tracks response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
         response.error_for_status_ref()?;
 
         let tracks_object: TracksResponse = response.json().await?;
-        debug!("Tracks body: {:#?}", tracks_object);
+        trace!("Tracks body: {:?}", tracks_object);
 
         let full_tracks: Vec<_> = tracks_object
             .tracks
@@ -231,12 +232,12 @@ where
             .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)");
 
         let response = self.client.send_http_request(Method::GET, url).send().await?;
-        debug!("Search results response: {:?}", response);
+        trace!("Search results response: {:?}", response);
 
         response.error_for_status_ref()?;
 
         let search_results: SearchResultsObject = response.json().await?;
-        debug!("Search results object: {:?}", search_results);
+        trace!("Search results object: {:?}", search_results);
 
         Ok(SearchResults { inner: search_results })
     }

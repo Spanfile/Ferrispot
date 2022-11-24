@@ -12,7 +12,7 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use reqwest::{Method, Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -37,7 +37,8 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             )
             .send()
             .await?;
-        debug!("Playback state response: {:?}", response);
+
+        trace!("Playback state response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
         response.error_for_status_ref()?;
@@ -47,7 +48,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         }
 
         let playback_state = response.json().await?;
-        debug!("Playback state body: {:#?}", playback_state);
+        trace!("Playback state body: {:?}", playback_state);
 
         Ok(Some(playback_state))
     }
@@ -66,7 +67,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             .send()
             .await?;
 
-        debug!("Currently playing track response: {:?}", response);
+        trace!("Currently playing track response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
         response.error_for_status_ref()?;
@@ -76,7 +77,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         }
 
         let currently_playing_trtack = response.json().await?;
-        debug!("Currently playing track body: {:#?}", currently_playing_trtack);
+        trace!("Currently playing track body: {:?}", currently_playing_trtack);
 
         Ok(Some(currently_playing_trtack))
     }
@@ -110,10 +111,10 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             uris: tracks.iter().map(|id| id.uri()).collect(),
         };
 
-        debug!("Play body: {:#?}", body);
+        trace!("Play body: {:?}", body);
 
         let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
-        debug!("Play response: {:?}", response);
+        trace!("Play response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -137,10 +138,10 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             context_uri: context.uri(),
         };
 
-        debug!("Play body: {:#?}", body);
+        trace!("Play body: {:?}", body);
 
         let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
-        debug!("Play response: {:?}", response);
+        trace!("Play response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -154,7 +155,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     async fn resume(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let response = self.send_http_request(Method::PUT, url).send().await?;
-        debug!("Resume response: {:?}", response);
+        trace!("Resume response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -168,7 +169,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     async fn pause(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PAUSE_ENDPOINT, &[("device_id", device_id)]);
         let response = self.send_http_request(Method::PUT, url).send().await?;
-        debug!("Pause response: {:?}", response);
+        trace!("Pause response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -186,7 +187,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         );
 
         let response = self.send_http_request(Method::PUT, url).send().await?;
-        debug!("Set repeat state response: {:?}", response);
+        trace!("Set repeat state response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -207,7 +208,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         );
 
         let response = self.send_http_request(Method::PUT, url).send().await?;
-        debug!("Set shuffle response: {:?}", response);
+        trace!("Set shuffle response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -229,7 +230,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         );
 
         let response = self.send_http_request(Method::PUT, url).send().await?;
-        debug!("Set volume response: {:?}", response);
+        trace!("Set volume response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -248,7 +249,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         );
 
         let response = self.send_http_request(Method::POST, url).send().await?;
-        debug!("Add to queue response: {:?}", response);
+        trace!("Add to queue response: {:?}", response);
 
         handle_player_control_response(response).await
     }
@@ -265,13 +266,13 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
         let url = build_play_url(API_PLAYER_DEVICES_ENDPOINT, &[]);
 
         let response = self.send_http_request(Method::GET, url).send().await?;
-        debug!("Devices response: {:?}", response);
+        trace!("Devices response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?
         response.error_for_status_ref()?;
 
         let devices_response: DevicesResponse = response.json().await?;
-        debug!("Devices: {:?}", devices_response);
+        trace!("Devices: {:?}", devices_response);
 
         Ok(devices_response.devices)
     }

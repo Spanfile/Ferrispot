@@ -23,6 +23,7 @@ use crate::error::IdError;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
+// TODO: maybe make the fields private and expose them through functions
 /// Contains an URL to an image and its dimensions, if specified.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Image {
