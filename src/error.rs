@@ -1,11 +1,12 @@
 //! Various error types exposed by the crate.
 
+use std::borrow::Cow;
+
+use thiserror::Error;
+
 #[cfg(any(feature = "async", feature = "sync"))]
 use crate::model::error::AuthenticationErrorKind;
 use crate::model::ItemType;
-
-use std::borrow::Cow;
-use thiserror::Error;
 
 /// The result type the library returns in the public-facing interface.
 #[cfg(any(feature = "async", feature = "sync"))]
@@ -38,7 +39,7 @@ pub enum Error {
     /// The refresh token is invalid; it cannot be used to retrieve an access token. This is likely due to the user
     /// removing the application's access to their account. The error message from Spotify is included. The user should
     /// be reauthorized.
-    #[error("The refresh token is invalid: {0}. The user should be reauthorized")]
+    #[error("The refresh token is invalid: {0}")]
     InvalidRefreshToken(String),
 
     /// The client credentails (ID and possible secret) are invalid.
@@ -54,11 +55,8 @@ pub enum Error {
     MissingScope,
 
     /// The endpoint is forbidden. This is likely due to the user removing the application's access to their account.
-    /// The error message from Spotify is included. The user should be reauthorized.
-    #[error(
-        "The endpoint is forbidden. The user likely removed the application's access to their account. Any future \
-         calls with this client will likely fail. The user should be reauthorized."
-    )]
+    /// The user should be reauthorized.
+    #[error("The endpoint is forbidden")]
     Forbidden,
 
     /// No device is currently active in the user's account, or the given device could not be activated for playback.
@@ -69,9 +67,7 @@ pub enum Error {
 
     /// Spotify returned a 429 Too Many Requests, but the Retry-After header could not be parsed as an integer. This is
     /// likely an issue on Spotify's side.
-    #[error(
-        "Missing or invalid Retry-After header in 429 rate-limit response. This is likely an issue on Spotify's side"
-    )]
+    #[error("Missing or invalid Retry-After header in 429 rate-limit response")]
     InvalidRateLimitResponse,
 
     /// Spotify returned an authentication error we did not expect.

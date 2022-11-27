@@ -16,12 +16,13 @@ pub(crate) mod object_type;
 mod country_code;
 mod page;
 
+use std::{fmt, str::FromStr};
+
 pub use country_code::CountryCode;
 pub use page::Page;
+use serde::{Deserialize, Serialize};
 
 use crate::error::IdError;
-use serde::{Deserialize, Serialize};
-use std::{fmt, str::FromStr};
 
 // TODO: maybe make the fields private and expose them through functions
 /// Contains an URL to an image and its dimensions, if specified.

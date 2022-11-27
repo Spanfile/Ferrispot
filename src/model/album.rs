@@ -12,6 +12,10 @@
 //! The album object Spotify returns from the API is not directly available.
 //! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
 
+use std::{collections::HashSet, marker::PhantomData};
+
+use serde::{Deserialize, Serialize, Serializer};
+
 use super::{
     artist::PartialArtist,
     country_code::CountryCode,
@@ -22,8 +26,6 @@ use super::{
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
 };
 use crate::error::ConversionError;
-use serde::{Deserialize, Serialize, Serializer};
-use std::{collections::HashSet, marker::PhantomData};
 
 mod private {
     use super::{CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};

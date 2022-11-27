@@ -37,14 +37,15 @@ pub(crate) mod scoped;
 pub(crate) mod unscoped;
 
 pub(crate) mod private {
-    use crate::{
-        error::{Error, Result},
-        model::error::{ApiErrorMessage, ApiErrorResponse},
-    };
     use async_trait::async_trait;
     use log::{error, warn};
     use reqwest::{header, Method, RequestBuilder, Response, StatusCode, Url};
     use serde::Serialize;
+
+    use crate::{
+        error::{Error, Result},
+        model::error::{ApiErrorMessage, ApiErrorResponse},
+    };
 
     /// Every Spotify client implements this trait.
     pub trait BuildHttpRequest: crate::private::Sealed {
@@ -192,26 +193,26 @@ pub(crate) mod private {
     }
 }
 
-pub use self::{
-    scoped::ScopedClient,
-    unscoped::{SearchBuilder, UnscopedClient},
-};
-
-use self::{
-    authorization_code::{AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder},
-    implicit_grant::ImplicitGrantUserClientBuilder,
-};
-use crate::{
-    error::{Error, Result},
-    model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
-};
+use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 use const_format::concatcp;
 use log::debug;
 use reqwest::{header, Client as AsyncClient, Method, RequestBuilder, StatusCode, Url};
 use serde::Deserialize;
-use std::sync::{Arc, RwLock};
+
+use self::{
+    authorization_code::{AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder},
+    implicit_grant::ImplicitGrantUserClientBuilder,
+};
+pub use self::{
+    scoped::ScopedClient,
+    unscoped::{SearchBuilder, UnscopedClient},
+};
+use crate::{
+    error::{Error, Result},
+    model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
+};
 
 const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows

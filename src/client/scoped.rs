@@ -1,3 +1,10 @@
+use std::borrow::Cow;
+
+use async_trait::async_trait;
+use log::{error, trace, warn};
+use reqwest::{Method, Response, StatusCode, Url};
+use serde::{Deserialize, Serialize};
+
 use super::{private, API_CURRENTLY_PLAYING_TRACK_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT};
 use crate::{
     client::{
@@ -11,11 +18,6 @@ use crate::{
         playback::{CurrentlyPlayingItem, Device, PlaybackState, RepeatState},
     },
 };
-use async_trait::async_trait;
-use log::{debug, error, trace, warn};
-use reqwest::{Method, Response, StatusCode, Url};
-use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
 /// certain user. [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and

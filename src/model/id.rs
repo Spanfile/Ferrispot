@@ -144,15 +144,15 @@
 //! let artist_from_url = SpotifyId::from_url(artist_url_string).unwrap();
 //! ```
 
-use super::ItemType;
-
-use crate::{error::IdError, util::maybe_split_once::MaybeSplitOnce};
+use std::{borrow::Cow, marker::PhantomData};
 
 use serde::{
     de::{self, Visitor},
     Deserialize, Serialize,
 };
-use std::{borrow::Cow, marker::PhantomData};
+
+use super::ItemType;
+use crate::{error::IdError, util::maybe_split_once::MaybeSplitOnce};
 
 const ID_LENGTH: usize = 22; // I hope Spotify never changes this length
 const URL_PREFIX: &str = "https://open.spotify.com/";

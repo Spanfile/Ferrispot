@@ -1,7 +1,9 @@
+use std::time::Duration;
+
+use serde::Deserialize;
+
 use super::{track::FullTrack, ExternalUrls, ItemType};
 use crate::util::duration_millis;
-use serde::Deserialize;
-use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Device {

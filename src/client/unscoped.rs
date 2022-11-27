@@ -1,3 +1,13 @@
+use std::{
+    borrow::Cow,
+    fmt::{Display, Write},
+};
+
+use async_trait::async_trait;
+use log::trace;
+use reqwest::{Method, Url};
+use serde::Deserialize;
+
 use super::{
     private::{self, SendHttpRequest},
     API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT,
@@ -9,14 +19,6 @@ use crate::{
         track::{FullTrack, TrackObject},
         CountryCode,
     },
-};
-use async_trait::async_trait;
-use log::{debug, trace};
-use reqwest::{Method, Url};
-use serde::Deserialize;
-use std::{
-    borrow::Cow,
-    fmt::{Display, Write},
 };
 
 /// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All Spotify

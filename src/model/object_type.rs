@@ -3,8 +3,9 @@ pub const TYPE_TRACK: &str = "track";
 pub const TYPE_ARTIST: &str = "artist";
 
 pub(crate) mod object_type_serialize {
-    use super::ObjectType;
     use serde::{Deserialize, Deserializer, Serializer};
+
+    use super::ObjectType;
 
     pub(crate) fn serialize<S, T>(_: &T, serializer: S) -> Result<S::Ok, S::Error>
     where

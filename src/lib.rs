@@ -18,7 +18,11 @@
 //!
 //! # Feature flags
 //!
-//! - `tokio_sleep`: react to API rate limits using Tokio's sleep function
+//! - `async` (default): enable the asynchronous API
+//! - `sync`: enable the synchronous API (*not implemented at this time*)
+//!   - In case neither APIs are enabled (`default-features = false`), the crate only includes the object model
+//!     structure with minimal dependencies on `serde` and `thiserror`.
+//! - `tokio_sleep` (default): react to API rate limits using Tokio's sleep function
 //! - `async_std_sleep`: react to API rate limits using async-std's sleep function
 //!   - In case both `tokio_sleep` and `async_std_sleep` are enabled, Tokio's sleep function will be used
 //!   - In case neither are enabled, the library will return a [rate limit error](crate::error::Error::RateLimit) when
@@ -46,7 +50,6 @@ pub mod prelude {
 
     #[cfg(any(feature = "async", feature = "sync"))]
     pub use crate::client::{scoped::ScopedClient, unscoped::UnscopedClient, AccessTokenRefresh};
-
     pub use crate::{
         model::{
             album::{CommonAlbumInformation, FullAlbumInformation, NonLocalAlbumInformation},

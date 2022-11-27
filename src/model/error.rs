@@ -1,9 +1,9 @@
 //! Abstraction over the different errors the Spotify API may return.
 
+use serde::{de::Visitor, Deserialize};
+
 #[cfg(any(feature = "async", feature = "sync"))]
 use crate::error::Error;
-
-use serde::{de::Visitor, Deserialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct AuthenticationErrorResponse {

@@ -12,6 +12,10 @@
 //! The track object Spotify returns from the API is not directly available.
 //! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
 
+use std::{collections::HashSet, time::Duration};
+
+use serde::{Deserialize, Serialize, Serializer};
+
 use super::{
     album::PartialAlbum,
     artist::PartialArtist,
@@ -21,8 +25,6 @@ use super::{
     ExternalIds, ExternalUrls, Restrictions,
 };
 use crate::{error::ConversionError, util::duration_millis};
-use serde::{Deserialize, Serialize, Serializer};
-use std::{collections::HashSet, time::Duration};
 
 mod private {
     use super::{CommonTrackFields, FullTrackFields, NonLocalTrackFields};

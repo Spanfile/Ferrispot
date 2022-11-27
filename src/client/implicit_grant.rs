@@ -62,6 +62,13 @@
 //!     .expect("failed to finalize implicit grant flow client");
 //! # }
 
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use log::debug;
+use rand::{distributions::Alphanumeric, Rng};
+use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
+
 use super::{
     private, ScopedClient, SpotifyClientRef, UnscopedClient, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
 };
@@ -69,12 +76,6 @@ use crate::{
     error::{Error, Result},
     scope::ToScopesString,
 };
-
-use async_trait::async_trait;
-use log::debug;
-use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
-use std::sync::Arc;
 
 /// A client that uses the implicit grant flow to authenticate an user with Spotify. See the [module-level docs](self)
 /// for more information.
@@ -171,15 +172,16 @@ impl ImplicitGrantUserClientBuilder {
         }
     }
 
-    pub fn state<S>(self, state: S) -> Self
-    where
-        S: Into<String>,
-    {
-        Self {
-            state: Some(state.into()),
-            ..self
-        }
-    }
+    // TODO: I'm not sure there's a reason to let the user specify the state string themselves
+    // pub fn state<S>(self, state: S) -> Self
+    // where
+    //     S: Into<String>,
+    // {
+    //     Self {
+    //         state: Some(state.into()),
+    //         ..self
+    //     }
+    // }
 
     pub fn scopes<T>(self, scopes: T) -> Self
     where

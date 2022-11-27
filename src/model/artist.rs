@@ -12,13 +12,14 @@
 //! The artist object Spotify returns from the API is not directly available.
 //! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
 
+use serde::{Deserialize, Serialize, Serializer};
+
 use super::{
     id::{ArtistId, Id, IdTrait},
     object_type::{object_type_serialize, TypeArtist},
     ExternalUrls, Image,
 };
 use crate::error::ConversionError;
-use serde::{Deserialize, Serialize, Serializer};
 
 mod private {
     use super::{CommonArtistFields, FullArtistFields, NonLocalArtistFields};

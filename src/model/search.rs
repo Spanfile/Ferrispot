@@ -1,3 +1,7 @@
+use std::marker::PhantomData;
+
+use serde::Deserialize;
+
 use super::{
     album::{AlbumObject, FullAlbum},
     artist::{ArtistObject, FullArtist},
@@ -5,9 +9,6 @@ use super::{
     track::{FullTrack, TrackObject},
     ItemType,
 };
-
-use serde::Deserialize;
-use std::marker::PhantomData;
 
 // TODO: it'd be really cool if this was a const fn or smth
 /// The default search types.

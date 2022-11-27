@@ -92,6 +92,15 @@
 //! // to the documentation above
 //! # }
 
+use std::sync::{Arc, RwLock};
+
+use async_trait::async_trait;
+use log::debug;
+use rand::{distributions::Alphanumeric, Rng};
+use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
+use serde::Deserialize;
+use sha2::Digest;
+
 use super::{
     private, AccessTokenRefresh, ScopedClient, UnscopedClient, ACCOUNTS_API_TOKEN_ENDPOINT,
     ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
@@ -101,14 +110,6 @@ use crate::{
     model::error::AuthenticationErrorKind,
     scope::ToScopesString,
 };
-
-use async_trait::async_trait;
-use log::debug;
-use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
-use serde::Deserialize;
-use sha2::Digest;
-use std::sync::{Arc, RwLock};
 
 /// A client that implements the authorization code flow to authenticate an user with Spotify. May optionally use PKCE
 /// if the client secret is not available. See the [module-level docs](self) for more information.

@@ -1,5 +1,6 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
+
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// A trait describing a page-like object that is returned from Spotify's search API.
 ///
