@@ -74,9 +74,9 @@ pub enum Error {
     #[error("Unhandled authentication error: {0:?}: {1}")]
     UnhandledAuthenticationError(AuthenticationErrorKind, String),
 
-    /// Spotify returned an error we did not expect.
-    #[error("Unhandled API error {0}: {1}")]
-    UnhandledSpotifyError(u16, String),
+    /// Spotify returned an response status code we did not expect.
+    #[error("Unhandled Spotify API response status code {0}")]
+    UnhandledSpotifyResponseStatusCode(u16),
 
     /// Parsing a string to a Spotify [ID](crate::model::id::Id) failed.
     #[error(transparent)]
@@ -89,8 +89,8 @@ pub enum Error {
     #[error(transparent)]
     Conversion(#[from] ConversionError),
 
-    /// A catch-all for errors from reqwest. Getting this error back likely means either the library isn't handling a
-    /// known error, or something went wrong with sending a request or receiving a response.
+    /// A catch-all for errors from reqwest. Getting this error back likely means something went wrong with sending a
+    /// request or receiving and decoding a response.
     #[error(transparent)]
     HttpError(#[from] reqwest::Error),
 }

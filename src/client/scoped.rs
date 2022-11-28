@@ -19,7 +19,8 @@ use crate::{
 };
 
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
-/// certain user. [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and
+/// certain user. The asynchronous
+/// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and
 /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient) implement this trait.
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
@@ -38,12 +39,11 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
                     .expect("failed to build playback state endpoint URL: invalid base URL (this is likely a bug)"),
             )
             .send_async()
-            .await?;
+            .await?
+            .error_for_status()
+            .map_err(super::response_to_error)?;
 
         trace!("Playback state response: {:?}", response);
-
-        // TODO: is this really the way to return an error from an error response?
-        response.error_for_status_ref()?;
 
         if response.status() == StatusCode::NO_CONTENT {
             return Ok(None);
@@ -67,21 +67,20 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
                 ),
             )
             .send_async()
-            .await?;
+            .await?
+            .error_for_status()
+            .map_err(super::response_to_error)?;
 
         trace!("Currently playing track response: {:?}", response);
-
-        // TODO: is this really the way to return an error from an error response?
-        response.error_for_status_ref()?;
 
         if response.status() == StatusCode::NO_CONTENT {
             return Ok(None);
         }
 
-        let currently_playing_trtack = response.json().await?;
-        trace!("Currently playing track body: {:?}", currently_playing_trtack);
+        let currently_playing_track = response.json().await?;
+        trace!("Currently playing track body: {:?}", currently_playing_track);
 
-        Ok(Some(currently_playing_trtack))
+        Ok(Some(currently_playing_track))
     }
 
     /// Start playing a collection of playable items in order; tracks or episodes.
@@ -267,11 +266,14 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
 
         let url = build_play_url(API_PLAYER_DEVICES_ENDPOINT, &[]);
 
-        let response = self.send_http_request(Method::GET, url).send_async().await?;
-        trace!("Devices response: {:?}", response);
+        let response = self
+            .send_http_request(Method::GET, url)
+            .send_async()
+            .await?
+            .error_for_status()
+            .map_err(super::response_to_error)?;
 
-        // TODO: is this really the way to return an error from an error response?
-        response.error_for_status_ref()?;
+        trace!("Devices response: {:?}", response);
 
         let devices_response: DevicesResponse = response.json().await?;
         trace!("Devices: {:?}", devices_response);
@@ -307,7 +309,7 @@ async fn handle_player_control_response(response: Response) -> Result<()> {
 
                 other => {
                     error!("Unexpected Spotify error response to player call: {:?}", other);
-                    Err(Error::UnhandledSpotifyError(401, format!("{:?}", other)))
+                    Err(Error::UnhandledSpotifyResponseStatusCode(404))
                 }
             }
         }

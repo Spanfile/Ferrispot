@@ -90,8 +90,6 @@ const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 const CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM: &[(&str, &str)] = &[("grant_type", "client_credentials")];
 
-const DEFAULT_RATE_LIMIT_SLEEP: bool = true;
-
 const API_BASE_URL: &str = "https://api.spotify.com/v1/";
 
 // unscoped endpoints
@@ -673,5 +671,12 @@ fn map_client_authentication_error(err: Error) -> Error {
         Error::InvalidClient(description)
     } else {
         err
+    }
+}
+
+fn response_to_error(err: reqwest::Error) -> Error {
+    match err.status() {
+        Some(status) => Error::UnhandledSpotifyResponseStatusCode(status.as_u16()),
+        None => err.into(),
     }
 }

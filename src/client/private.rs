@@ -221,7 +221,6 @@ where
                     super::rate_limit_sleep_async(retry_after).await?;
                 }
 
-                // all other responses, even erroneous ones, are returned to the caller
                 _ => return Ok(response),
             }
         }
@@ -293,7 +292,7 @@ fn handle_api_error_response(error_response: ApiErrorResponse) -> Result<()> {
 
         other => {
             error!("Unexpected Spotify error: {:?}", other);
-            Err(Error::UnhandledSpotifyError(401, format!("{:?}", other)))
+            Err(Error::UnhandledSpotifyResponseStatusCode(401))
         }
     }
 }

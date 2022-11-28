@@ -11,14 +11,14 @@ use super::{private, API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT};
 use crate::{
     error::{ConversionError, Result},
     model::{
-        search::{SearchResults, SearchResultsObject, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
+        search::{SearchResults, ToTypesString, DEFAULT_SEARCH_TYPES_STRING},
         track::{FullTrack, TrackObject},
         CountryCode,
     },
 };
 
-/// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All Spotify
-/// clients implement this trait.
+/// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All
+/// asynchronous Spotify clients implement this trait.
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
 pub trait UnscopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::AccessTokenExpiryAsync
@@ -52,12 +52,11 @@ where
                 Url::parse(&url).expect("failed to build tracks endpoint URL: invalid base URL (this is likely a bug)"),
             )
             .send_async()
-            .await?;
+            .await?
+            .error_for_status()
+            .map_err(super::response_to_error)?;
 
         trace!("Track response: {:?}", response);
-
-        // TODO: is this really the way to return an error from an error response?
-        response.error_for_status_ref()?;
 
         let track_object: TrackObject = response.json().await?;
         trace!("Track body: {:?}", track_object);
@@ -106,12 +105,11 @@ where
                     .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)"),
             )
             .send_async()
-            .await?;
+            .await?
+            .error_for_status()
+            .map_err(super::response_to_error)?;
 
         trace!("Tracks response: {:?}", response);
-
-        // TODO: is this really the way to return an error from an error response?
-        response.error_for_status_ref()?;
 
         let tracks_object: TracksResponse = response.json().await?;
         trace!("Tracks body: {:?}", tracks_object);
@@ -210,16 +208,8 @@ where
             ..self
         }
     }
-}
 
-#[cfg(feature = "async")]
-impl<'a, C, S> SearchBuilder<'a, C, S>
-where
-    C: private::SendHttpRequestAsync<'a>,
-    S: AsRef<str>,
-{
-    /// Send the search and return a collection of results.
-    pub async fn send_async(self) -> Result<SearchResults> {
+    fn build_search_url(&self) -> Url {
         let limit = self.limit.to_string();
         let offset = self.offset.to_string();
 
@@ -234,15 +224,28 @@ where
             params.push(("market", market));
         };
 
-        let url = Url::parse_with_params(API_SEARCH_ENDPOINT, params)
-            .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)");
+        Url::parse_with_params(API_SEARCH_ENDPOINT, params)
+            .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)")
+    }
+}
 
-        let response = self.client.send_http_request(Method::GET, url).send_async().await?;
+#[cfg(feature = "async")]
+impl<'a, C, S> SearchBuilder<'a, C, S>
+where
+    C: private::SendHttpRequestAsync<'a>,
+    S: AsRef<str>,
+{
+    /// Send the search and return a collection of results.
+    pub async fn send_async(self) -> Result<SearchResults> {
+        let response = self
+            .client
+            .send_http_request(Method::GET, self.build_search_url())
+            .send_async()
+            .await?;
+
         trace!("Search results response: {:?}", response);
 
-        response.error_for_status_ref()?;
-
-        let search_results: SearchResultsObject = response.json().await?;
+        let search_results = response.json().await?;
         trace!("Search results object: {:?}", search_results);
 
         Ok(SearchResults { inner: search_results })
@@ -257,29 +260,14 @@ where
 {
     /// Send the search and return a collection of results.
     pub fn send_sync(self) -> Result<SearchResults> {
-        let limit = self.limit.to_string();
-        let offset = self.offset.to_string();
+        let response = self
+            .client
+            .send_http_request(Method::GET, self.build_search_url())
+            .send_sync()?;
 
-        let mut params = vec![
-            ("q", self.query.as_ref()),
-            ("type", &self.types),
-            ("limit", &limit),
-            ("offset", &offset),
-        ];
-
-        if let Some(market) = self.market.as_deref() {
-            params.push(("market", market));
-        };
-
-        let url = Url::parse_with_params(API_SEARCH_ENDPOINT, params)
-            .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)");
-
-        let response = self.client.send_http_request(Method::GET, url).send_sync()?;
         trace!("Search results response: {:?}", response);
 
-        response.error_for_status_ref()?;
-
-        let search_results: SearchResultsObject = response.json()?;
+        let search_results = response.json()?;
         trace!("Search results object: {:?}", search_results);
 
         Ok(SearchResults { inner: search_results })
