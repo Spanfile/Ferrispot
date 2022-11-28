@@ -43,7 +43,10 @@ mod sync_client {
 }
 
 use log::{error, warn};
-use reqwest::{header, Method, StatusCode, Url};
+use reqwest::{
+    header::{self, HeaderMap},
+    Method, StatusCode, Url,
+};
 use serde::Serialize;
 
 #[cfg(feature = "async")]
@@ -201,48 +204,21 @@ where
 
                 StatusCode::UNAUTHORIZED => {
                     warn!("Got 401 Unauthorized response");
-                    let error_response: ApiErrorResponse = response.json().await?;
+                    let error_response = response.json().await?;
+                    handle_api_error_response(error_response)?;
 
-                    match error_response.error.message {
-                        ApiErrorMessage::PermissionsMissing => {
-                            error!("Missing required scope for the endpoint");
-                            return Err(Error::MissingScope);
-                        }
-
-                        ApiErrorMessage::TokenExpired => {
-                            warn!("Access token expired, attempting to refresh");
-
-                            if self.client.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable
-                            {
-                                warn!("Refreshing access tokens is inapplicable to this client");
-                                return Err(Error::AccessTokenExpired);
-                            }
-                        }
-
-                        other => {
-                            error!("Unexpected Spotify error: {:?}", other);
-                            return Err(Error::UnhandledSpotifyError(401, format!("{:?}", other)));
-                        }
+                    // handle_api_error_response handles all other errors except the access token being expired
+                    if self.client.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable {
+                        warn!("Refreshing access tokens is inapplicable to this client");
+                        return Err(Error::AccessTokenExpired);
                     }
                 }
 
                 StatusCode::TOO_MANY_REQUESTS => {
                     let headers = response.headers();
-                    if let Some(wait_time) = headers
-                        .get(header::RETRY_AFTER)
-                        .and_then(|header| header.to_str().ok())
-                        .and_then(|header_str| header_str.parse::<u64>().ok())
-                    {
-                        warn!(
-                            "Got 429 rate-limit response from Spotify with Retry-After: {}",
-                            wait_time
-                        );
+                    let retry_after = extract_rate_limit_retry_after(headers)?;
 
-                        super::rate_limit_sleep_async(wait_time).await?;
-                    } else {
-                        warn!("Invalid rate-limit response");
-                        return Err(Error::InvalidRateLimitResponse);
-                    }
+                    super::rate_limit_sleep_async(retry_after).await?;
                 }
 
                 // all other responses, even erroneous ones, are returned to the caller
@@ -259,6 +235,83 @@ where
     B: Serialize + Send,
 {
     pub fn send_sync(self) -> Result<reqwest::blocking::Response> {
-        panic!()
+        loop {
+            let mut request = self.client.build_http_request(self.method.clone(), self.url.clone());
+
+            if let Some(body) = &self.body {
+                request = request.json(body);
+            }
+
+            let response = request.send()?;
+
+            match response.status() {
+                StatusCode::FORBIDDEN => {
+                    error!("Got 403 Forbidden response");
+                    return Err(Error::Forbidden);
+                }
+
+                StatusCode::UNAUTHORIZED => {
+                    warn!("Got 401 Unauthorized response");
+                    let error_response = response.json()?;
+                    handle_api_error_response(error_response)?;
+
+                    // handle_api_error_response handles all other errors except the access token being expired
+                    if self.client.handle_access_token_expired()? == AccessTokenExpiryResult::Inapplicable {
+                        warn!("Refreshing access tokens is inapplicable to this client");
+                        return Err(Error::AccessTokenExpired);
+                    }
+                }
+
+                StatusCode::TOO_MANY_REQUESTS => {
+                    let headers = response.headers();
+                    let retry_after = extract_rate_limit_retry_after(headers)?;
+
+                    super::rate_limit_sleep_sync(retry_after)?;
+                }
+
+                // all other responses, even erroneous ones, are returned to the caller
+                _ => return Ok(response),
+            }
+        }
+    }
+}
+
+// TODO: this is a terrible function name
+/// Returns Ok if the given API error response is because of an expired token. Else, returns an error based on the API
+/// error response.
+fn handle_api_error_response(error_response: ApiErrorResponse) -> Result<()> {
+    match error_response.error.message {
+        ApiErrorMessage::TokenExpired => {
+            warn!("Access token expired, attempting to refresh");
+            Ok(())
+        }
+
+        ApiErrorMessage::PermissionsMissing => {
+            error!("Missing required scope for the endpoint");
+            Err(Error::MissingScope)
+        }
+
+        other => {
+            error!("Unexpected Spotify error: {:?}", other);
+            Err(Error::UnhandledSpotifyError(401, format!("{:?}", other)))
+        }
+    }
+}
+
+fn extract_rate_limit_retry_after(headers: &HeaderMap) -> Result<u64> {
+    if let Some(wait_time) = headers
+        .get(header::RETRY_AFTER)
+        .and_then(|header| header.to_str().ok())
+        .and_then(|header_str| header_str.parse::<u64>().ok())
+    {
+        warn!(
+            "Got 429 rate-limit response from Spotify with Retry-After: {}",
+            wait_time
+        );
+
+        Ok(wait_time)
+    } else {
+        warn!("Invalid rate-limit response");
+        Err(Error::InvalidRateLimitResponse)
     }
 }
