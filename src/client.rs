@@ -90,6 +90,8 @@ const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
 const CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM: &[(&str, &str)] = &[("grant_type", "client_credentials")];
 
+const DEFAULT_RATE_LIMIT_SLEEP: bool = true;
+
 const API_BASE_URL: &str = "https://api.spotify.com/v1/";
 
 // unscoped endpoints
@@ -636,9 +638,12 @@ fn extract_authentication_error_sync(response: reqwest::blocking::Response) -> R
     }
 }
 
+// TODO: let the rate limit sleep behaviour be determined per-client
+/// Sleep for the specified amount of time by blocking the current thread.
 #[cfg(feature = "sync")]
 fn rate_limit_sleep_sync(sleep_time: u64) -> Result<()> {
-    Err(crate::error::Error::RateLimit(sleep_time))
+    std::thread::sleep(std::time::Duration::from_secs(sleep_time));
+    Ok(())
 }
 
 /// Return a rate limit error since no sleep utility has been enabled.

@@ -118,8 +118,13 @@ pub struct ImplicitGrantUserClient<C>
 where
     C: HttpClient + Clone,
 {
-    access_token: String,
+    inner: Arc<ImplicitGrantUserClientRef>,
     http_client: C,
+}
+
+#[derive(Debug)]
+struct ImplicitGrantUserClientRef {
+    access_token: String,
 }
 
 #[derive(Debug, Clone)]
@@ -193,7 +198,7 @@ where
         }
 
         Ok(ImplicitGrantUserClient {
-            access_token,
+            inner: Arc::new(ImplicitGrantUserClientRef { access_token }),
             http_client: self.http_client,
         })
     }
@@ -270,7 +275,7 @@ impl private::BuildHttpRequestAsync for AsyncImplicitGrantUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
         self.http_client
             .request(method, url)
-            .bearer_auth(self.access_token.as_str())
+            .bearer_auth(self.inner.access_token.as_str())
     }
 }
 
@@ -279,7 +284,7 @@ impl private::BuildHttpRequestSync for SyncImplicitGrantUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
         self.http_client
             .request(method, url)
-            .bearer_auth(self.access_token.as_str())
+            .bearer_auth(self.inner.access_token.as_str())
     }
 }
 
