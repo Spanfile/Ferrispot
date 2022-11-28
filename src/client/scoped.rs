@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use async_trait::async_trait;
 use log::{error, trace, warn};
 use reqwest::{Method, Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
@@ -22,8 +21,9 @@ use crate::{
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
 /// certain user. [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) and
 /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient) implement this trait.
-#[async_trait]
-pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenExpiry {
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::AccessTokenExpiryAsync {
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.
     ///
@@ -37,7 +37,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
                 Url::parse(API_PLAYBACK_STATE_ENDPOINT)
                     .expect("failed to build playback state endpoint URL: invalid base URL (this is likely a bug)"),
             )
-            .send()
+            .send_async()
             .await?;
 
         trace!("Playback state response: {:?}", response);
@@ -66,7 +66,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
                     "failed to build currently playing track endpoint URL: invalid base URL (this is likely a bug)",
                 ),
             )
-            .send()
+            .send_async()
             .await?;
 
         trace!("Currently playing track response: {:?}", response);
@@ -115,7 +115,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
 
         trace!("Play body: {:?}", body);
 
-        let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
+        let response = self.send_http_request(Method::PUT, url).body(body).send_async().await?;
         trace!("Play response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -142,7 +142,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
 
         trace!("Play body: {:?}", body);
 
-        let response = self.send_http_request(Method::PUT, url).body(body).send().await?;
+        let response = self.send_http_request(Method::PUT, url).body(body).send_async().await?;
         trace!("Play response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -156,7 +156,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
     async fn resume(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
-        let response = self.send_http_request(Method::PUT, url).send().await?;
+        let response = self.send_http_request(Method::PUT, url).send_async().await?;
         trace!("Resume response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -170,7 +170,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
     async fn pause(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PAUSE_ENDPOINT, &[("device_id", device_id)]);
-        let response = self.send_http_request(Method::PUT, url).send().await?;
+        let response = self.send_http_request(Method::PUT, url).send_async().await?;
         trace!("Pause response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -188,7 +188,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             &[("repeat_state", Some(repeat_state.as_str())), ("device_id", device_id)],
         );
 
-        let response = self.send_http_request(Method::PUT, url).send().await?;
+        let response = self.send_http_request(Method::PUT, url).send_async().await?;
         trace!("Set repeat state response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -209,7 +209,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             ],
         );
 
-        let response = self.send_http_request(Method::PUT, url).send().await?;
+        let response = self.send_http_request(Method::PUT, url).send_async().await?;
         trace!("Set shuffle response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -231,7 +231,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             &[("volume_percent", Some(&volume_percent)), ("device_id", device_id)],
         );
 
-        let response = self.send_http_request(Method::PUT, url).send().await?;
+        let response = self.send_http_request(Method::PUT, url).send_async().await?;
         trace!("Set volume response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -250,7 +250,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
             &[("uri", Some(&uri)), ("device_id", device_id)],
         );
 
-        let response = self.send_http_request(Method::POST, url).send().await?;
+        let response = self.send_http_request(Method::POST, url).send_async().await?;
         trace!("Add to queue response: {:?}", response);
 
         handle_player_control_response(response).await
@@ -267,7 +267,7 @@ pub trait ScopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenE
 
         let url = build_play_url(API_PLAYER_DEVICES_ENDPOINT, &[]);
 
-        let response = self.send_http_request(Method::GET, url).send().await?;
+        let response = self.send_http_request(Method::GET, url).send_async().await?;
         trace!("Devices response: {:?}", response);
 
         // TODO: is this really the way to return an error from an error response?

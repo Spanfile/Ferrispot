@@ -3,15 +3,11 @@ use std::{
     fmt::{Display, Write},
 };
 
-use async_trait::async_trait;
 use log::trace;
 use reqwest::{Method, Url};
 use serde::Deserialize;
 
-use super::{
-    private::{self, SendHttpRequest},
-    API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT,
-};
+use super::{private, API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT};
 use crate::{
     error::{ConversionError, Result},
     model::{
@@ -23,8 +19,9 @@ use crate::{
 
 /// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All Spotify
 /// clients implement this trait.
-#[async_trait]
-pub trait UnscopedClient<'a>: private::SendHttpRequest<'a> + private::AccessTokenExpiry
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+pub trait UnscopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::AccessTokenExpiryAsync
 where
     Self: Sized,
 {
@@ -54,7 +51,7 @@ where
                 Method::GET,
                 Url::parse(&url).expect("failed to build tracks endpoint URL: invalid base URL (this is likely a bug)"),
             )
-            .send()
+            .send_async()
             .await?;
 
         trace!("Track response: {:?}", response);
@@ -108,7 +105,7 @@ where
                 Url::parse_with_params(API_TRACKS_ENDPOINT, params)
                     .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)"),
             )
-            .send()
+            .send_async()
             .await?;
 
         trace!("Tracks response: {:?}", response);
@@ -145,7 +142,7 @@ where
 /// [search-function](UnscopedClient::search) in [UnscopedClient](UnscopedClient).
 pub struct SearchBuilder<'a, C, S>
 where
-    C: SendHttpRequest<'a>,
+    C: ?Sized,
     S: AsRef<str>,
 {
     client: &'a C,
@@ -158,7 +155,7 @@ where
 
 impl<'a, C, S> SearchBuilder<'a, C, S>
 where
-    C: SendHttpRequest<'a>,
+    C: ?Sized,
     S: AsRef<str>,
 {
     pub(crate) fn new(client: &'a C, query: S) -> Self {
@@ -213,9 +210,16 @@ where
             ..self
         }
     }
+}
 
+#[cfg(feature = "async")]
+impl<'a, C, S> SearchBuilder<'a, C, S>
+where
+    C: private::SendHttpRequestAsync<'a>,
+    S: AsRef<str>,
+{
     /// Send the search and return a collection of results.
-    pub async fn send(self) -> Result<SearchResults> {
+    pub async fn send_async(self) -> Result<SearchResults> {
         let limit = self.limit.to_string();
         let offset = self.offset.to_string();
 
@@ -233,12 +237,49 @@ where
         let url = Url::parse_with_params(API_SEARCH_ENDPOINT, params)
             .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)");
 
-        let response = self.client.send_http_request(Method::GET, url).send().await?;
+        let response = self.client.send_http_request(Method::GET, url).send_async().await?;
         trace!("Search results response: {:?}", response);
 
         response.error_for_status_ref()?;
 
         let search_results: SearchResultsObject = response.json().await?;
+        trace!("Search results object: {:?}", search_results);
+
+        Ok(SearchResults { inner: search_results })
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<'a, C, S> SearchBuilder<'a, C, S>
+where
+    C: private::SendHttpRequestSync<'a>,
+    S: AsRef<str>,
+{
+    /// Send the search and return a collection of results.
+    pub fn send_sync(self) -> Result<SearchResults> {
+        let limit = self.limit.to_string();
+        let offset = self.offset.to_string();
+
+        let mut params = vec![
+            ("q", self.query.as_ref()),
+            ("type", &self.types),
+            ("limit", &limit),
+            ("offset", &offset),
+        ];
+
+        if let Some(market) = self.market.as_deref() {
+            params.push(("market", market));
+        };
+
+        let url = Url::parse_with_params(API_SEARCH_ENDPOINT, params)
+            .expect("failed to parse API tracks endpoint as URL: invalid base URL (this is likely a bug)");
+
+        let response = self.client.send_http_request(Method::GET, url).send_sync()?;
+        trace!("Search results response: {:?}", response);
+
+        response.error_for_status_ref()?;
+
+        let search_results: SearchResultsObject = response.json()?;
         trace!("Search results object: {:?}", search_results);
 
         Ok(SearchResults { inner: search_results })

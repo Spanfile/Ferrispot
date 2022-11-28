@@ -9,14 +9,14 @@ async fn main() {
     let spotify_client =
         SpotifyClientBuilder::new(std::env::var("CLIENT_ID").expect("Spotify client ID not in environment"))
             .client_secret(std::env::var("CLIENT_SECRET").expect("Spotify client secret not in environment"))
-            .build()
+            .build_async()
             .await
             .expect("failed to build Spotify client");
 
     let search_results = spotify_client
         .search("hatsune miku")
         .types([ItemType::Track])
-        .send()
+        .send_async()
         .await
         .unwrap();
 
@@ -33,7 +33,7 @@ async fn main() {
         );
     }
 
-    let second_page = first_page.next_page(&spotify_client).await.unwrap().unwrap();
+    let second_page = first_page.next_page_async(&spotify_client).await.unwrap().unwrap();
 
     println!("\nSecond page:");
     for track in second_page.items() {
@@ -46,7 +46,7 @@ async fn main() {
         );
     }
 
-    let third_page = second_page.next_page(&spotify_client).await.unwrap().unwrap();
+    let third_page = second_page.next_page_async(&spotify_client).await.unwrap().unwrap();
 
     println!("\nThird page:");
     for track in third_page.items() {

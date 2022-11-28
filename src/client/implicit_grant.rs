@@ -64,13 +64,17 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
+use reqwest::{Method, Url};
 
+#[cfg(feature = "async")]
+use super::private::AsyncClient;
+#[cfg(feature = "sync")]
+use super::private::SyncClient;
 use super::{
-    private, ScopedClient, SpotifyClientRef, UnscopedClient, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
+    private::{self, HttpClient},
+    SpotifyClientRef, ACCOUNTS_AUTHORIZE_ENDPOINT, RANDOM_STATE_LENGTH,
 };
 use crate::{
     error::{Error, Result},
@@ -82,33 +86,45 @@ use crate::{
 ///
 /// This client uses `Arc` internally, so you do not need to wrap it in an `Arc` in order to reuse it.
 #[derive(Debug, Clone)]
-pub struct ImplicitGrantUserClient {
+pub struct ImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone,
+{
     access_token: String,
-    http_client: AsyncClient,
+    http_client: C,
 }
 
 #[derive(Debug, Clone)]
-pub struct IncompleteImplicitGrantUserClient {
+pub struct IncompleteImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone,
+{
     redirect_uri: String, // TODO: figure if this can be &'a str instead
     state: String,
     scopes: Option<String>,
     show_dialog: bool,
 
     spotify_client_ref: Arc<SpotifyClientRef>,
-    http_client: AsyncClient,
+    http_client: C,
 }
 
-pub struct ImplicitGrantUserClientBuilder {
+pub struct ImplicitGrantUserClientBuilder<C>
+where
+    C: HttpClient + Clone,
+{
     redirect_uri: String, // TODO: figure if this can be &'a str instead
     state: Option<String>,
     scopes: Option<String>,
     show_dialog: bool,
 
     spotify_client_ref: Arc<SpotifyClientRef>,
-    http_client: AsyncClient,
+    http_client: C,
 }
 
-impl IncompleteImplicitGrantUserClient {
+impl<C> IncompleteImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone,
+{
     pub fn get_authorize_url(&self) -> String {
         let mut query_params = vec![
             ("response_type", "token"),
@@ -134,7 +150,7 @@ impl IncompleteImplicitGrantUserClient {
         authorize_url.into()
     }
 
-    pub fn finalize<S>(self, access_token: S, state: &str) -> Result<ImplicitGrantUserClient>
+    pub fn finalize<S>(self, access_token: S, state: &str) -> Result<ImplicitGrantUserClient<C>>
     where
         S: Into<String>,
     {
@@ -155,12 +171,11 @@ impl IncompleteImplicitGrantUserClient {
     }
 }
 
-impl ImplicitGrantUserClientBuilder {
-    pub(super) fn new(
-        redirect_uri: String,
-        spotify_client_ref: Arc<SpotifyClientRef>,
-        http_client: AsyncClient,
-    ) -> Self {
+impl<C> ImplicitGrantUserClientBuilder<C>
+where
+    C: HttpClient + Clone,
+{
+    pub(super) fn new(redirect_uri: String, spotify_client_ref: Arc<SpotifyClientRef>, http_client: C) -> Self {
         Self {
             redirect_uri,
             state: None,
@@ -197,7 +212,7 @@ impl ImplicitGrantUserClientBuilder {
         Self { show_dialog, ..self }
     }
 
-    pub fn build(self) -> IncompleteImplicitGrantUserClient {
+    pub fn build(self) -> IncompleteImplicitGrantUserClient<C> {
         let state = if let Some(state) = self.state {
             state
         } else {
@@ -220,25 +235,61 @@ impl ImplicitGrantUserClientBuilder {
     }
 }
 
-impl crate::private::Sealed for ImplicitGrantUserClient {}
+impl<C> crate::private::Sealed for ImplicitGrantUserClient<C> where C: HttpClient + Clone {}
 
-impl private::BuildHttpRequest for ImplicitGrantUserClient {
-    fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
+#[cfg(feature = "async")]
+impl private::BuildHttpRequestAsync for ImplicitGrantUserClient<AsyncClient> {
+    fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
         self.http_client
             .request(method, url)
             .bearer_auth(self.access_token.as_str())
     }
 }
 
-#[async_trait]
-impl<'a> ScopedClient<'a> for ImplicitGrantUserClient {}
+#[cfg(feature = "sync")]
+impl private::BuildHttpRequestSync for ImplicitGrantUserClient<SyncClient> {
+    fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
+        self.http_client
+            .request(method, url)
+            .bearer_auth(self.access_token.as_str())
+    }
+}
 
-#[async_trait]
-impl<'a> UnscopedClient<'a> for ImplicitGrantUserClient {}
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl<'a, C> super::ScopedAsyncClient<'a> for ImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone + Sync + 'a,
+    ImplicitGrantUserClient<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
+{
+}
 
-#[async_trait]
-impl private::AccessTokenExpiry for ImplicitGrantUserClient {
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl<'a, C> super::UnscopedAsyncClient<'a> for ImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone + Sync + 'a,
+    ImplicitGrantUserClient<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
+{
+}
+
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl<C> private::AccessTokenExpiryAsync for ImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone + Sync,
+{
     async fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
+        Ok(private::AccessTokenExpiryResult::Inapplicable)
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<C> private::AccessTokenExpirySync for ImplicitGrantUserClient<C>
+where
+    C: HttpClient + Clone + Sync,
+{
+    fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
         Ok(private::AccessTokenExpiryResult::Inapplicable)
     }
 }

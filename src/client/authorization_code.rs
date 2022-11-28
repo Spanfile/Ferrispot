@@ -94,22 +94,42 @@
 
 use std::sync::{Arc, RwLock};
 
-use async_trait::async_trait;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Client as AsyncClient, Method, RequestBuilder, Url};
+use reqwest::{Method, Url};
 use serde::Deserialize;
 use sha2::Digest;
 
+#[cfg(feature = "async")]
+use super::private::AsyncClient;
+#[cfg(feature = "sync")]
+use super::private::SyncClient;
 use super::{
-    private, AccessTokenRefresh, ScopedClient, UnscopedClient, ACCOUNTS_API_TOKEN_ENDPOINT,
-    ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
+    private, ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
 };
 use crate::{
     error::{Error, Result},
     model::error::AuthenticationErrorKind,
     scope::ToScopesString,
 };
+
+#[cfg(feature = "async")]
+pub type AsyncAuthorizationCodeUserClient = AuthorizationCodeUserClient<AsyncClient>;
+
+#[cfg(feature = "sync")]
+pub type SyncAuthorizationCodeUserClient = AuthorizationCodeUserClient<SyncClient>;
+
+#[cfg(feature = "async")]
+pub type AsyncIncompleteAuthorizationCodeUserClient = IncompleteAuthorizationCodeUserClient<AsyncClient>;
+
+#[cfg(feature = "sync")]
+pub type SyncIncompleteAuthorizationCodeUserClient = IncompleteAuthorizationCodeUserClient<SyncClient>;
+
+#[cfg(feature = "async")]
+pub type AsyncAuthorizationCodeUserClientBuilder = AuthorizationCodeUserClientBuilder<AsyncClient>;
+
+#[cfg(feature = "sync")]
+pub type SyncAuthorizationCodeUserClientBuilder = AuthorizationCodeUserClientBuilder<SyncClient>;
 
 /// A client that implements the authorization code flow to authenticate an user with Spotify. May optionally use PKCE
 /// if the client secret is not available. See the [module-level docs](self) for more information.
@@ -119,9 +139,12 @@ use crate::{
 /// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
 /// order to reuse it.
 #[derive(Debug, Clone)]
-pub struct AuthorizationCodeUserClient {
+pub struct AuthorizationCodeUserClient<C>
+where
+    C: private::HttpClient + Clone,
+{
     inner: Arc<AuthorizationCodeUserClientRef>,
-    http_client: AsyncClient,
+    http_client: C,
 }
 
 #[derive(Debug)]
@@ -137,7 +160,10 @@ struct AuthorizationCodeUserClientRef {
 /// directing the user to the [authorize URL](IncompleteAuthorizationCodeUserClient::get_authorize_url) and retrieving
 /// an authorization code and a state parameter from the redirect callback URL.
 #[derive(Debug)]
-pub struct IncompleteAuthorizationCodeUserClient {
+pub struct IncompleteAuthorizationCodeUserClient<C>
+where
+    C: private::HttpClient + Clone,
+{
     client_id: String,
     redirect_uri: String,
     state: String,
@@ -145,12 +171,15 @@ pub struct IncompleteAuthorizationCodeUserClient {
     show_dialog: bool,
     pkce_verifier: Option<String>,
 
-    http_client: AsyncClient,
+    http_client: C,
 }
 
 /// Builder for [AuthorizationCodeUserClient].
 #[derive(Debug)]
-pub struct AuthorizationCodeUserClientBuilder {
+pub struct AuthorizationCodeUserClientBuilder<C>
+where
+    C: private::HttpClient + Clone,
+{
     client_id: String,
     redirect_uri: String,
     state: Option<String>,
@@ -158,7 +187,7 @@ pub struct AuthorizationCodeUserClientBuilder {
     show_dialog: bool,
     pkce_verifier: Option<String>,
 
-    http_client: AsyncClient,
+    http_client: C,
 }
 
 #[derive(Debug, Deserialize)]
@@ -189,8 +218,9 @@ struct RefreshUserTokenResponse {
     token_type: String,
 }
 
-impl AuthorizationCodeUserClient {
-    pub(crate) async fn new_with_refresh_token(
+#[cfg(feature = "async")]
+impl AsyncAuthorizationCodeUserClient {
+    pub(crate) async fn new_with_refresh_token_async(
         http_client: AsyncClient,
         refresh_token: String,
         client_id: Option<String>,
@@ -214,13 +244,15 @@ impl AuthorizationCodeUserClient {
             .send()
             .await?;
 
-        let response = super::extract_authentication_error(response).await.map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
-                Error::InvalidRefreshToken(description)
-            } else {
-                err
-            }
-        })?;
+        let response = super::extract_authentication_error_async(response)
+            .await
+            .map_err(|err| {
+                if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
+                    Error::InvalidRefreshToken(description)
+                } else {
+                    err
+                }
+            })?;
 
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(
@@ -228,11 +260,7 @@ impl AuthorizationCodeUserClient {
             token_response
         );
 
-        let refresh_token = if let Some(refresh_token) = token_response.refresh_token {
-            refresh_token
-        } else {
-            refresh_token.to_owned()
-        };
+        let refresh_token = token_response.refresh_token.unwrap_or(refresh_token);
 
         Ok(Self {
             inner: Arc::new(AuthorizationCodeUserClientRef {
@@ -243,7 +271,64 @@ impl AuthorizationCodeUserClient {
             http_client,
         })
     }
+}
 
+#[cfg(feature = "sync")]
+impl SyncAuthorizationCodeUserClient {
+    pub(crate) fn new_with_refresh_token_sync(
+        http_client: SyncClient,
+        refresh_token: String,
+        client_id: Option<String>,
+    ) -> Result<Self> {
+        debug!(
+            "Attempting to create new authorization code flow client with existng refresh token: {} and client ID \
+             (for PKCE): {:?}",
+            refresh_token, client_id
+        );
+
+        let mut token_request_form = vec![("grant_type", "refresh_token"), ("refresh_token", &refresh_token)];
+
+        let response = http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .form(if let Some(client_id) = client_id.as_deref() {
+                token_request_form.push(("client_id", client_id));
+                &token_request_form
+            } else {
+                &token_request_form
+            })
+            .send()?;
+
+        let response = super::extract_authentication_error_sync(response).map_err(|err| {
+            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
+                Error::InvalidRefreshToken(description)
+            } else {
+                err
+            }
+        })?;
+
+        let token_response: RefreshUserTokenResponse = response.json()?;
+        debug!(
+            "Got token response for refreshing authorization code flow tokens: {:?}",
+            token_response
+        );
+
+        let refresh_token = token_response.refresh_token.unwrap_or(refresh_token);
+
+        Ok(Self {
+            inner: Arc::new(AuthorizationCodeUserClientRef {
+                access_token: RwLock::new(token_response.access_token),
+                refresh_token: RwLock::new(refresh_token),
+                client_id,
+            }),
+            http_client,
+        })
+    }
+}
+
+impl<C> AuthorizationCodeUserClient<C>
+where
+    C: private::HttpClient + Clone,
+{
     /// Returns the current refresh token.
     ///
     /// The refresh token may be saved and reused later when creating a new client with the
@@ -260,7 +345,10 @@ impl AuthorizationCodeUserClient {
     }
 }
 
-impl IncompleteAuthorizationCodeUserClient {
+impl<C> IncompleteAuthorizationCodeUserClient<C>
+where
+    C: private::HttpClient + Clone,
+{
     /// Returns an authorization URL the user should be directed to in some manner.
     ///
     /// Once the user approves the application, they are redirected back to the application's callback URL. The URL
@@ -307,14 +395,17 @@ impl IncompleteAuthorizationCodeUserClient {
 
         authorize_url.into()
     }
+}
 
+#[cfg(feature = "async")]
+impl AsyncIncompleteAuthorizationCodeUserClient {
     /// Finalize this client with a code and a state from the callback URL query the user was redirected to after they
     /// approved the application and return an usable [AuthorizationCodeUserClient].
     ///
     /// This function will use the authorization code to request an access and a refresh token from Spotify. If the
     /// originally generated state does not match the `state` parameter, the function will return an
     /// [AuthorizationCodeStateMismatch-error](Error::AuthorizationCodeStateMismatch).
-    pub async fn finalize(self, code: &str, state: &str) -> Result<AuthorizationCodeUserClient> {
+    pub async fn finalize_async(self, code: &str, state: &str) -> Result<AsyncAuthorizationCodeUserClient> {
         debug!(
             "Attempting to finalize authorization code flow user client with code: {} and state: {}",
             code, state
@@ -345,13 +436,15 @@ impl IncompleteAuthorizationCodeUserClient {
             .send()
             .await?;
 
-        let response = super::extract_authentication_error(response).await.map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, _) = err {
-                Error::InvalidAuthorizationCode
-            } else {
-                err
-            }
-        })?;
+        let response = super::extract_authentication_error_async(response)
+            .await
+            .map_err(|err| {
+                if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, _) = err {
+                    Error::InvalidAuthorizationCode
+                } else {
+                    err
+                }
+            })?;
 
         let token_response: AuthorizeUserTokenResponse = response.json().await?;
         debug!("Got token response for authorization code flow: {:?}", token_response);
@@ -369,8 +462,71 @@ impl IncompleteAuthorizationCodeUserClient {
     }
 }
 
-impl AuthorizationCodeUserClientBuilder {
-    pub(super) fn new(redirect_uri: String, client_id: String, http_client: AsyncClient) -> Self {
+#[cfg(feature = "sync")]
+impl SyncIncompleteAuthorizationCodeUserClient {
+    /// Finalize this client with a code and a state from the callback URL query the user was redirected to after they
+    /// approved the application and return an usable [AuthorizationCodeUserClient].
+    ///
+    /// This function will use the authorization code to request an access and a refresh token from Spotify. If the
+    /// originally generated state does not match the `state` parameter, the function will return an
+    /// [AuthorizationCodeStateMismatch-error](Error::AuthorizationCodeStateMismatch).
+    pub fn finalize_sync(self, code: &str, state: &str) -> Result<SyncAuthorizationCodeUserClient> {
+        debug!(
+            "Attempting to finalize authorization code flow user client with code: {} and state: {}",
+            code, state
+        );
+
+        if state != self.state {
+            return Err(Error::AuthorizationCodeStateMismatch);
+        }
+
+        let mut token_request_form = vec![
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", self.redirect_uri.as_str()),
+            ("code", code),
+        ];
+
+        let response = self
+            .http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .form(if let Some(pkce_verifier) = self.pkce_verifier.as_deref() {
+                debug!("Requesting access and refresh tokens for authorization code flow with PKCE");
+
+                token_request_form.extend([("client_id", self.client_id.as_str()), ("code_verifier", pkce_verifier)]);
+                &token_request_form
+            } else {
+                debug!("Requesting access and refresh tokens for authorization code flow");
+                &token_request_form
+            })
+            .send()?;
+
+        let response = super::extract_authentication_error_sync(response).map_err(|err| {
+            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, _) = err {
+                Error::InvalidAuthorizationCode
+            } else {
+                err
+            }
+        })?;
+
+        let token_response: AuthorizeUserTokenResponse = response.json()?;
+        debug!("Got token response for authorization code flow: {:?}", token_response);
+
+        Ok(AuthorizationCodeUserClient {
+            inner: Arc::new(AuthorizationCodeUserClientRef {
+                access_token: RwLock::new(token_response.access_token),
+                refresh_token: RwLock::new(token_response.refresh_token),
+                // from here on out, using PKCE only requires us supplying our client ID when refreshing the access
+                // token. if the PKCE verifier is used, include the client ID
+                client_id: self.pkce_verifier.and(Some(self.client_id)),
+            }),
+            http_client: self.http_client,
+        })
+    }
+}
+
+#[cfg(feature = "async")]
+impl AuthorizationCodeUserClientBuilder<AsyncClient> {
+    pub(super) fn new_async(redirect_uri: String, client_id: String, http_client: AsyncClient) -> Self {
         Self {
             client_id,
             redirect_uri,
@@ -382,7 +538,28 @@ impl AuthorizationCodeUserClientBuilder {
             http_client,
         }
     }
+}
 
+#[cfg(feature = "sync")]
+impl AuthorizationCodeUserClientBuilder<SyncClient> {
+    pub(super) fn new_sync(redirect_uri: String, client_id: String, http_client: SyncClient) -> Self {
+        Self {
+            client_id,
+            redirect_uri,
+            state: None,
+            scopes: None,
+            show_dialog: false,
+            pkce_verifier: None,
+
+            http_client,
+        }
+    }
+}
+
+impl<C> AuthorizationCodeUserClientBuilder<C>
+where
+    C: private::HttpClient + Clone,
+{
     /// Generates a PKCE code verifier to be used in the authentication process.
     pub(super) fn with_pkce(self) -> Self {
         let code_verifier = rand::thread_rng()
@@ -430,7 +607,7 @@ impl AuthorizationCodeUserClientBuilder {
     }
 
     /// Finalize the builder and return an [IncompleteAuthorizationCodeUserClient].
-    pub fn build(self) -> IncompleteAuthorizationCodeUserClient {
+    pub fn build(self) -> IncompleteAuthorizationCodeUserClient<C> {
         let state = if let Some(state) = self.state {
             state
         } else {
@@ -454,23 +631,45 @@ impl AuthorizationCodeUserClientBuilder {
     }
 }
 
-impl crate::private::Sealed for AuthorizationCodeUserClient {}
+impl<C> crate::private::Sealed for AuthorizationCodeUserClient<C> where C: private::HttpClient + Clone {}
 
-impl private::BuildHttpRequest for AuthorizationCodeUserClient {
-    fn build_http_request(&self, method: Method, url: Url) -> RequestBuilder {
+#[cfg(feature = "async")]
+impl private::BuildHttpRequestAsync for AsyncAuthorizationCodeUserClient {
+    fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
         let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
 }
 
-#[async_trait]
-impl<'a> ScopedClient<'a> for AuthorizationCodeUserClient {}
+#[cfg(feature = "sync")]
+impl private::BuildHttpRequestSync for SyncAuthorizationCodeUserClient {
+    fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
+        let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
+        self.http_client.request(method, url).bearer_auth(access_token.as_str())
+    }
+}
 
-#[async_trait]
-impl<'a> UnscopedClient<'a> for AuthorizationCodeUserClient {}
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl<'a, C> super::ScopedAsyncClient<'a> for AuthorizationCodeUserClient<C>
+where
+    C: private::HttpClient + Clone + Sync + 'a,
+    AuthorizationCodeUserClient<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
+{
+}
 
-#[async_trait]
-impl AccessTokenRefresh for AuthorizationCodeUserClient {
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl<'a, C> super::UnscopedAsyncClient<'a> for AuthorizationCodeUserClient<C>
+where
+    C: private::HttpClient + Clone + Sync + 'a,
+    AuthorizationCodeUserClient<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
+{
+}
+
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl super::AccessTokenRefreshAsync for AsyncAuthorizationCodeUserClient {
     async fn refresh_access_token(&self) -> Result<()> {
         // build and send the request this way to not hold the non-async RwLockReadGuard across await points
         let response = {
@@ -498,13 +697,15 @@ impl AccessTokenRefresh for AuthorizationCodeUserClient {
         .send()
         .await?;
 
-        let response = super::extract_authentication_error(response).await.map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
-                Error::InvalidRefreshToken(description)
-            } else {
-                err
-            }
-        })?;
+        let response = super::extract_authentication_error_async(response)
+            .await
+            .map_err(|err| {
+                if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
+                    Error::InvalidRefreshToken(description)
+                } else {
+                    err
+                }
+            })?;
 
         let token_response: RefreshUserTokenResponse = response.json().await?;
         debug!(
@@ -522,10 +723,74 @@ impl AccessTokenRefresh for AuthorizationCodeUserClient {
     }
 }
 
-#[async_trait]
-impl private::AccessTokenExpiry for AuthorizationCodeUserClient {
+#[cfg(feature = "sync")]
+impl super::AccessTokenRefreshSync for SyncAuthorizationCodeUserClient {
+    fn refresh_access_token(&self) -> Result<()> {
+        let refresh_token = self.inner.refresh_token.read().expect("refresh token rwlock poisoned");
+
+        debug!(
+            "Attempting to refresh authorization code flow access token with refresh token: {}",
+            *refresh_token
+        );
+
+        let mut token_request_form = vec![
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token.as_str()),
+        ];
+
+        let response = self
+            .http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .form(if let Some(client_id) = self.inner.client_id.as_deref() {
+                token_request_form.push(("client_id", client_id));
+                &token_request_form
+            } else {
+                &token_request_form
+            })
+            .send()?;
+
+        let response = super::extract_authentication_error_sync(response).map_err(|err| {
+            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
+                Error::InvalidRefreshToken(description)
+            } else {
+                err
+            }
+        })?;
+
+        let token_response: RefreshUserTokenResponse = response.json()?;
+        debug!(
+            "Got token response for refreshing authorization code flow tokens: {:?}",
+            token_response
+        );
+
+        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
+
+        if let Some(refresh_token) = token_response.refresh_token {
+            *self.inner.refresh_token.write().expect("refresh token rwlock poisoned") = refresh_token;
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl private::AccessTokenExpiryAsync for AsyncAuthorizationCodeUserClient {
     async fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
+        use super::AccessTokenRefreshAsync;
+
         self.refresh_access_token().await?;
+        Ok(private::AccessTokenExpiryResult::Ok)
+    }
+}
+
+#[cfg(feature = "async")]
+#[async_trait::async_trait]
+impl private::AccessTokenExpirySync for SyncAuthorizationCodeUserClient {
+    fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
+        use super::AccessTokenRefreshSync;
+
+        self.refresh_access_token()?;
         Ok(private::AccessTokenExpiryResult::Ok)
     }
 }

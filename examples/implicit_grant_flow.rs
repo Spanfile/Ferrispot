@@ -7,10 +7,11 @@ async fn main() {
     env_logger::init();
 
     let spotify_client =
-        SpotifyClientBuilder::new(std::env::var("CLIENT_ID").expect("Spotify client ID not in environment")).build();
+        SpotifyClientBuilder::new(std::env::var("CLIENT_ID").expect("Spotify client ID not in environment"))
+            .build_async();
 
     let incomplete_implicit_grant_client = spotify_client
-        .implicit_grant_client("http://localhost/callback")
+        .implicit_grant_client_async("http://localhost/callback")
         .build();
 
     let authorize_url = incomplete_implicit_grant_client.get_authorize_url();

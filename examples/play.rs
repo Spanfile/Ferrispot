@@ -1,6 +1,6 @@
 use dotenvy::dotenv;
 use ferrispot::{
-    client::{ScopedClient, SpotifyClientBuilder},
+    client::{ScopedAsyncClient, SpotifyClientBuilder},
     model::id::{Id, PlayableItem, TrackId},
     prelude::*,
     scope::Scope,
@@ -14,12 +14,12 @@ async fn main() {
     let spotify_client =
         SpotifyClientBuilder::new(std::env::var("CLIENT_ID").expect("Spotify client ID not in environment"))
             .client_secret(std::env::var("CLIENT_SECRET").expect("Spotify client secret not in environment"))
-            .build()
+            .build_async()
             .await
             .expect("failed to build Spotify client");
 
     let incomplete_auth_code_client = spotify_client
-        .authorization_code_client("http://localhost/callback")
+        .authorization_code_client_async("http://localhost/callback")
         .show_dialog(true)
         .scopes([Scope::UserModifyPlaybackState, Scope::UserReadPlaybackState])
         .build();
@@ -37,7 +37,7 @@ async fn main() {
     std::io::stdin().read_line(&mut state).unwrap();
 
     let user_client = incomplete_auth_code_client
-        .finalize(code.trim(), state.trim())
+        .finalize_async(code.trim(), state.trim())
         .await
         .expect("failed to finalize authorization code client");
 

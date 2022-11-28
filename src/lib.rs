@@ -48,8 +48,10 @@ pub mod prelude {
     //! kind), IDs etc. Their common functionality is grouped into traits. All such traits are re-exported here for
     //! convenience.
 
-    #[cfg(any(feature = "async", feature = "sync"))]
-    pub use crate::client::{scoped::ScopedClient, unscoped::UnscopedClient, AccessTokenRefresh};
+    #[cfg(feature = "sync")]
+    pub use crate::client::AccessTokenRefreshSync;
+    #[cfg(feature = "async")]
+    pub use crate::client::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient, AccessTokenRefreshAsync};
     pub use crate::{
         model::{
             album::{CommonAlbumInformation, FullAlbumInformation, NonLocalAlbumInformation},

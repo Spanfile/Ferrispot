@@ -94,15 +94,15 @@ where
     }
 }
 
-#[cfg(any(feature = "async", feature = "sync"))]
+#[cfg(feature = "async")]
 impl<TInner, TItem> Page<TInner, TItem>
 where
     TInner: PageInformation<TItem> + DeserializeOwned + Debug,
 {
     /// Return the next page from this page, if it exists.
-    pub async fn next_page<'a, C>(self, client: &'a C) -> crate::error::Result<Option<Page<TInner, TItem>>>
+    pub async fn next_page_async<'a, C>(self, client: &'a C) -> crate::error::Result<Option<Page<TInner, TItem>>>
     where
-        C: crate::client::private::SendHttpRequest<'a>,
+        C: crate::client::private::SendHttpRequestAsync<'a>,
     {
         if let Some(url) = self.inner.next() {
             // this will only fail if Spotify returns a malformed URL
@@ -110,12 +110,46 @@ where
             let url =
                 reqwest::Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
 
-            let response = client.send_http_request(reqwest::Method::GET, url).send().await?;
+            let response = client.send_http_request(reqwest::Method::GET, url).send_async().await?;
             log::debug!("Next page response: {:?}", response);
 
             response.error_for_status_ref()?;
 
             let next_page: TInner = response.json().await?;
+            log::debug!("Next page: {:?}", next_page);
+
+            Ok(Some(Page {
+                inner: next_page,
+                phantom: PhantomData,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(feature = "sync")]
+impl<TInner, TItem> Page<TInner, TItem>
+where
+    TInner: PageInformation<TItem> + DeserializeOwned + Debug,
+{
+    /// Return the next page from this page, if it exists.
+    pub fn next_page_sync<'a, C>(self, client: &'a C) -> crate::error::Result<Option<Page<TInner, TItem>>>
+    where
+        C: crate::client::private::SendHttpRequestSync<'a>,
+    {
+        if let Some(url) = self.inner.next() {
+            // this will only fail if Spotify returns a malformed URL
+            // TODO: maybe it's an error case?
+            let url =
+                reqwest::Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
+
+            let response = client.send_http_request(reqwest::Method::GET, url).send_sync()?;
+            log::debug!("Next page response: {:?}", response);
+
+            response.error_for_status_ref()?;
+
+            let next_page: TInner = response.json()?;
             log::debug!("Next page: {:?}", next_page);
 
             Ok(Some(Page {
