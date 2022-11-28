@@ -47,19 +47,23 @@ use reqwest::{
 };
 use serde::Deserialize;
 
+use self::implicit_grant::ImplicitGrantUserClientBuilder;
 #[cfg(feature = "async")]
 use self::private::AsyncClient;
 #[cfg(feature = "sync")]
 use self::private::SyncClient;
 pub use self::unscoped::SearchBuilder;
+#[cfg(feature = "sync")]
+pub use self::unscoped::UnscopedSyncClient;
+#[cfg(feature = "async")]
 use self::{
-    authorization_code::{
-        AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder, SyncAuthorizationCodeUserClient,
-        SyncAuthorizationCodeUserClientBuilder,
-    },
-    implicit_grant::{
-        AsyncImplicitGrantUserClientBuilder, ImplicitGrantUserClientBuilder, SyncImplicitGrantUserClientBuilder,
-    },
+    authorization_code::{AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder},
+    implicit_grant::AsyncImplicitGrantUserClientBuilder,
+};
+#[cfg(feature = "sync")]
+use self::{
+    authorization_code::{SyncAuthorizationCodeUserClient, SyncAuthorizationCodeUserClientBuilder},
+    implicit_grant::SyncImplicitGrantUserClientBuilder,
 };
 #[cfg(feature = "async")]
 pub use self::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient};

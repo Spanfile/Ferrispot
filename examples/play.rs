@@ -1,6 +1,6 @@
 use dotenvy::dotenv;
 use ferrispot::{
-    client::{ScopedAsyncClient, SpotifyClientBuilder},
+    client::SpotifyClientBuilder,
     model::id::{Id, PlayableItem, TrackId},
     prelude::*,
     scope::Scope,

@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::{self, client::SpotifyClientBuilder, prelude::*};
+use ferrispot::{self, client::SpotifyClientBuilder, model::id::Id, prelude::*};
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +14,10 @@ async fn main() {
             .await
             .expect("failed to build Spotify client");
 
-    let one_track = spotify_client.track("0871AdnvzzSGr5XdTJaDHC", None).await.unwrap();
+    let one_track = spotify_client
+        .track(Id::from_bare("0871AdnvzzSGr5XdTJaDHC").unwrap(), None)
+        .await
+        .unwrap();
 
     println!(
         "{} - {} ({})",
@@ -26,9 +29,9 @@ async fn main() {
     let multiple_tracks = spotify_client
         .tracks(
             [
-                "3mXLyNsVeLelMakgpGUp1f",
-                "367IrkRR4wk5WtSL41rONn",
-                "1GxzaUNoSvzNqL4JB9ztXq",
+                Id::from_bare("3mXLyNsVeLelMakgpGUp1f").unwrap(),
+                Id::from_bare("367IrkRR4wk5WtSL41rONn").unwrap(),
+                Id::from_bare("1GxzaUNoSvzNqL4JB9ztXq").unwrap(),
             ],
             None,
         )
