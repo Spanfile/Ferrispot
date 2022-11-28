@@ -51,7 +51,7 @@ pub mod prelude {
     #[cfg(feature = "async")]
     pub use crate::client::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient, AccessTokenRefreshAsync};
     #[cfg(feature = "sync")]
-    pub use crate::client::{unscoped::UnscopedSyncClient, AccessTokenRefreshSync};
+    pub use crate::client::{scoped::ScopedSyncClient, unscoped::UnscopedSyncClient, AccessTokenRefreshSync};
     pub use crate::{
         model::{
             album::{CommonAlbumInformation, FullAlbumInformation, NonLocalAlbumInformation},

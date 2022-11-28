@@ -48,25 +48,23 @@ use reqwest::{
 use serde::Deserialize;
 
 use self::implicit_grant::ImplicitGrantUserClientBuilder;
-#[cfg(feature = "async")]
-use self::private::AsyncClient;
-#[cfg(feature = "sync")]
-use self::private::SyncClient;
 pub use self::unscoped::SearchBuilder;
-#[cfg(feature = "sync")]
-pub use self::unscoped::UnscopedSyncClient;
 #[cfg(feature = "async")]
 use self::{
     authorization_code::{AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder},
     implicit_grant::AsyncImplicitGrantUserClientBuilder,
+    private::AsyncClient,
 };
 #[cfg(feature = "sync")]
 use self::{
     authorization_code::{SyncAuthorizationCodeUserClient, SyncAuthorizationCodeUserClientBuilder},
     implicit_grant::SyncImplicitGrantUserClientBuilder,
+    private::SyncClient,
 };
 #[cfg(feature = "async")]
 pub use self::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient};
+#[cfg(feature = "sync")]
+pub use self::{scoped::ScopedSyncClient, unscoped::UnscopedSyncClient};
 use crate::{
     error::{Error, Result},
     model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
@@ -369,7 +367,7 @@ impl SyncSpotifyClientWithSecret {
     /// uses an existing refresh token.
     ///
     /// The refresh token will be used to retrieve a new access token before the client is returned.
-    pub async fn authorization_code_client_with_refresh_token<S>(
+    pub fn authorization_code_client_with_refresh_token<S>(
         &self,
         refresh_token: S,
     ) -> Result<SyncAuthorizationCodeUserClient>

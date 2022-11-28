@@ -631,6 +631,12 @@ impl<'a> super::ScopedAsyncClient<'a> for AsyncAuthorizationCodeUserClient {}
 #[async_trait::async_trait]
 impl<'a> super::UnscopedAsyncClient<'a> for AsyncAuthorizationCodeUserClient {}
 
+#[cfg(feature = "sync")]
+impl<'a> super::ScopedSyncClient<'a> for SyncAuthorizationCodeUserClient {}
+
+#[cfg(feature = "sync")]
+impl<'a> super::UnscopedSyncClient<'a> for SyncAuthorizationCodeUserClient {}
+
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
 impl super::AccessTokenRefreshAsync for AsyncAuthorizationCodeUserClient {
