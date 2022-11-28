@@ -45,9 +45,11 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.
     ///
-    /// This returns a superset of the [currently playing track](Self::currently_playing_track).
+    /// This function returns a superset of the [currently playing track](Self::currently_playing_track).
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::playback_state](ScopedSyncClient::playback_state).
     async fn playback_state(&'a self) -> Result<Option<PlaybackState>> {
         let response = self
             .send_http_request(
@@ -75,6 +77,9 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// Get the object currently being played on the user's Spotify account.
     ///
     /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
+    ///
+    /// This function's synchronous counterpart is
+    /// [ScopedSyncClient::currently_playing_track](ScopedSyncClient::currently_playing_track).
     async fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
         let response = self
             .send_http_request(
@@ -107,6 +112,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::play_items](ScopedSyncClient::play_items).
     async fn play_items<I, P>(&'a self, items: I, device_id: Option<&str>) -> Result<()>
     where
         I: IntoIterator<Item = P> + Send,
@@ -134,6 +141,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::play_context](ScopedSyncClient::play_context).
     async fn play_context(&'a self, context: PlayableContext<'a>, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let body = PlayContextBody {
@@ -154,6 +163,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::resume](ScopedSyncClient::resume).
     async fn resume(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let response = self.send_http_request(Method::PUT, url).send_async().await?;
@@ -168,6 +179,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::pause](ScopedSyncClient::pause).
     async fn pause(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PAUSE_ENDPOINT, &[("device_id", device_id)]);
         let response = self.send_http_request(Method::PUT, url).send_async().await?;
@@ -182,6 +195,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::repeat_state](ScopedSyncClient::repeat_state).
     async fn repeat_state(&'a self, repeat_state: RepeatState, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(
             API_PLAYER_REPEAT_ENDPOINT,
@@ -200,6 +215,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::shuffle](ScopedSyncClient::shuffle).
     async fn shuffle(&'a self, shuffle: bool, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(
             API_PLAYER_SHUFFLE_ENDPOINT,
@@ -221,6 +238,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::volume](ScopedSyncClient::volume).
     async fn volume<U>(&'a self, volume_percent: U, device_id: Option<&str>) -> Result<()>
     where
         U: Into<u8> + Send,
@@ -243,6 +262,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::add_to_queue](ScopedSyncClient::add_to_queue).
     async fn add_to_queue(&'a self, item: PlayableItem<'a>, device_id: Option<&str>) -> Result<()> {
         let uri = item.uri();
         let url = build_play_url(
@@ -259,6 +280,8 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// Get information about the user's available devices.
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::devices](ScopedSyncClient::devices).
     async fn devices(&'a self) -> Result<Vec<Device>> {
         let url = build_play_url(API_PLAYER_DEVICES_ENDPOINT, &[]);
 
@@ -289,9 +312,12 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.
     ///
-    /// This returns a superset of the [currently playing track](Self::currently_playing_track).
+    /// This function returns a superset of the [currently playing track](Self::currently_playing_track).
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is
+    /// [ScopedAsyncClient::playback_state](ScopedAsyncClient::playback_state).
     fn playback_state(&'a self) -> Result<Option<PlaybackState>> {
         let response = self
             .send_http_request(
@@ -318,6 +344,9 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// Get the object currently being played on the user's Spotify account.
     ///
     /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
+    ///
+    /// This function's asynchronous counterpart is
+    /// [ScopedAsyncClient::currently_playing_track](ScopedAsyncClient::currently_playing_track).
     fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
         let response = self
             .send_http_request(
@@ -349,6 +378,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::play_items](ScopedAsyncClient::play_items).
     fn play_items<I, P>(&'a self, items: I, device_id: Option<&str>) -> Result<()>
     where
         I: IntoIterator<Item = P>,
@@ -374,6 +405,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::play_context](ScopedAsyncClient::play_context).
     fn play_context(&'a self, context: PlayableContext<'a>, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let body = PlayContextBody {
@@ -394,6 +427,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::resume](ScopedAsyncClient::resume).
     fn resume(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let response = self.send_http_request(Method::PUT, url).send_sync()?;
@@ -408,6 +443,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::pause](ScopedAsyncClient::pause).
     fn pause(&'a self, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PAUSE_ENDPOINT, &[("device_id", device_id)]);
         let response = self.send_http_request(Method::PUT, url).send_sync()?;
@@ -422,6 +459,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::repeat_state](ScopedAsyncClient::repeat_state).
     fn repeat_state(&'a self, repeat_state: RepeatState, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(
             API_PLAYER_REPEAT_ENDPOINT,
@@ -440,6 +479,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::shuffle](ScopedAsyncClient::shuffle).
     fn shuffle(&'a self, shuffle: bool, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(
             API_PLAYER_SHUFFLE_ENDPOINT,
@@ -461,6 +502,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::volume](ScopedAsyncClient::volume).
     fn volume<U>(&'a self, volume_percent: U, device_id: Option<&str>) -> Result<()>
     where
         U: Into<u8>,
@@ -483,6 +526,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// on the user's currently active device.
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::add_to_queue](ScopedAsyncClient::add_to_queue).
     fn add_to_queue(&'a self, item: PlayableItem<'a>, device_id: Option<&str>) -> Result<()> {
         let uri = item.uri();
         let url = build_play_url(
@@ -499,6 +544,8 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// Get information about the user's available devices.
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
+    ///
+    /// This function's asynchronous counterpart is [ScopedAsyncClient::devices](ScopedAsyncClient::devices).
     fn devices(&'a self) -> Result<Vec<Device>> {
         let url = build_play_url(API_PLAYER_DEVICES_ENDPOINT, &[]);
 

@@ -33,6 +33,8 @@ where
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
     /// returned and track relinking may be applied.
+    ///
+    /// This function's synchronous counterpart is [UnscopedSyncClient::track](UnscopedSyncClient::track).
     async fn track(&'a self, track_id: Id<'a, TrackId>, market: Option<CountryCode>) -> Result<FullTrack> {
         let response = self
             .send_http_request(Method::GET, build_track_url(track_id, market))
@@ -56,6 +58,8 @@ where
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
     /// returned and track relinking may be applied.
+    ///
+    /// This function's synchronous counterpart is [UnscopedSyncClient::tracks](UnscopedSyncClient::tracks).
     async fn tracks<I>(&'a self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
     where
         I: IntoIterator<Item = Id<'a, TrackId>> + Send,
@@ -81,6 +85,8 @@ where
     ///
     /// This function returns a [SearchBuilder](self::SearchBuilder) that you can use to configure the various search
     /// parameters and finally send the search query and get the results back.
+    ///
+    /// This function's synchronous counterpart is [UnscopedSyncClient::search](UnscopedSyncClient::search).
     fn search<S>(&'a self, query: S) -> SearchBuilder<'a, Self, S>
     where
         S: AsRef<str>,
@@ -89,6 +95,8 @@ where
     }
 }
 
+/// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All
+/// synchronous Spotify clients implement this trait.
 #[cfg(feature = "sync")]
 pub trait UnscopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::AccessTokenExpirySync
 where
@@ -98,6 +106,8 @@ where
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
     /// returned and track relinking may be applied.
+    ///
+    /// This function's asynchronous counterpart is [UnscopedAsyncClient::track](UnscopedAsyncClient::track).
     fn track(&'a self, track_id: Id<TrackId>, market: Option<CountryCode>) -> Result<FullTrack> {
         let response = self
             .send_http_request(Method::GET, build_track_url(track_id, market))
@@ -120,6 +130,8 @@ where
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
     /// returned and track relinking may be applied.
+    ///
+    /// This function's asynchronous counterpart is [UnscopedAsyncClient::tracks](UnscopedAsyncClient::tracks).
     fn tracks<I>(&'a self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
     where
         I: IntoIterator<Item = Id<'a, TrackId>>,
@@ -143,6 +155,8 @@ where
     ///
     /// This function returns a [SearchBuilder](self::SearchBuilder) that you can use to configure the various search
     /// parameters and finally send the search query and get the results back.
+    ///
+    /// This function's asynchronous counterpart is [UnscopedAsyncClient::search](UnscopedAsyncClient::search).
     fn search<S>(&'a self, query: S) -> SearchBuilder<'a, Self, S>
     where
         S: AsRef<str>,

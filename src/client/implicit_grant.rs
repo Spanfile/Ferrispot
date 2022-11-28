@@ -21,7 +21,7 @@
 //! # async fn foo() {
 //! // build a new Spotify client that doesn't have the application secret
 //! let spotify_client = SpotifyClientBuilder::new("application client ID")
-//!     .build();
+//!     .build_async();
 //!
 //! // begin building a new ImplicitGrantUserClient
 //! let incomplete_implicit_grant_client = spotify_client

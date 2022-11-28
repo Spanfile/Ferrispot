@@ -16,7 +16,8 @@
 //! // build a new Spotify client that has the application secret
 //! let spotify_client = SpotifyClientBuilder::new("application client ID")
 //!     .client_secret("application client secret")
-//!     .build()
+//!     // a synchronous client may be built with .build_sync()
+//!     .build_async()
 //!     .await
 //!     .expect("failed to build Spotify client");
 //!
@@ -28,8 +29,7 @@
 //!     // specify any (or none) of the scopes you require access to
 //!     .scopes([Scope::UserReadPlaybackState])
 //!     // in case the user has already approved the application, this may be
-//!     // set to `true` for force the user approve
-//!     // the application again
+//!     // set to `true` for force the user approve the application again
 //!     .show_dialog(true)
 //!     .build();
 //!
@@ -73,7 +73,7 @@
 //! # async fn foo() {
 //! // build a new Spotify client that doesn't have the application secret
 //! let spotify_client = SpotifyClientBuilder::new("application client ID")
-//!     .build();
+//!     .build_async();
 //!
 //! // begin building a new AuthorizationCodeUserClient that uses PKCE
 //! let incomplete_auth_code_client = spotify_client
@@ -144,7 +144,7 @@ pub type AsyncAuthorizationCodeUserClientBuilder = AuthorizationCodeUserClientBu
 pub type SyncAuthorizationCodeUserClientBuilder = AuthorizationCodeUserClientBuilder<SyncClient>;
 
 /// A client that implements the authorization code flow to authenticate an user with Spotify. May optionally use PKCE
-/// if the client secret is not available. See the [module-level docs](self) for more information.
+/// if the client secret is not available. See the [module-level documentation](self) for more information.
 ///
 /// Implements all the [scoped](crate::client::ScopedAsyncClient) and [unscoped
 /// endpoints](crate::client::UnscopedAsyncClient).

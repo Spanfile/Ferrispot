@@ -21,6 +21,60 @@
 //! supported](SpotifyClient::implicit_grant_client), but it is not recommended for use.
 //!
 //! [Spotify documentation on authorization.](https://developer.spotify.com/documentation/general/guides/authorization/)
+//!
+//! ## Client credentials flow
+//!
+//! [SpotifyClientWithSecret](SpotifyClientWithSecret) implements the client credentials flow. A new client may be built
+//! with a [SpotifyClientBuilder]
+//!
+//! ```no_run
+//! # use ferrispot::{client::SpotifyClientBuilder, model::ItemType, prelude::*};
+//! # async fn foo() {
+//! let spotify_client = SpotifyClientBuilder::new(
+//!     std::env::var("CLIENT_ID").expect("Spotify client ID not in environment"),
+//! )
+//! .client_secret(
+//!     std::env::var("CLIENT_SECRET").expect("Spotify client secret not in environment"),
+//! )
+//! // a synchronous (blocking) client may be built with .build_sync() if the "sync" crate
+//! // feature is enabled
+//! .build_async()
+//! .await
+//! .expect("failed to build Spotify client");
+//!
+//! // all unscoped endpoints are now available through this client
+//!
+//! let search_results = spotify_client
+//!     .search("hatsune miku")
+//!     .types([ItemType::Track])
+//!     .send_async()
+//!     .await
+//!     .unwrap();
+//!
+//! let first_page = search_results.tracks().unwrap();
+//!
+//! println!("First page:");
+//! for track in first_page.items() {
+//!     println!(
+//!         "{} - {} ({}) [{}]",
+//!         track.name(),
+//!         track.artists().first().unwrap().name(),
+//!         track.album().name(),
+//!         track.id(),
+//!     );
+//! }
+//! # }
+//! ```
+//!
+//! ## Authorization code flow with optional PKCE
+//!
+//! See the module-level documentation for the [authorization code module](authorization_code).
+//!
+//! ## Implicit grant flow
+//!
+//! See the module-level documentation for the [implicit grant module](implicit_grant). Note that it is not recommended
+//! for use. It is recommended to use the [authorization code module](authorization_code) in order to access scoped
+//! endpoints.
 
 // TODO: this table would be really neat to have if rustfmt didn't mess it up
 // | Authorization flow | [Access user resources](ScopedAsyncClient) | Requires secret key | [Access token
@@ -114,7 +168,7 @@ const ACCOUNTS_BASE_URL: &str = "https://accounts.spotify.com/";
 const ACCOUNTS_AUTHORIZE_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "authorize");
 const ACCOUNTS_API_TOKEN_ENDPOINT: &str = concatcp!(ACCOUNTS_BASE_URL, "api/token");
 
-/// Clients that have automatically refreshable access tokens implement this trait.
+/// Clients that have automatically refreshable access tokens implement this trait. The asynchronous
 /// [SpotifyClientWithSecret](SpotifyClientWithSecret) and
 /// [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) implement this trait.
 ///
@@ -127,7 +181,7 @@ pub trait AccessTokenRefreshAsync: crate::private::Sealed {
     async fn refresh_access_token(&self) -> Result<()>;
 }
 
-/// Clients that have automatically refreshable access tokens implement this trait.
+/// Clients that have automatically refreshable access tokens implement this trait. The synchronous
 /// [SpotifyClientWithSecret](SpotifyClientWithSecret) and
 /// [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) implement this trait.
 ///
@@ -194,7 +248,8 @@ pub struct SpotifyClientBuilder {
     client_id: String,
 }
 
-/// Builder for [SpotifyClientWithSecret](SpotifyClientWithSecret).
+/// Builder for [SpotifyClientWithSecret](SpotifyClientWithSecret). New instances are acquired through the
+/// [`client_secret`-function](SpotifyClientBuilder::client_secret) in [SpotifyClientBuilder].
 #[derive(Debug, Clone)]
 pub struct SpotifyClientWithSecretBuilder {
     client_id: String,
@@ -302,7 +357,7 @@ impl SyncSpotifyClient {
     ///
     /// The refresh token will be used to retrieve a new access token before the client is returned. PKCE is required
     /// for strong authentication when the client secret cannot be securely stored in the environment.
-    pub async fn authorization_code_client_with_refresh_token_and_pkce<S>(
+    pub fn authorization_code_client_with_refresh_token_and_pkce<S>(
         &self,
         refresh_token: S,
     ) -> Result<SyncAuthorizationCodeUserClient>
@@ -459,10 +514,10 @@ impl SpotifyClientWithSecretBuilder {
     }
 }
 
-#[cfg(feature = "async")]
 impl SpotifyClientWithSecretBuilder {
     /// Request an access token from Spotify using the client credentials flow and return an asynchronous Spotify
     /// client.
+    #[cfg(feature = "async")]
     pub async fn build_async(self) -> Result<AsyncSpotifyClientWithSecret> {
         debug!("Requesting access token for client credentials flow");
 
@@ -488,12 +543,10 @@ impl SpotifyClientWithSecretBuilder {
 
         Ok(self.build_client(token_response, http_client))
     }
-}
 
-#[cfg(feature = "sync")]
-impl SpotifyClientWithSecretBuilder {
     /// Request an access token from Spotify using the client credentials flow and return a synchronous Spotify
     /// client.
+    #[cfg(feature = "sync")]
     pub fn build_sync(self) -> Result<SyncSpotifyClientWithSecret> {
         debug!("Requesting access token for client credentials flow");
 

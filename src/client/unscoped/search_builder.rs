@@ -13,7 +13,9 @@ use crate::{
 };
 
 /// A builder for a search in Spotify's catalog. New instances are returned by the
-/// [search-function](UnscopedAsyncClient::search) in [UnscopedAsyncClient](UnscopedAsyncClient).
+/// [asynchronous search-function](super::UnscopedAsyncClient::search) in
+/// [UnscopedAsyncClient](super::UnscopedAsyncClient) or the [synchronous
+/// search-function](super::UnscopedSyncClient::search) in [UnscopedSyncClient](super::UnscopedSyncClient)
 pub struct SearchBuilder<'a, C, S>
 where
     C: ?Sized,
@@ -73,10 +75,8 @@ where
     }
 
     /// Specify a country such that content that is available in that market will be returned. If using an
-    /// user-authenticated client (i.e.
-    /// [AuthorizationCodeUserClient](crate::client::authorization_code::AuthorizationCodeUserClient) or
-    /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient)), the country associated with
-    /// the corresponding user account will take priority over this parameter.
+    /// user-authenticated client, the country associated with the corresponding user account will take priority over
+    /// this parameter.
     pub fn market(self, market: CountryCode) -> Self {
         Self {
             market: Some(market.to_string()),
