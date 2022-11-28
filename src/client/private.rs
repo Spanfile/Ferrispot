@@ -5,7 +5,11 @@ mod async_client {
     #[derive(Clone)]
     pub struct AsyncClient(pub(crate) reqwest::Client);
 
-    impl super::HttpClient for AsyncClient {}
+    impl super::HttpClient for AsyncClient {
+        fn new() -> Self {
+            Self(reqwest::Client::new())
+        }
+    }
 
     impl Deref for AsyncClient {
         type Target = reqwest::Client;
@@ -23,7 +27,11 @@ mod sync_client {
     #[derive(Clone)]
     pub struct SyncClient(pub(crate) reqwest::blocking::Client);
 
-    impl super::HttpClient for SyncClient {}
+    impl super::HttpClient for SyncClient {
+        fn new() -> Self {
+            Self(reqwest::blocking::Client::new())
+        }
+    }
 
     impl Deref for SyncClient {
         type Target = reqwest::blocking::Client;
@@ -47,7 +55,9 @@ use crate::{
     model::error::{ApiErrorMessage, ApiErrorResponse},
 };
 
-pub trait HttpClient {}
+pub trait HttpClient {
+    fn new() -> Self;
+}
 
 /// Every Spotify client implements this trait.
 #[cfg(feature = "async")]

@@ -3,7 +3,8 @@
 //! Contains the three different kinds of tracks; [FullTrack], [PartialTrack] and [LocalTrack].
 //!
 //! - [FullTrack]: may contain all possible information about a track. Generally retrieved from the
-//!   [track-](crate::client::UnscopedClient::track) and [tracks-functions](crate::client::UnscopedClient::tracks).
+//!   [track-](crate::client::UnscopedAsyncClient::track) and
+//!   [tracks-functions](crate::client::UnscopedAsyncClient::tracks).
 //! - [PartialTrack]: contains most information about a track. Generally retrieved as part of a response to, for
 //!   example, an album listing (TODO: make a link to the album endpoint once it exists).
 //! - [LocalTrack]: contains only the basic information about a track. Only retrieved through a playlist that contains

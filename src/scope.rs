@@ -12,8 +12,8 @@ pub trait ToScopesString {
 /// An OAuth authorization scope.
 ///
 /// Authorization scopes are granted to the application by the user and restrict which endpoints are available to the
-/// application. All [scoped endpoints](crate::client::ScopedClient) require certain scopes to be granted. You choose
-/// which scopes to request in the `scopes`-functions of either the
+/// application. All [scoped endpoints](crate::client::ScopedAsyncClient) require certain scopes to be granted. You
+/// choose which scopes to request in the `scopes`-functions of either the
 /// [AuthorizationCodeUserClientBuilder](crate::client::authorization_code::AuthorizationCodeUserClientBuilder::scopes)
 /// or the [ImplicitGrantUserClientBuilder](crate::client::implicit_grant::ImplicitGrantUserClientBuilder::scopes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

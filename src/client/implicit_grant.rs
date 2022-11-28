@@ -81,6 +81,34 @@ use crate::{
     scope::ToScopesString,
 };
 
+/// Type alias for an asynchronous implicit grant user client. See [ImplicitGrantUserClient](ImplicitGrantUserClient).
+#[cfg(feature = "async")]
+pub type AsyncImplicitGrantUserClient = ImplicitGrantUserClient<AsyncClient>;
+
+/// Type alias for a synchronous implicit grant user client. See [ImplicitGrantUserClient](ImplicitGrantUserClient).
+#[cfg(feature = "sync")]
+pub type SyncImplicitGrantUserClient = ImplicitGrantUserClient<SyncClient>;
+
+/// Type alias for an incomplete asynchronous implicit grant user client. See
+/// [IncompleteImplicitGrantUserClient](IncompleteImplicitGrantUserClient).
+#[cfg(feature = "async")]
+pub type AsyncIncompleteImplicitGrantUserClient = IncompleteImplicitGrantUserClient<AsyncClient>;
+
+/// Type alias for an incomplete synchronous implicit grant user client. See
+/// [IncompleteImplicitGrantUserClient](IncompleteImplicitGrantUserClient).
+#[cfg(feature = "sync")]
+pub type SyncIncompleteImplicitGrantUserClient = IncompleteImplicitGrantUserClient<SyncClient>;
+
+/// Type alias for an asynchronous implicit grant user client builder. See
+/// [ImplicitGrantUserClientBuilder](ImplicitGrantUserClientBuilder).
+#[cfg(feature = "async")]
+pub type AsyncImplicitGrantUserClientBuilder = ImplicitGrantUserClientBuilder<AsyncClient>;
+
+/// Type alias for a synchronous implicit grant user client builder. See
+/// [ImplicitGrantUserClientBuilder](ImplicitGrantUserClientBuilder).
+#[cfg(feature = "sync")]
+pub type SyncImplicitGrantUserClientBuilder = ImplicitGrantUserClientBuilder<SyncClient>;
+
 /// A client that uses the implicit grant flow to authenticate an user with Spotify. See the [module-level docs](self)
 /// for more information.
 ///
@@ -238,7 +266,7 @@ where
 impl<C> crate::private::Sealed for ImplicitGrantUserClient<C> where C: HttpClient + Clone {}
 
 #[cfg(feature = "async")]
-impl private::BuildHttpRequestAsync for ImplicitGrantUserClient<AsyncClient> {
+impl private::BuildHttpRequestAsync for AsyncImplicitGrantUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
         self.http_client
             .request(method, url)
@@ -247,7 +275,7 @@ impl private::BuildHttpRequestAsync for ImplicitGrantUserClient<AsyncClient> {
 }
 
 #[cfg(feature = "sync")]
-impl private::BuildHttpRequestSync for ImplicitGrantUserClient<SyncClient> {
+impl private::BuildHttpRequestSync for SyncImplicitGrantUserClient {
     fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
         self.http_client
             .request(method, url)
@@ -257,38 +285,22 @@ impl private::BuildHttpRequestSync for ImplicitGrantUserClient<SyncClient> {
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-impl<'a, C> super::ScopedAsyncClient<'a> for ImplicitGrantUserClient<C>
-where
-    C: HttpClient + Clone + Sync + 'a,
-    ImplicitGrantUserClient<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
-{
-}
+impl<'a> super::ScopedAsyncClient<'a> for AsyncImplicitGrantUserClient {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-impl<'a, C> super::UnscopedAsyncClient<'a> for ImplicitGrantUserClient<C>
-where
-    C: HttpClient + Clone + Sync + 'a,
-    ImplicitGrantUserClient<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
-{
-}
+impl<'a> super::UnscopedAsyncClient<'a> for AsyncImplicitGrantUserClient {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-impl<C> private::AccessTokenExpiryAsync for ImplicitGrantUserClient<C>
-where
-    C: HttpClient + Clone + Sync,
-{
+impl private::AccessTokenExpiryAsync for AsyncImplicitGrantUserClient {
     async fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
         Ok(private::AccessTokenExpiryResult::Inapplicable)
     }
 }
 
 #[cfg(feature = "sync")]
-impl<C> private::AccessTokenExpirySync for ImplicitGrantUserClient<C>
-where
-    C: HttpClient + Clone + Sync,
-{
+impl private::AccessTokenExpirySync for SyncImplicitGrantUserClient {
     fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
         Ok(private::AccessTokenExpiryResult::Inapplicable)
     }

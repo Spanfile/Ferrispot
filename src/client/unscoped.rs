@@ -139,7 +139,7 @@ where
 }
 
 /// A builder for a search in Spotify's catalog. New instances are returned by the
-/// [search-function](UnscopedClient::search) in [UnscopedClient](UnscopedClient).
+/// [search-function](UnscopedAsyncClient::search) in [UnscopedAsyncClient](UnscopedAsyncClient).
 pub struct SearchBuilder<'a, C, S>
 where
     C: ?Sized,

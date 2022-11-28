@@ -5,7 +5,7 @@
 //! - [FullArtist]: may contain all possible information about an artist. Generally retrieved from the artist- and
 //!   artists-endpoints (TODO: make links once implemented)
 //! - [PartialArtist]: contains most information about an artist. Generally retrieved as part of a response to, for
-//!   example, a [track listing](crate::client::UnscopedClient::track).
+//!   example, a [track listing](crate::client::UnscopedAsyncClient::track).
 //! - [LocalArtist]: contains only the basic information about an artist. Only retrieved through a playlist that
 //!   contains local tracks.
 //!

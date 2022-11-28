@@ -11,19 +11,19 @@
 //! Every client requires an application client ID. You can create a new application in the
 //! [Spotify developer dashboard](https://developer.spotify.com/dashboard), from where you get the application's client
 //! ID and secret. If the secret can be safely stored in your environment, you may use the client credentials flow by
-//! building a [SpotifyClientWithSecret] which can access all [unscoped endpoints](UnscopedClient). From there, you can
-//! retrieve a user-authorized [authorization code flow client](authorization_code) which can access all [scoped
-//! endpoints](ScopedClient) in addition to the [unscoped endpoints](UnscopedClient).
+//! building a [SpotifyClientWithSecret] which can access all [unscoped endpoints](UnscopedAsyncClient). From there, you
+//! can retrieve a user-authorized [authorization code flow client](authorization_code) which can access all [scoped
+//! endpoints](ScopedAsyncClient) in addition to the [unscoped endpoints](UnscopedAsyncClient).
 //!
 //! However, if the client secret cannot be safely stored in your environment, you may still access all
-//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using the [authorization code flow with
+//! [unscoped](UnscopedAsyncClient) and [scoped endpoints](ScopedAsyncClient) by using the [authorization code flow with
 //! PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant flow is also
 //! supported](SpotifyClient::implicit_grant_client), but it is not recommended for use.
 //!
 //! [Spotify documentation on authorization.](https://developer.spotify.com/documentation/general/guides/authorization/)
 
 // TODO: this table would be really neat to have if rustfmt didn't mess it up
-// | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token
+// | Authorization flow | [Access user resources](ScopedAsyncClient) | Requires secret key | [Access token
 // refresh](AccessTokenRefresh) | |-|-|-|-|
 // | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
 // | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
@@ -53,8 +53,13 @@ use self::private::AsyncClient;
 use self::private::SyncClient;
 pub use self::unscoped::SearchBuilder;
 use self::{
-    authorization_code::{AuthorizationCodeUserClient, AuthorizationCodeUserClientBuilder},
-    implicit_grant::ImplicitGrantUserClientBuilder,
+    authorization_code::{
+        AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder, SyncAuthorizationCodeUserClient,
+        SyncAuthorizationCodeUserClientBuilder,
+    },
+    implicit_grant::{
+        AsyncImplicitGrantUserClientBuilder, ImplicitGrantUserClientBuilder, SyncImplicitGrantUserClientBuilder,
+    },
 };
 #[cfg(feature = "async")]
 pub use self::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient};
@@ -63,20 +68,27 @@ use crate::{
     model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
 };
 
+/// Type alias for an asynchronous Spotify client. See [SpotifyClient](SpotifyClient).
 #[cfg(feature = "async")]
 pub type AsyncSpotifyClient = SpotifyClient<AsyncClient>;
 
+/// Type alias for a synchronous Spotify client. See [SpotifyClient](SpotifyClient).
 #[cfg(feature = "sync")]
 pub type SyncSpotifyClient = SpotifyClient<SyncClient>;
 
+/// Type alias for an asynchronous Spotify client with client secret. See
+/// [SpotifyClientWithSecret](SpotifyClientWithSecret).
 #[cfg(feature = "async")]
 pub type AsyncSpotifyClientWithSecret = SpotifyClientWithSecret<AsyncClient>;
 
+/// Type alias for a synchronous Spotify client with client secret. See
+/// [SpotifyClientWithSecret](SpotifyClientWithSecret).
 #[cfg(feature = "sync")]
 pub type SyncSpotifyClientWithSecret = SpotifyClientWithSecret<SyncClient>;
 
 const RANDOM_STATE_LENGTH: usize = 16;
 const PKCE_VERIFIER_LENGTH: usize = 128; // maximum Spotify allows
+const CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM: &[(&str, &str)] = &[("grant_type", "client_credentials")];
 
 const API_BASE_URL: &str = "https://api.spotify.com/v1/";
 
@@ -150,9 +162,9 @@ struct SpotifyClientRef {
 
 /// A base Spotify client that has a client secret.
 ///
-/// This client can be used to access all [unscoped Spotify endpoints](UnscopedClient). It can also be used to retrieve
-/// an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that can access
-/// all [scoped endpoints](ScopedClient).
+/// This client can be used to access all [unscoped Spotify endpoints](UnscopedAsyncClient). It can also be used to
+/// retrieve an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that
+/// can access all [scoped endpoints](ScopedAsyncClient).
 ///
 /// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
 /// order to reuse it.
@@ -207,7 +219,7 @@ impl AsyncSpotifyClient {
     /// The implicit grant user client is not recommended for use. The access token is returned in the callback URL
     /// instead of through a trusted channel, and the token cannot be automatically refreshed. It is recommended to use
     /// the [authorization code flow with PKCE flow](SpotifyClient::authorization_code_client_with_pkce) instead.
-    pub fn implicit_grant_client_async<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder<AsyncClient>
+    pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> AsyncImplicitGrantUserClientBuilder
     where
         S: Into<String>,
     {
@@ -218,14 +230,11 @@ impl AsyncSpotifyClient {
     /// that uses PKCE.
     ///
     /// PKCE is required for strong authentication when the client secret cannot be securely stored in the environment.
-    pub fn authorization_code_client_with_pkce_async<S>(
-        &self,
-        redirect_uri: S,
-    ) -> AuthorizationCodeUserClientBuilder<AsyncClient>
+    pub fn authorization_code_client_with_pkce<S>(&self, redirect_uri: S) -> AsyncAuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClientBuilder::new_async(
+        AsyncAuthorizationCodeUserClientBuilder::new(
             redirect_uri.into(),
             self.inner.client_id.clone(),
             self.http_client.clone(),
@@ -233,20 +242,19 @@ impl AsyncSpotifyClient {
         .with_pkce()
     }
 
-    // sheesh, what a method name
     /// Returns a new [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that uses PKCE and
     /// an existing refresh token.
     ///
     /// The refresh token will be used to retrieve a new access token before the client is returned. PKCE is required
     /// for strong authentication when the client secret cannot be securely stored in the environment.
-    pub async fn authorization_code_client_with_refresh_token_and_pkce_async<S>(
+    pub async fn authorization_code_client_with_refresh_token_and_pkce<S>(
         &self,
         refresh_token: S,
-    ) -> Result<AuthorizationCodeUserClient<AsyncClient>>
+    ) -> Result<AsyncAuthorizationCodeUserClient>
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClient::new_with_refresh_token_async(
+        AsyncAuthorizationCodeUserClient::new_with_refresh_token(
             self.http_client.clone(),
             refresh_token.into(),
             Some(self.inner.client_id.clone()),
@@ -264,7 +272,7 @@ impl SyncSpotifyClient {
     /// The implicit grant user client is not recommended for use. The access token is returned in the callback URL
     /// instead of through a trusted channel, and the token cannot be automatically refreshed. It is recommended to use
     /// the [authorization code flow with PKCE flow](SpotifyClient::authorization_code_client_with_pkce) instead.
-    pub fn implicit_grant_client_sync<S>(&self, redirect_uri: S) -> ImplicitGrantUserClientBuilder<SyncClient>
+    pub fn implicit_grant_client<S>(&self, redirect_uri: S) -> SyncImplicitGrantUserClientBuilder
     where
         S: Into<String>,
     {
@@ -275,14 +283,11 @@ impl SyncSpotifyClient {
     /// that uses PKCE.
     ///
     /// PKCE is required for strong authentication when the client secret cannot be securely stored in the environment.
-    pub fn authorization_code_client_with_pkce_sync<S>(
-        &self,
-        redirect_uri: S,
-    ) -> AuthorizationCodeUserClientBuilder<SyncClient>
+    pub fn authorization_code_client_with_pkce<S>(&self, redirect_uri: S) -> SyncAuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClientBuilder::new_sync(
+        SyncAuthorizationCodeUserClientBuilder::new(
             redirect_uri.into(),
             self.inner.client_id.clone(),
             self.http_client.clone(),
@@ -295,14 +300,14 @@ impl SyncSpotifyClient {
     ///
     /// The refresh token will be used to retrieve a new access token before the client is returned. PKCE is required
     /// for strong authentication when the client secret cannot be securely stored in the environment.
-    pub async fn authorization_code_client_with_refresh_token_and_pkce_sync<S>(
+    pub async fn authorization_code_client_with_refresh_token_and_pkce<S>(
         &self,
         refresh_token: S,
-    ) -> Result<AuthorizationCodeUserClient<SyncClient>>
+    ) -> Result<SyncAuthorizationCodeUserClient>
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClient::new_with_refresh_token_sync(
+        SyncAuthorizationCodeUserClient::new_with_refresh_token(
             self.http_client.clone(),
             refresh_token.into(),
             Some(self.inner.client_id.clone()),
@@ -314,11 +319,11 @@ impl SyncSpotifyClient {
 impl AsyncSpotifyClientWithSecret {
     /// Returns a new builder for an asynchronous
     /// [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient).
-    pub fn authorization_code_client_async<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder<AsyncClient>
+    pub fn authorization_code_client<S>(&self, redirect_uri: S) -> AsyncAuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClientBuilder::new_async(
+        AsyncAuthorizationCodeUserClientBuilder::new(
             redirect_uri.into(),
             self.inner.client_id.clone(),
             self.http_client.clone(),
@@ -329,14 +334,14 @@ impl AsyncSpotifyClientWithSecret {
     /// uses an existing refresh token.
     ///
     /// The refresh token will be used to retrieve a new access token before the client is returned.
-    pub async fn authorization_code_client_with_refresh_token_async<S>(
+    pub async fn authorization_code_client_with_refresh_token<S>(
         &self,
         refresh_token: S,
-    ) -> Result<AuthorizationCodeUserClient<AsyncClient>>
+    ) -> Result<AsyncAuthorizationCodeUserClient>
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClient::new_with_refresh_token_async(self.http_client.clone(), refresh_token.into(), None)
+        AsyncAuthorizationCodeUserClient::new_with_refresh_token(self.http_client.clone(), refresh_token.into(), None)
             .await
     }
 }
@@ -345,11 +350,11 @@ impl AsyncSpotifyClientWithSecret {
 impl SyncSpotifyClientWithSecret {
     /// Returns a new builder for a synchronous
     /// [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient).
-    pub fn authorization_code_client_sync<S>(&self, redirect_uri: S) -> AuthorizationCodeUserClientBuilder<SyncClient>
+    pub fn authorization_code_client<S>(&self, redirect_uri: S) -> SyncAuthorizationCodeUserClientBuilder
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClientBuilder::new_sync(
+        SyncAuthorizationCodeUserClientBuilder::new(
             redirect_uri.into(),
             self.inner.client_id.clone(),
             self.http_client.clone(),
@@ -360,14 +365,14 @@ impl SyncSpotifyClientWithSecret {
     /// uses an existing refresh token.
     ///
     /// The refresh token will be used to retrieve a new access token before the client is returned.
-    pub async fn authorization_code_client_with_refresh_token_sync<S>(
+    pub async fn authorization_code_client_with_refresh_token<S>(
         &self,
         refresh_token: S,
-    ) -> Result<AuthorizationCodeUserClient<SyncClient>>
+    ) -> Result<SyncAuthorizationCodeUserClient>
     where
         S: Into<String>,
     {
-        AuthorizationCodeUserClient::new_with_refresh_token_sync(self.http_client.clone(), refresh_token.into(), None)
+        SyncAuthorizationCodeUserClient::new_with_refresh_token(self.http_client.clone(), refresh_token.into(), None)
     }
 }
 
@@ -396,22 +401,24 @@ impl SpotifyClientBuilder {
     /// Finalize the builder and return an asynchronous Spotify client.
     #[cfg(feature = "async")]
     pub fn build_async(self) -> AsyncSpotifyClient {
-        SpotifyClient {
-            inner: Arc::new(SpotifyClientRef {
-                client_id: self.client_id,
-            }),
-            http_client: AsyncClient(reqwest::Client::new()),
-        }
+        self.build_client()
     }
 
     /// Finalize the builder and return a synchronous Spotify client.
     #[cfg(feature = "sync")]
     pub fn build_sync(self) -> SyncSpotifyClient {
+        self.build_client()
+    }
+
+    fn build_client<C>(self) -> SpotifyClient<C>
+    where
+        C: private::HttpClient + Clone,
+    {
         SpotifyClient {
             inner: Arc::new(SpotifyClientRef {
                 client_id: self.client_id,
             }),
-            http_client: SyncClient(reqwest::blocking::Client::new()),
+            http_client: C::new(),
         }
     }
 }
@@ -422,8 +429,8 @@ impl SpotifyClientWithSecretBuilder {
         default_headers.insert(
             header::AUTHORIZATION,
             header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
-                // this can only fail if the header value contains non-ASCII characters, which cannot happen since the
-                // given header value is in base64
+                // this can only fail if the header value contains non-ASCII characters, which shouldn't happen since
+                // the given header value is in base64
                 .expect(
                     "failed to insert authorization header into header map: non-ASCII characters in value (this is \
                      likely a bug)",
@@ -431,6 +438,22 @@ impl SpotifyClientWithSecretBuilder {
         );
 
         default_headers
+    }
+
+    fn build_client<C>(self, token_response: ClientTokenResponse, http_client: C) -> SpotifyClientWithSecret<C>
+    where
+        C: private::HttpClient + Clone,
+    {
+        debug!("Got token response for client credentials flow: {:?}", token_response);
+
+        SpotifyClientWithSecret {
+            inner: Arc::new(SpotifyClientWithSecretRef {
+                client_id: self.client_id,
+                // client_secret: self.client_secret,
+                access_token: RwLock::new(token_response.access_token),
+            }),
+            http_client,
+        }
     }
 }
 
@@ -440,41 +463,28 @@ impl SpotifyClientWithSecretBuilder {
     /// client.
     pub async fn build_async(self) -> Result<AsyncSpotifyClientWithSecret> {
         debug!("Requesting access token for client credentials flow");
-        let token_request_form = &[("grant_type", "client_credentials")];
 
         let http_client = AsyncClient(
             reqwest::Client::builder()
                 .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
-                .expect("failed to build blocking HTTP client: system error or system misconfiguration"),
+                .expect("failed to build HTTP client: system error or system misconfiguration"),
         );
 
         let response = http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .form(token_request_form)
+            .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
 
-        let response = extract_authentication_error_async(response).await.map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidClient, description) = err {
-                Error::InvalidClient(description)
-            } else {
-                err
-            }
-        })?;
+        let response = extract_authentication_error_async(response)
+            .await
+            .map_err(map_client_authentication_error)?;
 
-        let token_response: ClientTokenResponse = response.json().await?;
-        debug!("Got token response for client credentials flow: {:?}", token_response);
+        let token_response = response.json().await?;
 
-        Ok(SpotifyClientWithSecret {
-            inner: Arc::new(SpotifyClientWithSecretRef {
-                client_id: self.client_id,
-                // client_secret: self.client_secret,
-                access_token: RwLock::new(token_response.access_token),
-            }),
-            http_client,
-        })
+        Ok(self.build_client(token_response, http_client))
     }
 }
 
@@ -484,7 +494,6 @@ impl SpotifyClientWithSecretBuilder {
     /// client.
     pub fn build_sync(self) -> Result<SyncSpotifyClientWithSecret> {
         debug!("Requesting access token for client credentials flow");
-        let token_request_form = &[("grant_type", "client_credentials")];
 
         let http_client = SyncClient(
             reqwest::blocking::Client::builder()
@@ -496,28 +505,13 @@ impl SpotifyClientWithSecretBuilder {
 
         let response = http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .form(token_request_form)
+            .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 
-        let response = extract_authentication_error_sync(response).map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidClient, description) = err {
-                Error::InvalidClient(description)
-            } else {
-                err
-            }
-        })?;
+        let response = extract_authentication_error_sync(response).map_err(map_client_authentication_error)?;
+        let token_response = response.json()?;
 
-        let token_response: ClientTokenResponse = response.json()?;
-        debug!("Got token response for client credentials flow: {:?}", token_response);
-
-        Ok(SpotifyClientWithSecret {
-            inner: Arc::new(SpotifyClientWithSecretRef {
-                client_id: self.client_id,
-                // client_secret: self.client_secret,
-                access_token: RwLock::new(token_response.access_token),
-            }),
-            http_client,
-        })
+        Ok(self.build_client(token_response, http_client))
     }
 }
 
@@ -539,41 +533,39 @@ impl private::BuildHttpRequestSync for SyncSpotifyClientWithSecret {
     }
 }
 
+impl<C> SpotifyClientWithSecret<C>
+where
+    C: private::HttpClient + Clone,
+{
+    fn save_access_token(&self, token_response: ClientTokenResponse) {
+        debug!("Got token response for client credentials flow: {:?}", token_response);
+        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
+    }
+}
+
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-impl<'a, C> UnscopedAsyncClient<'a> for SpotifyClientWithSecret<C>
-where
-    C: private::HttpClient + Clone + Sync + 'a,
-    SpotifyClientWithSecret<C>: private::BuildHttpRequestAsync + private::AccessTokenExpiryAsync,
-{
-}
+impl<'a> UnscopedAsyncClient<'a> for AsyncSpotifyClientWithSecret {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
 impl AccessTokenRefreshAsync for AsyncSpotifyClientWithSecret {
     async fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
-        let token_request_form = &[("grant_type", "client_credentials")];
 
         let response = self
             .http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .form(token_request_form)
+            .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
 
-        let response = extract_authentication_error_async(response).await.map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
-                Error::InvalidClient(description)
-            } else {
-                err
-            }
-        })?;
+        let response = extract_authentication_error_async(response)
+            .await
+            .map_err(map_client_authentication_error)?;
 
-        let token_response: ClientTokenResponse = response.json().await?;
-        debug!("Got token response for client credentials flow: {:?}", token_response);
-
-        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
+        let token_response = response.json().await?;
+        self.save_access_token(token_response);
 
         Ok(())
     }
@@ -583,26 +575,16 @@ impl AccessTokenRefreshAsync for AsyncSpotifyClientWithSecret {
 impl AccessTokenRefreshSync for SyncSpotifyClientWithSecret {
     fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
-        let token_request_form = &[("grant_type", "client_credentials")];
 
         let response = self
             .http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .form(token_request_form)
+            .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 
-        let response = extract_authentication_error_sync(response).map_err(|err| {
-            if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidGrant, description) = err {
-                Error::InvalidClient(description)
-            } else {
-                err
-            }
-        })?;
-
-        let token_response: ClientTokenResponse = response.json()?;
-        debug!("Got token response for client credentials flow: {:?}", token_response);
-
-        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
+        let response = extract_authentication_error_sync(response).map_err(map_client_authentication_error)?;
+        let token_response = response.json()?;
+        self.save_access_token(token_response);
 
         Ok(())
     }
@@ -660,7 +642,7 @@ fn rate_limit_sleep_sync(sleep_time: u64) -> Result<()> {
 }
 
 /// Return a rate limit error since no sleep utility has been enabled.
-#[cfg(all(not(feature = "tokio_sleep"), not(feature = "async_std_sleep")))]
+#[cfg(all(feature = "async", not(feature = "tokio_sleep"), not(feature = "async_std_sleep")))]
 async fn rate_limit_sleep_async(sleep_time: u64) -> Result<()> {
     Err(crate::error::Error::RateLimit(sleep_time))
 }
@@ -679,4 +661,12 @@ async fn rate_limit_sleep_async(sleep_time: u64) -> Result<()> {
 async fn rate_limit_sleep_async(sleep_time: u64) -> Result<()> {
     async_std::task::sleep(std::time::Duration::from_secs(sleep_time)).await;
     Ok(())
+}
+
+fn map_client_authentication_error(err: Error) -> Error {
+    if let Error::UnhandledAuthenticationError(AuthenticationErrorKind::InvalidClient, description) = err {
+        Error::InvalidClient(description)
+    } else {
+        err
+    }
 }
