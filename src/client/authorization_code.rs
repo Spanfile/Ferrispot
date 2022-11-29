@@ -676,6 +676,9 @@ impl super::AccessTokenRefreshSync for SyncAuthorizationCodeUserClient {
             ))
             .send()?;
 
+        // the refresh token may later be written to, drop our read guard
+        drop(refresh_token);
+
         let response = super::extract_authentication_error_sync(response).map_err(map_refresh_token_error)?;
         let token_response = response.json()?;
         self.update_access_and_refresh_tokens(token_response);
