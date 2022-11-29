@@ -9,8 +9,16 @@
 //! - [LocalAlbum]: contains only the basic information about an album. Only retrieved through a playlist that contains
 //!   local tracks.
 //!
-//! The album object Spotify returns from the API is not directly available.
-//! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
+//! Additionally, there is the [Album] enum that encompasses all three kinds of albums.
+//!
+//! The album object Spotify returns from the API is not directly available. The three album objects, or the [Album]
+//! enum, may be serialized to get almost all of the original API response back. The model strips certain unnecessary or
+//! redundant fields from the response.
+//!
+//! # Album equality
+//!
+//! Two albums are considered equal when their Spotify IDs are the same. However, since [LocalAlbum] doesn't have a
+//! Spotify ID, it resorts to comparing all available fields.
 
 use std::{collections::HashSet, marker::PhantomData};
 
@@ -256,10 +264,9 @@ struct NonLocalAlbumFields {
     release_date_precision: DatePrecision,
 }
 
-// TODO: album equality should only compare their IDs. does track relinking also apply to albums?
 /// A full album. Contains [full information](self::FullAlbumInformation), in addition to all
 /// [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation) information about an album.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 #[serde(try_from = "AlbumObject")]
 pub struct FullAlbum {
     common: CommonAlbumFields,
@@ -269,7 +276,7 @@ pub struct FullAlbum {
 
 /// A partial album. Contains all [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation)
 /// information about an album.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 #[serde(try_from = "AlbumObject")]
 pub struct PartialAlbum {
     common: CommonAlbumFields,
@@ -293,6 +300,18 @@ pub enum AlbumType {
     Single,
     #[serde(alias = "COMPILATION")]
     Compilation,
+}
+
+impl PartialEq for FullAlbum {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq for PartialAlbum {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
 }
 
 impl TryFrom<AlbumObject> for Album {

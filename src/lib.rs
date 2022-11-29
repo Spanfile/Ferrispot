@@ -60,7 +60,7 @@ pub mod prelude {
             artist::{CommonArtistInformation, FullArtistInformation, NonLocalArtistInformation},
             id::{IdFromBare, IdFromKnownKind, IdTrait},
             search::ToTypesString,
-            track::{CommonTrackInformation, FullTrackInformation, NonLocalTrackInformation},
+            track::{CommonTrackInformation, FullTrackInformation, NonLocalTrackInformation, RelinkedTrackEquality},
         },
         scope::ToScopesString,
     };

@@ -9,8 +9,16 @@
 //! - [LocalArtist]: contains only the basic information about an artist. Only retrieved through a playlist that
 //!   contains local tracks.
 //!
-//! The artist object Spotify returns from the API is not directly available.
-//! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
+//! Additionally, there is the [Artist] enum that encompasses all three kinds of artists.
+//!
+//! The artist object Spotify returns from the API is not directly available. The three artist objects, or the [Artist]
+//! enum, may be serialized to get almost all of the original API response back. The model strips certain unnecessary or
+//! redundant fields from the response.
+//!
+//! # Album equality
+//!
+//! Two artists are considered equal when their Spotify IDs are the same. However, since [LocalArtist] doesn't have a
+//! Spotify ID, it resorts to comparing all available fields.
 
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -160,11 +168,10 @@ struct NonLocalArtistFields {
     id: Id<'static, ArtistId>,
 }
 
-// TODO: artist equality should only compare their IDs. does track relinking also apply to artists?
 /// A full artist. Contains [full information](self::FullArtistInformation), in addition to all
 /// [common](self::CommonArtistInformation) and [non-local](self::NonLocalArtistInformation) information about an
 /// artist.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 #[serde(try_from = "ArtistObject")]
 pub struct FullArtist {
     common: CommonArtistFields,
@@ -174,7 +181,7 @@ pub struct FullArtist {
 
 /// A partial artist. Contains all [common](self::CommonArtistInformation) and
 /// [non-local](self::NonLocalArtistInformation) information about an artist.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 #[serde(try_from = "ArtistObject")]
 pub struct PartialArtist {
     common: CommonArtistFields,
@@ -187,6 +194,18 @@ pub struct PartialArtist {
 #[serde(try_from = "ArtistObject")]
 pub struct LocalArtist {
     common: CommonArtistFields,
+}
+
+impl PartialEq for FullArtist {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq for PartialArtist {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
 }
 
 impl TryFrom<ArtistObject> for Artist {

@@ -10,8 +10,27 @@
 //! - [LocalTrack]: contains only the basic information about a track. Only retrieved through a playlist that contains
 //!   local tracks.
 //!
-//! The track object Spotify returns from the API is not directly available.
-//! TODO: have a way to write these objects into a serializer such that it outputs what the Spotify API returned
+//! Additionally, there is the [Track] enum that encompasses all three kinds of tracks.
+//!
+//! The track object Spotify returns from the API is not directly available. The three track objects, or the [Track]
+//! enum, may be serialized to get almost all of the original API response back. The model strips certain unnecessary or
+//! redundant fields from the response.
+//!
+//! # Track equality and track relinking
+//!
+//! Two tracks are considered equal when their Spotify IDs are the same. However, since [LocalTrack] doesn't have a
+//! Spotify ID, it resorts to comparing all available fields.
+//!
+//! Due to Spotify's
+//! [track relinking](https://developer.spotify.com/documentation/general/guides/track-relinking-guide/), two different
+//! tracks with different IDs may actually refer to the same song. This is evident through the [linked
+//! track](CommonTrackInformation::linked_from) property in every track that is available when requesting for a track
+//! for a certain market. If the original track is not available in the requested market, Spotify will return a version
+//! of the track available in the market that is linked to the original.
+//!
+//! The function [`compare_possible_relinked`](RelinkedTrackEquality::compare_possible_relinked) compares two tracks by
+//! their relinked track IDs if available, and then through their own IDs. Two tracks are considered equal if one's
+//! relinked track ID is the same as the other's own ID, or both tracks are relinked from the same track.
 
 use std::{collections::HashSet, time::Duration};
 
@@ -65,6 +84,7 @@ pub trait CommonTrackInformation: crate::private::Sealed {
     fn available_markets(&self) -> &HashSet<CountryCode>;
     /// Whether or not the track is playable.
     fn is_playable(&self) -> Option<bool>;
+    // TODO: I have a hunch these track relinking things aren't available for local tracks
     /// When [track relinking](https://developer.spotify.com/documentation/general/guides/track-relinking-guide/) is
     /// applied, the original track this track is linked from.
     fn linked_from(&self) -> Option<&LinkedTrack>;
@@ -86,6 +106,26 @@ pub trait FullTrackInformation: crate::private::Sealed {
 pub trait NonLocalTrackInformation: crate::private::Sealed {
     /// The track's Spotify ID.
     fn id(&self) -> &str;
+}
+
+/// Trait for comparing tracks by their IDs while taking possible track relinking into account.
+pub trait RelinkedTrackEquality: crate::private::Sealed + CommonTrackInformation + NonLocalTrackInformation {
+    /// Compare this track to another by their relinked track IDs if available, and then by their IDs.
+    ///
+    /// Two tracks are considered equal if one's relinked track ID is the same as the other's own ID, or both tracks are
+    /// relinked from the same track.
+    fn compare_possible_relinked<T>(&self, other: T) -> bool
+    where
+        T: RelinkedTrackEquality,
+    {
+        self.linked_from()
+            .map(|linked_track| linked_track.id.id())
+            .unwrap_or(self.id())
+            == other
+                .linked_from()
+                .map(|linked_track| linked_track.id.id())
+                .unwrap_or(other.id())
+    }
 }
 
 impl<T> CommonTrackInformation for T
@@ -167,6 +207,8 @@ where
     }
 }
 
+impl<T> RelinkedTrackEquality for T where T: CommonTrackInformation + NonLocalTrackInformation {}
+
 /// An enum that encompasses all track types.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Track {
@@ -244,11 +286,9 @@ struct NonLocalTrackFields {
     id: Id<'static, TrackId>,
 }
 
-// TODO: track equality should only compare their IDs. BUT, since track relinking may mean two different tracks with
-// different IDs are actually the same song, that equality should also be available through a helper method or smth
 /// A full track. Contains [full information](self::FullTrackInformation), in addition to all
 /// [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation) information about a track.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 #[serde(try_from = "TrackObject")]
 pub struct FullTrack {
     common: CommonTrackFields,
@@ -258,7 +298,7 @@ pub struct FullTrack {
 
 /// A partial track. Contains all [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation)
 /// information about a track.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 #[serde(try_from = "TrackObject")]
 pub struct PartialTrack {
     common: CommonTrackFields,
@@ -279,6 +319,18 @@ pub struct LinkedTrack {
     #[serde(default)]
     pub external_urls: ExternalUrls,
     pub id: Id<'static, TrackId>,
+}
+
+impl PartialEq for FullTrack {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq for PartialTrack {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
 }
 
 impl TryFrom<TrackObject> for Track {

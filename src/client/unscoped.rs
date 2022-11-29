@@ -28,11 +28,11 @@ pub trait UnscopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::
 where
     Self: Sized,
 {
-    // TODO: write some documentation about track relinking
     /// Get Spotify catalog information for a single track identified by its unique Spotify ID.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
-    /// returned and track relinking may be applied.
+    /// returned and track relinking may be applied. See [the documentation about track
+    /// relinking](crate::model::track#track-equality-and-track-relinking) for more information.
     ///
     /// This function's synchronous counterpart is [UnscopedSyncClient::track](UnscopedSyncClient::track).
     async fn track(&'a self, track_id: Id<'a, TrackId>, market: Option<CountryCode>) -> Result<FullTrack> {
@@ -57,7 +57,8 @@ where
     /// Up to 50 IDs may be given. In case some IDs cannot be found, they will be omitted from the result.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
-    /// returned and track relinking may be applied.
+    /// returned and track relinking may be applied. See [the documentation about track
+    /// relinking](crate::model::track#track-equality-and-track-relinking) for more information.
     ///
     /// This function's synchronous counterpart is [UnscopedSyncClient::tracks](UnscopedSyncClient::tracks).
     async fn tracks<I>(&'a self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
@@ -105,7 +106,8 @@ where
     /// Get Spotify catalog information for a single track identified by its unique Spotify ID.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
-    /// returned and track relinking may be applied.
+    /// returned and track relinking may be applied. See [the documentation about track
+    /// relinking](crate::model::track#track-equality-and-track-relinking) for more information.
     ///
     /// This function's asynchronous counterpart is [UnscopedAsyncClient::track](UnscopedAsyncClient::track).
     fn track(&'a self, track_id: Id<TrackId>, market: Option<CountryCode>) -> Result<FullTrack> {
@@ -129,7 +131,8 @@ where
     /// Up to 50 IDs may be given. In case some IDs cannot be found, they will be omitted from the result.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
-    /// returned and track relinking may be applied.
+    /// returned and track relinking may be applied. See [the documentation about track
+    /// relinking](crate::model::track#track-equality-and-track-relinking) for more information.
     ///
     /// This function's asynchronous counterpart is [UnscopedAsyncClient::tracks](UnscopedAsyncClient::tracks).
     fn tracks<I>(&'a self, track_ids: I, market: Option<CountryCode>) -> Result<Vec<FullTrack>>
