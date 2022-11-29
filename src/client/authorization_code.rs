@@ -195,7 +195,6 @@ where
 {
     client_id: String,
     redirect_uri: String,
-    state: Option<String>,
     scopes: Option<String>,
     show_dialog: bool,
     pkce_verifier: Option<String>,
@@ -504,7 +503,6 @@ impl AsyncAuthorizationCodeUserClientBuilder {
         Self {
             client_id,
             redirect_uri,
-            state: None,
             scopes: None,
             show_dialog: false,
             pkce_verifier: None,
@@ -520,7 +518,6 @@ impl SyncAuthorizationCodeUserClientBuilder {
         Self {
             client_id,
             redirect_uri,
-            state: None,
             scopes: None,
             show_dialog: false,
             pkce_verifier: None,
@@ -548,17 +545,6 @@ where
         }
     }
 
-    // TODO: I'm not sure there's a reason to let the user specify the state string themselves
-    // pub fn state<S>(self, state: S) -> Self
-    // where
-    //     S: Into<String>,
-    // {
-    //     Self {
-    //         state: Some(state.into()),
-    //         ..self
-    //     }
-    // }
-
     /// Specify the [OAuth authorization scopes](crate::scope::Scope) that the user is asked to grant for the
     /// application.
     pub fn scopes<T>(self, scopes: T) -> Self
@@ -582,15 +568,11 @@ where
 
     /// Finalize the builder and return an [IncompleteAuthorizationCodeUserClient].
     pub fn build(self) -> IncompleteAuthorizationCodeUserClient<C> {
-        let state = if let Some(state) = self.state {
-            state
-        } else {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(RANDOM_STATE_LENGTH)
-                .map(char::from)
-                .collect()
-        };
+        let state = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(RANDOM_STATE_LENGTH)
+            .map(char::from)
+            .collect();
 
         IncompleteAuthorizationCodeUserClient {
             redirect_uri: self.redirect_uri,

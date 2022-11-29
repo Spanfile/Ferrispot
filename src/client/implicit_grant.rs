@@ -146,7 +146,6 @@ where
     C: HttpClient + Clone,
 {
     redirect_uri: String, // TODO: figure if this can be &'a str instead
-    state: Option<String>,
     scopes: Option<String>,
     show_dialog: bool,
 
@@ -211,7 +210,6 @@ where
     pub(super) fn new(redirect_uri: String, spotify_client_ref: Arc<SpotifyClientRef>, http_client: C) -> Self {
         Self {
             redirect_uri,
-            state: None,
             scopes: None,
             show_dialog: false,
 
@@ -219,17 +217,6 @@ where
             http_client,
         }
     }
-
-    // TODO: I'm not sure there's a reason to let the user specify the state string themselves
-    // pub fn state<S>(self, state: S) -> Self
-    // where
-    //     S: Into<String>,
-    // {
-    //     Self {
-    //         state: Some(state.into()),
-    //         ..self
-    //     }
-    // }
 
     pub fn scopes<T>(self, scopes: T) -> Self
     where
@@ -246,15 +233,11 @@ where
     }
 
     pub fn build(self) -> IncompleteImplicitGrantUserClient<C> {
-        let state = if let Some(state) = self.state {
-            state
-        } else {
-            rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(RANDOM_STATE_LENGTH)
-                .map(char::from)
-                .collect()
-        };
+        let state = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(RANDOM_STATE_LENGTH)
+            .map(char::from)
+            .collect();
 
         IncompleteImplicitGrantUserClient {
             redirect_uri: self.redirect_uri,
