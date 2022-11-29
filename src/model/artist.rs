@@ -160,6 +160,7 @@ struct NonLocalArtistFields {
     id: Id<'static, ArtistId>,
 }
 
+// TODO: artist equality should only compare their IDs. does track relinking also apply to artists?
 /// A full artist. Contains [full information](self::FullArtistInformation), in addition to all
 /// [common](self::CommonArtistInformation) and [non-local](self::NonLocalArtistInformation) information about an
 /// artist.

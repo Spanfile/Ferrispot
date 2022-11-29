@@ -256,6 +256,7 @@ struct NonLocalAlbumFields {
     release_date_precision: DatePrecision,
 }
 
+// TODO: album equality should only compare their IDs. does track relinking also apply to albums?
 /// A full album. Contains [full information](self::FullAlbumInformation), in addition to all
 /// [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation) information about an album.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

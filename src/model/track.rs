@@ -244,6 +244,8 @@ struct NonLocalTrackFields {
     id: Id<'static, TrackId>,
 }
 
+// TODO: track equality should only compare their IDs. BUT, since track relinking may mean two different tracks with
+// different IDs are actually the same song, that equality should also be available through a helper method or smth
 /// A full track. Contains [full information](self::FullTrackInformation), in addition to all
 /// [common](self::CommonTrackInformation) and [non-local](self::NonLocalTrackInformation) information about a track.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
