@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::{client::SpotifyClientBuilder, prelude::*};
+use ferrispot::{client::SpotifyClientBuilder, model::id::Id, prelude::*};
 
 #[tokio::main]
 async fn main() {
@@ -32,8 +32,20 @@ async fn main() {
         .await
         .expect("failed to finalize authorization code client");
 
-    user_client
-        .refresh_access_token()
+    // all scoped endpoints are now available
+    let playback_state = user_client.playback_state().await.unwrap();
+    println!("{:?}", playback_state);
+
+    // as well as all unscoped endpoints
+    let one_track = user_client
+        .track(Id::from_bare("2PoYyfBkedDBPGAh0ZUoHW").unwrap(), None)
         .await
-        .expect("failed to refresh access token");
+        .unwrap();
+
+    println!(
+        "{} - {} ({})",
+        one_track.name(),
+        one_track.artists().first().unwrap().name(),
+        one_track.album().name()
+    );
 }

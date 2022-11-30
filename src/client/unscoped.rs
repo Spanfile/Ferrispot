@@ -45,6 +45,8 @@ where
 
         trace!("Track response: {:?}", response);
 
+        // TODO: handle 404
+
         let track_object: TrackObject = response.json().await?;
         trace!("Track body: {:?}", track_object);
 
@@ -118,6 +120,8 @@ where
             .map_err(super::response_to_error)?;
 
         trace!("Track response: {:?}", response);
+
+        // TODO: handle 404
 
         let track_object: TrackObject = response.json()?;
         trace!("Track body: {:?}", track_object);
