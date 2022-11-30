@@ -112,6 +112,14 @@ pub type SyncImplicitGrantUserClientBuilder = ImplicitGrantUserClientBuilder<Syn
 /// A client that uses the implicit grant flow to authenticate an user with Spotify. See the [module-level docs](self)
 /// for more information.
 ///
+/// Implements all the [scoped](crate::client::ScopedAsyncClient) and [unscoped
+/// endpoints](crate::client::UnscopedAsyncClient).
+///
+/// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
+/// client types directly, hence there are type aliases for both kinds of clients: [AsyncImplicitGrantUserClient] and
+/// [SyncImplicitGrantUserClient]. Likewise, both the builder struct and the incomplete client struct are similarly
+/// generic, and have equivalent type aliases.
+///
 /// This client uses `Arc` internally, so you do not need to wrap it in an `Arc` in order to reuse it.
 #[derive(Debug, Clone)]
 pub struct ImplicitGrantUserClient<C>

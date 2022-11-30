@@ -5,13 +5,13 @@
 //!
 //! # Features
 //!
-//! - Type-safe clients and model
-//! - Asynchronous and synchronous (blocking) clients
-//! - Every OAuth authorization flow Spotify supports is implemented
-//! - Supports multiple simultaneous user clients
-//! - Automatically refreshes access tokens when they expire, where applicable
+//! - Type-safe clients and model.
+//! - Asynchronous and synchronous (blocking) clients.
+//! - Every OAuth authorization flow Spotify supports is implemented.
+//! - Supports multiple simultaneous user clients.
+//! - Automatically refreshes access tokens when they expire, where applicable.
 //! - Reacts to API rate limits using either Tokio's or async-std's sleep functions at your discretion when using an
-//!   asynchronous client. Synchronous clients block the running thread
+//!   asynchronous client. Synchronous clients block the running thread.
 //!
 //! # Usage
 //!

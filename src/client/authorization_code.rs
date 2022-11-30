@@ -149,6 +149,11 @@ pub type SyncAuthorizationCodeUserClientBuilder = AuthorizationCodeUserClientBui
 /// Implements all the [scoped](crate::client::ScopedAsyncClient) and [unscoped
 /// endpoints](crate::client::UnscopedAsyncClient).
 ///
+/// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
+/// client types directly, hence there are type aliases for both kinds of clients: [AsyncAuthorizationCodeUserClient]
+/// and [SyncAuthorizationCodeUserClient]. Likewise, both the builder struct and the incomplete client struct are
+/// similarly generic, and have equivalent type aliases.
+///
 /// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
 /// order to reuse it.
 #[derive(Debug, Clone)]

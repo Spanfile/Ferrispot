@@ -200,6 +200,10 @@ pub trait AccessTokenRefreshSync: crate::private::Sealed {
 /// PKCE](authorization_code::AuthorizationCodeUserClient) or an
 /// [ImplicitGrantUserClient](implicit_grant::ImplicitGrantUserClient).
 ///
+/// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
+/// client types directly, hence there are type aliases for both kinds of clients: [AsyncSpotifyClient] and
+/// [SyncSpotifyClient]. Likewise, the builder struct is similarly generic, and has equivalent type aliases.
+///
 /// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
 /// order to reuse it.
 #[derive(Debug, Clone)]
@@ -221,6 +225,10 @@ struct SpotifyClientRef {
 /// This client can be used to access all [unscoped Spotify endpoints](UnscopedAsyncClient). It can also be used to
 /// retrieve an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that
 /// can access all [scoped endpoints](ScopedAsyncClient).
+///
+/// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
+/// client types directly, hence there are type aliases for both kinds of clients: [AsyncSpotifyClientWithSecret] and
+/// [SyncSpotifyClientWithSecret]. Likewise, the builder struct is similarly generic, and has equivalent type aliases.
 ///
 /// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
 /// order to reuse it.
