@@ -66,7 +66,7 @@ use std::sync::Arc;
 
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Method, Url};
+use reqwest::{IntoUrl, Method, Url};
 
 #[cfg(feature = "async")]
 use super::private::AsyncClient;
@@ -263,7 +263,10 @@ impl<C> crate::private::Sealed for ImplicitGrantUserClient<C> where C: HttpClien
 
 #[cfg(feature = "async")]
 impl private::BuildHttpRequestAsync for AsyncImplicitGrantUserClient {
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+    {
         self.http_client
             .request(method, url)
             .bearer_auth(self.inner.access_token.as_str())
@@ -272,7 +275,10 @@ impl private::BuildHttpRequestAsync for AsyncImplicitGrantUserClient {
 
 #[cfg(feature = "sync")]
 impl private::BuildHttpRequestSync for SyncImplicitGrantUserClient {
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::blocking::RequestBuilder
+    where
+        U: IntoUrl,
+    {
         self.http_client
             .request(method, url)
             .bearer_auth(self.inner.access_token.as_str())

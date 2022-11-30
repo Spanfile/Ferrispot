@@ -95,10 +95,7 @@ use std::sync::{Arc, RwLock};
 
 use const_format::concatcp;
 use log::debug;
-use reqwest::{
-    header::{self, HeaderMap},
-    Method, StatusCode, Url,
-};
+use reqwest::{header, IntoUrl, Method, StatusCode};
 use serde::Deserialize;
 
 use self::implicit_grant::ImplicitGrantUserClientBuilder;
@@ -244,9 +241,7 @@ where
 #[derive(Debug)]
 struct SpotifyClientWithSecretRef {
     client_id: String,
-    // there's no use to store the client secret here (it's already in the HTTP client), but there might be in the
-    // future
-    // client_secret: String,
+    client_secret: String,
     access_token: RwLock<String>,
 }
 
@@ -489,22 +484,6 @@ impl SpotifyClientBuilder {
 }
 
 impl SpotifyClientWithSecretBuilder {
-    fn get_default_headers(&self) -> HeaderMap {
-        let mut default_headers = header::HeaderMap::new();
-        default_headers.insert(
-            header::AUTHORIZATION,
-            header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
-                // this can only fail if the header value contains non-ASCII characters, which shouldn't happen since
-                // the given header value is in base64
-                .expect(
-                    "failed to insert authorization header into header map: non-ASCII characters in value (this is \
-                     likely a bug)",
-                ),
-        );
-
-        default_headers
-    }
-
     fn build_client<C>(self, token_response: ClientTokenResponse, http_client: C) -> SpotifyClientWithSecret<C>
     where
         C: private::HttpClient + Clone,
@@ -514,7 +493,7 @@ impl SpotifyClientWithSecretBuilder {
         SpotifyClientWithSecret {
             inner: Arc::new(SpotifyClientWithSecretRef {
                 client_id: self.client_id,
-                // client_secret: self.client_secret,
+                client_secret: self.client_secret,
                 access_token: RwLock::new(token_response.access_token),
             }),
             http_client,
@@ -531,7 +510,6 @@ impl SpotifyClientWithSecretBuilder {
 
         let http_client = AsyncClient(
             reqwest::Client::builder()
-                .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
                 .expect("failed to build HTTP client: system error or system misconfiguration"),
@@ -539,6 +517,10 @@ impl SpotifyClientWithSecretBuilder {
 
         let response = http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .header(
+                header::AUTHORIZATION,
+                build_authorization_header(&self.client_id, &self.client_secret),
+            )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
@@ -560,7 +542,6 @@ impl SpotifyClientWithSecretBuilder {
 
         let http_client = SyncClient(
             reqwest::blocking::Client::builder()
-                .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
                 .expect("failed to build blocking HTTP client: system error or system misconfiguration"),
@@ -568,6 +549,10 @@ impl SpotifyClientWithSecretBuilder {
 
         let response = http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .header(
+                header::AUTHORIZATION,
+                build_authorization_header(&self.client_id, &self.client_secret),
+            )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 
@@ -582,7 +567,10 @@ impl<C> crate::private::Sealed for SpotifyClientWithSecret<C> where C: private::
 
 #[cfg(feature = "async")]
 impl private::BuildHttpRequestAsync for AsyncSpotifyClientWithSecret {
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+    {
         let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
@@ -590,7 +578,10 @@ impl private::BuildHttpRequestAsync for AsyncSpotifyClientWithSecret {
 
 #[cfg(feature = "sync")]
 impl private::BuildHttpRequestSync for SyncSpotifyClientWithSecret {
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::blocking::RequestBuilder
+    where
+        U: IntoUrl,
+    {
         let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
@@ -616,9 +607,15 @@ impl AccessTokenRefreshAsync for AsyncSpotifyClientWithSecret {
     async fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
 
+        // skip the SendHttpRequest trait since it injects a Bearer auth header with the access token, but the token
+        // refresh uses a Basic auth header with a special value
         let response = self
             .http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .header(
+                header::AUTHORIZATION,
+                build_authorization_header(&self.inner.client_id, &self.inner.client_secret),
+            )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
@@ -639,9 +636,15 @@ impl AccessTokenRefreshSync for SyncSpotifyClientWithSecret {
     fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
 
+        // skip the SendHttpRequest trait since it injects a Bearer auth header with the access token, but the token
+        // refresh uses a Basic auth header with a special value
         let response = self
             .http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .header(
+                header::AUTHORIZATION,
+                build_authorization_header(&self.inner.client_id, &self.inner.client_secret),
+            )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 

@@ -45,7 +45,7 @@ mod sync_client {
 use log::{error, warn};
 use reqwest::{
     header::{self, HeaderMap},
-    Method, StatusCode, Url,
+    IntoUrl, Method, StatusCode, Url,
 };
 use serde::Serialize;
 
@@ -66,18 +66,22 @@ pub trait HttpClient {
 #[cfg(feature = "async")]
 pub trait BuildHttpRequestAsync: crate::private::Sealed {
     /// Returns a new async [RequestBuilder](reqwest::RequestBuilder) with any necessary information (e.g.
-    /// authentication headers) filled in. You probably shouldn't call this function directly; instead use
-    /// [send_http_request](crate::client::private::SendHttpRequest::send_http_request).
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder;
+    /// authentication headers) filled in. This method doesn't account for any known Spotify error responses
+    /// automatically; for that you should use [send_http_request](SendHttpRequestAsync::send_http_request)
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl;
 }
 
 /// Every Spotify client implements this trait.
 #[cfg(feature = "sync")]
 pub trait BuildHttpRequestSync: crate::private::Sealed {
     /// Returns a new async [RequestBuilder](reqwest::blocking::RequestBuilder) with any necessary information (e.g.
-    /// authentication headers) filled in. You probably shouldn't call this function directly; instead use
-    /// [send_http_request](crate::client::private::SendHttpRequest::send_http_request).
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder;
+    /// authentication headers) filled in. This method doesn't account for any known Spotify error responses
+    /// automatically; for that you should use [send_http_request](SendHttpRequestAsync::send_http_request)
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::blocking::RequestBuilder
+    where
+        U: IntoUrl;
 }
 
 /// Every Spotify client implements this trait.
@@ -86,7 +90,11 @@ pub trait SendHttpRequestAsync<'a>: BuildHttpRequestAsync + AccessTokenExpiryAsy
 where
     Self: 'a,
 {
-    fn send_http_request(&'a self, method: Method, url: Url) -> PrivateRequestBuilder<'a, Self, ()>;
+    /// Returns a new [PrivateRequestBuilder] with any necessary information (e.g. authentication headers) filled in.
+    /// The request builder will account for known Spotify error responses and will react accordingly.
+    fn send_http_request<U>(&'a self, method: Method, url: U) -> PrivateRequestBuilder<'a, Self, ()>
+    where
+        U: IntoUrl;
 }
 
 /// Every Spotify client implements this trait.
@@ -95,7 +103,11 @@ pub trait SendHttpRequestSync<'a>: BuildHttpRequestSync + AccessTokenExpirySync
 where
     Self: 'a,
 {
-    fn send_http_request(&'a self, method: Method, url: Url) -> PrivateRequestBuilder<'a, Self, ()>;
+    /// Returns a new [PrivateRequestBuilder] with any necessary information (e.g. authentication headers) filled in.
+    /// The request builder will account for known Spotify error responses and will react accordingly.
+    fn send_http_request<U>(&'a self, method: Method, url: U) -> PrivateRequestBuilder<'a, Self, ()>
+    where
+        U: IntoUrl;
 }
 
 /// Every Spotify client implements this trait.
@@ -137,11 +149,16 @@ impl<'a, C> SendHttpRequestAsync<'a> for C
 where
     C: BuildHttpRequestAsync + AccessTokenExpiryAsync + Sync + 'a,
 {
-    fn send_http_request(&'a self, method: Method, url: Url) -> PrivateRequestBuilder<'a, Self, ()> {
+    fn send_http_request<U>(&'a self, method: Method, url: U) -> PrivateRequestBuilder<'a, Self, ()>
+    where
+        U: IntoUrl,
+    {
         PrivateRequestBuilder {
             client: self,
             method,
-            url,
+            url: url
+                .into_url()
+                .expect("failed to parse URL string (this is likely a bug in the library)"),
             body: None,
         }
     }
@@ -152,11 +169,16 @@ impl<'a, C> SendHttpRequestSync<'a> for C
 where
     C: BuildHttpRequestSync + AccessTokenExpirySync + Sync + 'a,
 {
-    fn send_http_request(&'a self, method: Method, url: Url) -> PrivateRequestBuilder<'a, Self, ()> {
+    fn send_http_request<U>(&'a self, method: Method, url: U) -> PrivateRequestBuilder<'a, Self, ()>
+    where
+        U: IntoUrl,
+    {
         PrivateRequestBuilder {
             client: self,
             method,
-            url,
+            url: url
+                .into_url()
+                .expect("failed to parse URL string (this is likely a bug in the library)"),
             body: None,
         }
     }

@@ -96,16 +96,22 @@ use std::sync::{Arc, RwLock};
 
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{Method, Url};
+use reqwest::{IntoUrl, Method, Url};
 use serde::Deserialize;
 use sha2::Digest;
 
-#[cfg(feature = "async")]
-use super::private::AsyncClient;
-#[cfg(feature = "sync")]
-use super::private::SyncClient;
 use super::{
     private, ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
+};
+#[cfg(feature = "async")]
+use super::{
+    private::{AsyncClient, BuildHttpRequestAsync},
+    AccessTokenRefreshAsync,
+};
+#[cfg(feature = "sync")]
+use super::{
+    private::{BuildHttpRequestSync, SyncClient},
+    AccessTokenRefreshSync,
 };
 use crate::{
     error::{Error, Result},
@@ -596,7 +602,10 @@ impl<C> crate::private::Sealed for AuthorizationCodeUserClient<C> where C: priva
 
 #[cfg(feature = "async")]
 impl private::BuildHttpRequestAsync for AsyncAuthorizationCodeUserClient {
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::RequestBuilder {
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+    {
         let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
@@ -604,7 +613,10 @@ impl private::BuildHttpRequestAsync for AsyncAuthorizationCodeUserClient {
 
 #[cfg(feature = "sync")]
 impl private::BuildHttpRequestSync for SyncAuthorizationCodeUserClient {
-    fn build_http_request(&self, method: Method, url: Url) -> reqwest::blocking::RequestBuilder {
+    fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::blocking::RequestBuilder
+    where
+        U: IntoUrl,
+    {
         let access_token = self.inner.access_token.read().expect("access token rwlock poisoned");
         self.http_client.request(method, url).bearer_auth(access_token.as_str())
     }
@@ -637,8 +649,7 @@ impl super::AccessTokenRefreshAsync for AsyncAuthorizationCodeUserClient {
             );
 
             let request = self
-                .http_client
-                .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+                .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
                 .form(&build_refresh_token_request_form(
                     &refresh_token,
                     self.inner.client_id.as_deref(),
@@ -673,8 +684,7 @@ impl super::AccessTokenRefreshSync for SyncAuthorizationCodeUserClient {
         );
 
         let response = self
-            .http_client
-            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
+            .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(&build_refresh_token_request_form(
                 &refresh_token,
                 self.inner.client_id.as_deref(),
@@ -696,8 +706,6 @@ impl super::AccessTokenRefreshSync for SyncAuthorizationCodeUserClient {
 #[async_trait::async_trait]
 impl private::AccessTokenExpiryAsync for AsyncAuthorizationCodeUserClient {
     async fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
-        use super::AccessTokenRefreshAsync;
-
         self.refresh_access_token().await?;
         Ok(private::AccessTokenExpiryResult::Ok)
     }
@@ -707,8 +715,6 @@ impl private::AccessTokenExpiryAsync for AsyncAuthorizationCodeUserClient {
 #[async_trait::async_trait]
 impl private::AccessTokenExpirySync for SyncAuthorizationCodeUserClient {
     fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
-        use super::AccessTokenRefreshSync;
-
         self.refresh_access_token()?;
         Ok(private::AccessTokenExpiryResult::Ok)
     }
