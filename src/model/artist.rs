@@ -104,7 +104,7 @@ where
     T: private::NonLocalFields + crate::private::Sealed,
 {
     fn id(&self) -> &str {
-        self.non_local_fields().id.id()
+        self.non_local_fields().id.as_str()
     }
 }
 

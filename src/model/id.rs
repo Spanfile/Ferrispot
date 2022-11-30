@@ -178,7 +178,7 @@ pub trait IdTrait<'a>: private::Sealed {
     type StaticSelf: 'static;
 
     /// Returns this ID as a bare Spotify ID.
-    fn id(&'a self) -> &'a str;
+    fn as_str(&'a self) -> &'a str;
 
     /// Returns this ID as a Spotify URI.
     ///
@@ -584,7 +584,7 @@ where
 {
     type StaticSelf = Id<'static, T>;
 
-    fn id(&self) -> &str {
+    fn as_str(&self) -> &str {
         match self.kind {
             IdKind::Uri(index) => &self.value[index..],
             IdKind::Url(index) => &self.value[index..index + ID_LENGTH],
@@ -634,10 +634,10 @@ where
 impl<'a> IdTrait<'a> for SpotifyId<'a> {
     type StaticSelf = SpotifyId<'static>;
 
-    fn id(&'a self) -> &'a str {
+    fn as_str(&'a self) -> &'a str {
         match self {
-            SpotifyId::Item(item) => item.id(),
-            SpotifyId::Context(context) => context.id(),
+            SpotifyId::Item(item) => item.as_str(),
+            SpotifyId::Context(context) => context.as_str(),
         }
     }
 
@@ -666,10 +666,10 @@ impl<'a> IdTrait<'a> for SpotifyId<'a> {
 impl<'a> IdTrait<'a> for PlayableItem<'a> {
     type StaticSelf = PlayableItem<'static>;
 
-    fn id(&self) -> &str {
+    fn as_str(&self) -> &str {
         match self {
-            PlayableItem::Track(track) => track.id(),
-            PlayableItem::Episode(episode) => episode.id(),
+            PlayableItem::Track(track) => track.as_str(),
+            PlayableItem::Episode(episode) => episode.as_str(),
         }
     }
 
@@ -698,12 +698,12 @@ impl<'a> IdTrait<'a> for PlayableItem<'a> {
 impl<'a> IdTrait<'a> for PlayableContext<'a> {
     type StaticSelf = PlayableContext<'static>;
 
-    fn id(&self) -> &str {
+    fn as_str(&self) -> &str {
         match self {
-            PlayableContext::Artist(artist) => artist.id(),
-            PlayableContext::Album(album) => album.id(),
-            PlayableContext::Playlist(playlist) => playlist.id(),
-            PlayableContext::Show(show) => show.id(),
+            PlayableContext::Artist(artist) => artist.as_str(),
+            PlayableContext::Album(album) => album.as_str(),
+            PlayableContext::Playlist(playlist) => playlist.as_str(),
+            PlayableContext::Show(show) => show.as_str(),
         }
     }
 
@@ -740,25 +740,25 @@ where
     T: ItemTypeId + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.id())
+        f.write_str(self.as_str())
     }
 }
 
 impl<'a> fmt::Display for PlayableItem<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.id())
+        f.write_str(self.as_str())
     }
 }
 
 impl<'a> fmt::Display for PlayableContext<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.id())
+        f.write_str(self.as_str())
     }
 }
 
 impl<'a> fmt::Display for SpotifyId<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.id())
+        f.write_str(self.as_str())
     }
 }
 
@@ -1168,7 +1168,7 @@ mod tests {
         let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1176,7 +1176,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1184,7 +1184,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu?si=AAAAAAAAAA";
         let id = Id::<TrackId>::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1192,7 +1192,7 @@ mod tests {
         let id_string = "2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_bare(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1200,7 +1200,7 @@ mod tests {
         let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
         let id = Id::<AlbumId>::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1208,7 +1208,7 @@ mod tests {
         let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
         let id = Id::<AlbumId>::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1216,7 +1216,7 @@ mod tests {
         let id_string = "0tDsHtvN9YNuZjlqHvDY2P";
         let id = Id::<AlbumId>::from_bare(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1224,7 +1224,7 @@ mod tests {
         let id_string = "spotify:artist:6pNgnvzBa6Bthsv8SrZJYl";
         let id = Id::<ArtistId>::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "6pNgnvzBa6Bthsv8SrZJYl");
+        assert_eq!(id.as_str(), "6pNgnvzBa6Bthsv8SrZJYl");
     }
 
     #[test]
@@ -1232,7 +1232,7 @@ mod tests {
         let id_string = "https://open.spotify.com/artist/6pNgnvzBa6Bthsv8SrZJYl";
         let id = Id::<ArtistId>::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "6pNgnvzBa6Bthsv8SrZJYl");
+        assert_eq!(id.as_str(), "6pNgnvzBa6Bthsv8SrZJYl");
     }
 
     #[test]
@@ -1240,7 +1240,7 @@ mod tests {
         let id_string = "6pNgnvzBa6Bthsv8SrZJYl";
         let id = Id::<ArtistId>::from_bare(id_string).unwrap();
 
-        assert_eq!(id.id(), "6pNgnvzBa6Bthsv8SrZJYl");
+        assert_eq!(id.as_str(), "6pNgnvzBa6Bthsv8SrZJYl");
     }
 
     #[test]
@@ -1248,7 +1248,7 @@ mod tests {
         let id_string = "spotify:playlist:37i9dQZF1DWZipvLjDtZYe";
         let id = Id::<PlaylistId>::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "37i9dQZF1DWZipvLjDtZYe");
+        assert_eq!(id.as_str(), "37i9dQZF1DWZipvLjDtZYe");
     }
 
     #[test]
@@ -1256,7 +1256,7 @@ mod tests {
         let id_string = "https://open.spotify.com/playlist/37i9dQZF1DWZipvLjDtZYe";
         let id = Id::<PlaylistId>::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "37i9dQZF1DWZipvLjDtZYe");
+        assert_eq!(id.as_str(), "37i9dQZF1DWZipvLjDtZYe");
     }
 
     #[test]
@@ -1264,7 +1264,7 @@ mod tests {
         let id_string = "37i9dQZF1DWZipvLjDtZYe";
         let id = Id::<PlaylistId>::from_bare(id_string).unwrap();
 
-        assert_eq!(id.id(), "37i9dQZF1DWZipvLjDtZYe");
+        assert_eq!(id.as_str(), "37i9dQZF1DWZipvLjDtZYe");
     }
 
     #[test]
@@ -1272,7 +1272,7 @@ mod tests {
         let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = PlayableItem::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1280,7 +1280,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = PlayableItem::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1288,7 +1288,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu?si=AAAAAAAAAA";
         let id = PlayableItem::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1296,7 +1296,7 @@ mod tests {
         let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
         let id = PlayableContext::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1304,7 +1304,7 @@ mod tests {
         let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
         let id = PlayableContext::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1312,7 +1312,7 @@ mod tests {
         let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P?si=AAAAAAAAAA";
         let id = PlayableContext::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1320,7 +1320,7 @@ mod tests {
         let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = SpotifyId::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1328,7 +1328,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = SpotifyId::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1336,7 +1336,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu?si=AAAAAAAAAA";
         let id = SpotifyId::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1344,7 +1344,7 @@ mod tests {
         let id_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
         let id = SpotifyId::from_uri(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1352,7 +1352,7 @@ mod tests {
         let id_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
         let id = SpotifyId::from_url(id_string).unwrap();
 
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1363,8 +1363,8 @@ mod tests {
         let url_id = SpotifyId::from_url_or_uri(url_string).unwrap();
         let uri_id = SpotifyId::from_url_or_uri(uri_string).unwrap();
 
-        assert_eq!(url_id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
-        assert_eq!(uri_id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(url_id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(uri_id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1517,7 +1517,7 @@ mod tests {
         let json = "\"spotify:track:2pDPOMX0kWA7kcPBcDCQBu\"";
         let id: Id<TrackId> = serde_json::from_str(json).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1525,7 +1525,7 @@ mod tests {
         let json = "\"https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu\"";
         let id: Id<TrackId> = serde_json::from_str(json).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1533,7 +1533,7 @@ mod tests {
         let json = "\"2pDPOMX0kWA7kcPBcDCQBu\"";
         let id: Id<TrackId> = serde_json::from_str(json).unwrap();
 
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1542,7 +1542,7 @@ mod tests {
         let id: PlayableItem = serde_json::from_str(json).unwrap();
 
         assert!(matches!(id, PlayableItem::Track(_)));
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1551,7 +1551,7 @@ mod tests {
         let id: PlayableItem = serde_json::from_str(json).unwrap();
 
         assert!(matches!(id, PlayableItem::Track(_)));
-        assert_eq!(id.id(), "2pDPOMX0kWA7kcPBcDCQBu");
+        assert_eq!(id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
     }
 
     #[test]
@@ -1568,7 +1568,7 @@ mod tests {
         let id: PlayableContext = serde_json::from_str(json).unwrap();
 
         assert!(matches!(id, PlayableContext::Album(_)));
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1577,7 +1577,7 @@ mod tests {
         let id: PlayableContext = serde_json::from_str(json).unwrap();
 
         assert!(matches!(id, PlayableContext::Album(_)));
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1594,7 +1594,7 @@ mod tests {
         let id: SpotifyId = serde_json::from_str(json).unwrap();
 
         assert!(matches!(id, SpotifyId::Context(PlayableContext::Album(_))));
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]
@@ -1603,7 +1603,7 @@ mod tests {
         let id: SpotifyId = serde_json::from_str(json).unwrap();
 
         assert!(matches!(id, SpotifyId::Context(PlayableContext::Album(_))));
-        assert_eq!(id.id(), "0tDsHtvN9YNuZjlqHvDY2P");
+        assert_eq!(id.as_str(), "0tDsHtvN9YNuZjlqHvDY2P");
     }
 
     #[test]

@@ -119,11 +119,11 @@ pub trait RelinkedTrackEquality: crate::private::Sealed + CommonTrackInformation
         T: RelinkedTrackEquality,
     {
         self.linked_from()
-            .map(|linked_track| linked_track.id.id())
+            .map(|linked_track| linked_track.id.as_str())
             .unwrap_or(self.id())
             == other
                 .linked_from()
-                .map(|linked_track| linked_track.id.id())
+                .map(|linked_track| linked_track.id.as_str())
                 .unwrap_or(other.id())
     }
 }
@@ -203,7 +203,7 @@ where
     T: private::NonLocalFields + crate::private::Sealed,
 {
     fn id(&self) -> &str {
-        self.non_local_fields().id.id()
+        self.non_local_fields().id.as_str()
     }
 }
 

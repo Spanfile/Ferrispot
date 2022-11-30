@@ -187,11 +187,11 @@ fn build_track_url(track_id: &Id<TrackId>, market: Option<CountryCode>) -> Url {
     // TODO: not really a fan of how the path has to be string formatted and then parsed into an URL
     if let Some(market) = market {
         Url::parse_with_params(
-            &format!("{}/{}", API_TRACKS_ENDPOINT, track_id.id()),
+            &format!("{}/{}", API_TRACKS_ENDPOINT, track_id.as_str()),
             &[("market", market.to_string())],
         )
     } else {
-        Url::parse(&format!("{}/{}", API_TRACKS_ENDPOINT, track_id.id()))
+        Url::parse(&format!("{}/{}", API_TRACKS_ENDPOINT, track_id.as_str()))
     }
     .expect("failed to build API track endpoint URL (this is likely a bug in the library)")
 }
@@ -204,7 +204,7 @@ where
         "ids",
         tracks
             .into_iter()
-            .map(|id| id.id().to_owned())
+            .map(|id| id.as_str().to_owned())
             .collect::<Vec<_>>()
             .join(","),
     )];

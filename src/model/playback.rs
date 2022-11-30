@@ -2,9 +2,10 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-use super::{track::FullTrack, ExternalUrls, ItemType};
+use super::{id::PlayableContext, track::FullTrack, ExternalUrls, ItemType};
 use crate::util::duration_millis;
 
+/// A device in an user's account that may be used for playback.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Device {
     name: String,
@@ -19,6 +20,7 @@ pub struct Device {
     device_type: DeviceType,
 }
 
+/// A device's type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum DeviceType {
     Computer,
@@ -36,6 +38,8 @@ pub enum DeviceType {
     Unknown,
 }
 
+/// Current playback state. Contains information about which device is playing, what the repeat and shuffle states are
+/// and which item is currently playing.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PlaybackState {
     device: Device,
@@ -46,6 +50,7 @@ pub struct PlaybackState {
     currently_playing: CurrentlyPlayingItem,
 }
 
+/// Currently playing item.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CurrentlyPlayingItem {
     timestamp: u64, // TODO: this is an unix epoch
@@ -56,6 +61,10 @@ pub struct CurrentlyPlayingItem {
     public_playing_track: Option<PublicPlayingItem>,
 }
 
+/// A public playing item.
+///
+/// Public refers to the playing item being publicly available through the API. If the user has enabled a private
+/// session, or the item is unavailable for some other reason, the item is not considered public.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PublicPlayingItem {
     context: Context,
@@ -65,44 +74,49 @@ pub struct PublicPlayingItem {
     item: PlayingType,
 }
 
+/// The context of the current playback (i.e. album, artist, playlist or show).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Context {
     #[serde(rename = "type")]
     context_type: ItemType,
     #[serde(default)]
     external_urls: ExternalUrls,
-    uri: String,
+    uri: PlayableContext<'static>,
 }
 
+/// What actions can be taken on the current playing item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub struct Actions {
+    /// Disallowed actions on the current playing item.
     pub disallows: Disallows,
 }
 
+/// Disallowed actions on the current playing item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub struct Disallows {
     #[serde(default)]
-    interrupting_playback: bool,
+    pub interrupting_playback: bool,
     #[serde(default)]
-    pausing: bool,
+    pub pausing: bool,
     #[serde(default)]
-    resuming: bool,
+    pub resuming: bool,
     #[serde(default)]
-    seeking: bool,
+    pub seeking: bool,
     #[serde(default)]
-    skipping_next: bool,
+    pub skipping_next: bool,
     #[serde(default)]
-    skipping_prev: bool,
+    pub skipping_prev: bool,
     #[serde(default)]
-    toggling_repeat_context: bool,
+    pub toggling_repeat_context: bool,
     #[serde(default)]
-    toggling_shuffle: bool,
+    pub toggling_shuffle: bool,
     #[serde(default)]
-    toggling_repeat_track: bool,
+    pub toggling_repeat_track: bool,
     #[serde(default)]
-    transferring_playback: bool,
+    pub transferring_playback: bool,
 }
 
+/// The kind of item that is playing.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "currently_playing_type", content = "item")]
 #[non_exhaustive]
@@ -114,6 +128,7 @@ pub enum PlayingType {
     // Unknown
 }
 
+/// Possible item repeat states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RepeatState {
@@ -181,10 +196,12 @@ impl PlaybackState {
         self.shuffle_state
     }
 
+    /// The currently playing item.
     pub fn currently_playing_item(&self) -> &CurrentlyPlayingItem {
         &self.currently_playing
     }
 
+    /// The currently playing item. Take ownership of the value.
     pub fn take_currently_playing_item(self) -> CurrentlyPlayingItem {
         self.currently_playing
     }
@@ -218,7 +235,7 @@ impl CurrentlyPlayingItem {
 }
 
 impl PublicPlayingItem {
-    /// The item's context.
+    /// The item's playback context (i.e. album, artist, playlist or show).
     pub fn context(&self) -> &Context {
         &self.context
     }
@@ -248,3 +265,13 @@ impl RepeatState {
         }
     }
 }
+
+// impl Context {
+//     pub fn external_urls(&self) -> &ExternalUrls {
+//         &self.external_urls
+//     }
+
+//     pub fn id<'a>(&'a self) -> PlayableContext<'a> {
+//         self.uri
+//     }
+// }

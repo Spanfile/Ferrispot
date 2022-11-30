@@ -167,7 +167,7 @@ where
     }
 
     fn id(&self) -> &str {
-        self.non_local_fields().id.id()
+        self.non_local_fields().id.as_str()
     }
 
     fn release_date(&self) -> &str {
