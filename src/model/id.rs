@@ -144,7 +144,7 @@
 //! let artist_from_url = SpotifyId::from_url(artist_url_string).unwrap();
 //! ```
 
-use std::{borrow::Cow, marker::PhantomData};
+use std::{borrow::Cow, fmt, marker::PhantomData};
 
 use serde::{
     de::{self, Visitor},
@@ -254,7 +254,7 @@ where
 {
     value: Cow<'a, str>,
     kind: IdKind,
-    phantom: PhantomData<&'a T>,
+    phantom: PhantomData<T>,
 }
 
 /// Specifies a kind of ID.
@@ -735,6 +735,33 @@ impl<'a> IdTrait<'a> for PlayableContext<'a> {
     }
 }
 
+impl<'a, T> fmt::Display for Id<'a, T>
+where
+    T: ItemTypeId + 'static,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
+    }
+}
+
+impl<'a> fmt::Display for PlayableItem<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
+    }
+}
+
+impl<'a> fmt::Display for PlayableContext<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
+    }
+}
+
+impl<'a> fmt::Display for SpotifyId<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.id())
+    }
+}
+
 impl<'a> From<PlayableItem<'a>> for SpotifyId<'a> {
     fn from(item: PlayableItem<'a>) -> Self {
         Self::Item(item)
@@ -999,7 +1026,7 @@ impl<'de> Deserialize<'de> for PlayableContext<'static> {
 
 impl<'de, T> Deserialize<'de> for Id<'static, T>
 where
-    T: ItemTypeId,
+    T: ItemTypeId + 'static,
 {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where

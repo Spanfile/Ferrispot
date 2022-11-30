@@ -32,6 +32,8 @@ async fn main() {
                 Id::from_bare("3mXLyNsVeLelMakgpGUp1f").unwrap(),
                 Id::from_bare("367IrkRR4wk5WtSL41rONn").unwrap(),
                 Id::from_bare("1GxzaUNoSvzNqL4JB9ztXq").unwrap(),
+                // nonexistent tracks are omitted from the result without returning an error
+                Id::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap(),
             ],
             None,
         )
@@ -46,4 +48,11 @@ async fn main() {
             track.album().name()
         );
     }
+
+    let nonexistent_id_error = spotify_client
+        .track(Id::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap(), None)
+        .await
+        .unwrap_err();
+
+    println!("{}", nonexistent_id_error);
 }

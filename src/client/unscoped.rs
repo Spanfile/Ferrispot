@@ -1,13 +1,13 @@
 mod search_builder;
 
 use log::trace;
-use reqwest::{Method, Url};
+use reqwest::{Method, StatusCode, Url};
 use serde::Deserialize;
 
 pub use self::search_builder::SearchBuilder;
 use super::{private, API_TRACKS_ENDPOINT};
 use crate::{
-    error::{ConversionError, Result},
+    error::{ConversionError, Error, Result},
     model::{
         id::{Id, IdTrait, TrackId},
         track::{FullTrack, TrackObject},
@@ -37,15 +37,16 @@ where
     /// This function's synchronous counterpart is [UnscopedSyncClient::track](UnscopedSyncClient::track).
     async fn track(&'a self, track_id: Id<'a, TrackId>, market: Option<CountryCode>) -> Result<FullTrack> {
         let response = self
-            .send_http_request(Method::GET, build_track_url(track_id, market))
+            .send_http_request(Method::GET, build_track_url(&track_id, market))
             .send_async()
             .await?
             .error_for_status()
-            .map_err(super::response_to_error)?;
+            .map_err(|e| match e.status() {
+                Some(StatusCode::NOT_FOUND) => Error::NonexistentTrack(track_id.as_static()),
+                _ => e.into(),
+            })?;
 
         trace!("Track response: {:?}", response);
-
-        // TODO: handle 404
 
         let track_object: TrackObject = response.json().await?;
         trace!("Track body: {:?}", track_object);
@@ -114,14 +115,15 @@ where
     /// This function's asynchronous counterpart is [UnscopedAsyncClient::track](UnscopedAsyncClient::track).
     fn track(&'a self, track_id: Id<TrackId>, market: Option<CountryCode>) -> Result<FullTrack> {
         let response = self
-            .send_http_request(Method::GET, build_track_url(track_id, market))
+            .send_http_request(Method::GET, build_track_url(&track_id, market))
             .send_sync()?
             .error_for_status()
-            .map_err(super::response_to_error)?;
+            .map_err(|e| match e.status() {
+                Some(StatusCode::NOT_FOUND) => Error::NonexistentTrack(track_id.as_static()),
+                _ => e.into(),
+            })?;
 
         trace!("Track response: {:?}", response);
-
-        // TODO: handle 404
 
         let track_object: TrackObject = response.json()?;
         trace!("Track body: {:?}", track_object);
@@ -181,7 +183,7 @@ impl TracksResponse {
     }
 }
 
-fn build_track_url(track_id: Id<TrackId>, market: Option<CountryCode>) -> Url {
+fn build_track_url(track_id: &Id<TrackId>, market: Option<CountryCode>) -> Url {
     // TODO: not really a fan of how the path has to be string formatted and then parsed into an URL
     if let Some(market) = market {
         Url::parse_with_params(

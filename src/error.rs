@@ -6,7 +6,10 @@ use thiserror::Error;
 
 #[cfg(any(feature = "async", feature = "sync"))]
 use crate::model::error::AuthenticationErrorKind;
-use crate::model::ItemType;
+use crate::model::{
+    id::{AlbumId, ArtistId, EpisodeId, Id, PlaylistId, ShowId, TrackId},
+    ItemType,
+};
 
 /// The result type the library returns in the public-facing interface.
 #[cfg(any(feature = "async", feature = "sync"))]
@@ -64,6 +67,30 @@ pub enum Error {
         "No device is currently active in the user's account, or the given device could not be activated for playback"
     )]
     NoActiveDevice,
+
+    /// The given track ID doesn't refer to any Spotify track.
+    #[error("Nonexistent track ID: {0}")]
+    NonexistentTrack(Id<'static, TrackId>),
+
+    /// The given album ID doesn't refer to any Spotify album.
+    #[error("Nonexistent album ID: {0}")]
+    NonexistentAlbum(Id<'static, AlbumId>),
+
+    /// The given track ID doesn't refer to any Spotify track.
+    #[error("Nonexistent artist ID: {0}")]
+    NonexistentArtist(Id<'static, ArtistId>),
+
+    /// The given playlist ID doesn't refer to any Spotify playlist.
+    #[error("Nonexistent playlist ID: {0}")]
+    NonexistentPlaylist(Id<'static, PlaylistId>),
+
+    /// The given show ID doesn't refer to any Spotify show.
+    #[error("Nonexistent show ID: {0}")]
+    NonexistentShow(Id<'static, ShowId>),
+
+    /// The given episode ID doesn't refer to any Spotify episode.
+    #[error("Nonexistent episode ID: {0}")]
+    NonexistentEpisode(Id<'static, EpisodeId>),
 
     /// Spotify returned a 429 Too Many Requests, but the Retry-After header could not be parsed as an integer. This is
     /// likely an issue on Spotify's side.
