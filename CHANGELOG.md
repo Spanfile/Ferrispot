@@ -1,6 +1,7 @@
 # Unreleased
 - Change equality comparison method for tracks, albums and objects: only compare their IDs for full and partial items, and all the fields for local items.
 - Introduce method of comparing tracks when Spotify track relinking is applied to either or both of them.
+- Properly build URL for single track lookup
 
 # 0.2.1
 - Fix authorization code user client with PKCE freezing while refreshing the access token.

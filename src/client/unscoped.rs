@@ -178,12 +178,15 @@ impl TracksResponse {
 }
 
 fn build_track_url(track_id: Id<TrackId>, market: Option<CountryCode>) -> Url {
+    // TODO: not really a fan of how the path has to be string formatted and then parsed into an URL
     if let Some(market) = market {
-        Url::parse_with_params(API_TRACKS_ENDPOINT, &[("market", market.to_string())])
+        Url::parse_with_params(
+            &format!("{}/{}", API_TRACKS_ENDPOINT, track_id.id()),
+            &[("market", market.to_string())],
+        )
     } else {
-        Url::parse(API_TRACKS_ENDPOINT)
+        Url::parse(&format!("{}/{}", API_TRACKS_ENDPOINT, track_id.id()))
     }
-    .and_then(|url| url.join(track_id.id()))
     .expect("failed to build API track endpoint URL (this is likely a bug in the library)")
 }
 
