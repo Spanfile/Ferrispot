@@ -90,7 +90,7 @@ pub trait NonLocalAlbumInformation: crate::private::Sealed {
     /// The album's type.
     fn album_type(&self) -> AlbumType;
     /// The album's Spotify ID.
-    fn id(&self) -> &str;
+    fn id(&self) -> Id<'_, AlbumId>;
     /// The album's release date.
     fn release_date(&self) -> &str;
     /// The album's release date's precision.
@@ -166,8 +166,8 @@ where
         self.non_local_fields().album_type
     }
 
-    fn id(&self) -> &str {
-        self.non_local_fields().id.as_str()
+    fn id(&self) -> Id<'_, AlbumId> {
+        self.non_local_fields().id.as_borrowed()
     }
 
     fn release_date(&self) -> &str {

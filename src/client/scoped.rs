@@ -123,7 +123,7 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let tracks: Vec<_> = items.into_iter().map(|id| id.into()).collect();
         let body = PlayItemsBody {
-            uris: tracks.iter().map(|id| id.uri()).collect(),
+            uris: tracks.iter().map(|id| id.as_uri()).collect(),
         };
 
         trace!("Play body: {:?}", body);
@@ -146,7 +146,7 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     async fn play_context(&'a self, context: PlayableContext<'a>, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let body = PlayContextBody {
-            context_uri: context.uri(),
+            context_uri: context.as_uri(),
         };
 
         trace!("Play body: {:?}", body);
@@ -265,7 +265,7 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     ///
     /// This function's synchronous counterpart is [ScopedSyncClient::add_to_queue](ScopedSyncClient::add_to_queue).
     async fn add_to_queue(&'a self, item: PlayableItem<'a>, device_id: Option<&str>) -> Result<()> {
-        let uri = item.uri();
+        let uri = item.as_uri();
         let url = build_play_url(
             API_PLAYER_QUEUE_ENDPOINT,
             &[("uri", Some(&uri)), ("device_id", device_id)],
@@ -388,7 +388,7 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let tracks: Vec<_> = items.into_iter().map(|id| id.into()).collect();
         let body = PlayItemsBody {
-            uris: tracks.iter().map(|id| id.uri()).collect(),
+            uris: tracks.iter().map(|id| id.as_uri()).collect(),
         };
 
         trace!("Play body: {:?}", body);
@@ -410,7 +410,7 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     fn play_context(&'a self, context: PlayableContext<'a>, device_id: Option<&str>) -> Result<()> {
         let url = build_play_url(API_PLAYER_PLAY_ENDPOINT, &[("device_id", device_id)]);
         let body = PlayContextBody {
-            context_uri: context.uri(),
+            context_uri: context.as_uri(),
         };
 
         trace!("Play body: {:?}", body);
@@ -529,7 +529,7 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     ///
     /// This function's asynchronous counterpart is [ScopedAsyncClient::add_to_queue](ScopedAsyncClient::add_to_queue).
     fn add_to_queue(&'a self, item: PlayableItem<'a>, device_id: Option<&str>) -> Result<()> {
-        let uri = item.uri();
+        let uri = item.as_uri();
         let url = build_play_url(
             API_PLAYER_QUEUE_ENDPOINT,
             &[("uri", Some(&uri)), ("device_id", device_id)],

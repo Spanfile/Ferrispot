@@ -3,7 +3,7 @@ use std::time::Duration;
 use serde::Deserialize;
 
 use super::{id::PlayableContext, track::FullTrack, ExternalUrls, ItemType};
-use crate::util::duration_millis;
+use crate::{prelude::IdTrait, util::duration_millis};
 
 /// A device in an user's account that may be used for playback.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -266,12 +266,12 @@ impl RepeatState {
     }
 }
 
-// impl Context {
-//     pub fn external_urls(&self) -> &ExternalUrls {
-//         &self.external_urls
-//     }
+impl Context {
+    pub fn external_urls(&self) -> &ExternalUrls {
+        &self.external_urls
+    }
 
-//     pub fn id<'a>(&'a self) -> PlayableContext<'a> {
-//         self.uri
-//     }
-// }
+    pub fn id(&self) -> PlayableContext {
+        self.uri.as_borrowed()
+    }
+}

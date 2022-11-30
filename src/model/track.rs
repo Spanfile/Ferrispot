@@ -105,7 +105,7 @@ pub trait FullTrackInformation: crate::private::Sealed {
 /// Functions for retrieving information that is available in non-local tracks.
 pub trait NonLocalTrackInformation: crate::private::Sealed {
     /// The track's Spotify ID.
-    fn id(&self) -> &str;
+    fn id(&self) -> Id<'_, TrackId>;
 }
 
 /// Trait for comparing tracks by their IDs while taking possible track relinking into account.
@@ -119,11 +119,11 @@ pub trait RelinkedTrackEquality: crate::private::Sealed + CommonTrackInformation
         T: RelinkedTrackEquality,
     {
         self.linked_from()
-            .map(|linked_track| linked_track.id.as_str())
+            .map(|linked_track| linked_track.id.as_borrowed())
             .unwrap_or(self.id())
             == other
                 .linked_from()
-                .map(|linked_track| linked_track.id.as_str())
+                .map(|linked_track| linked_track.id.as_borrowed())
                 .unwrap_or(other.id())
     }
 }
@@ -202,8 +202,8 @@ impl<T> NonLocalTrackInformation for T
 where
     T: private::NonLocalFields + crate::private::Sealed,
 {
-    fn id(&self) -> &str {
-        self.non_local_fields().id.as_str()
+    fn id(&self) -> Id<'_, TrackId> {
+        self.non_local_fields().id.as_borrowed()
     }
 }
 

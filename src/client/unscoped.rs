@@ -42,7 +42,7 @@ where
             .await?
             .error_for_status()
             .map_err(|e| match e.status() {
-                Some(StatusCode::NOT_FOUND) => Error::NonexistentTrack(track_id.as_static()),
+                Some(StatusCode::NOT_FOUND) => Error::NonexistentTrack(track_id.as_owned()),
                 _ => e.into(),
             })?;
 
@@ -119,7 +119,7 @@ where
             .send_sync()?
             .error_for_status()
             .map_err(|e| match e.status() {
-                Some(StatusCode::NOT_FOUND) => Error::NonexistentTrack(track_id.as_static()),
+                Some(StatusCode::NOT_FOUND) => Error::NonexistentTrack(track_id.as_owned()),
                 _ => e.into(),
             })?;
 

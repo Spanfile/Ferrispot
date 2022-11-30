@@ -12,40 +12,21 @@
 //! playlists or shows. The enums [PlayableItem] and [PlayableContext] represent the two kinds. These two kinds are
 //! grouped into one common [SpotifyId] that encompasses all of them.
 //!
-//! ## The core ID type
+//! # The core ID type
 //!
-//! At the core, the [Id] struct contains a single Spotify ID of any kind. The struct is generic over the kind of ID it
-//! contains using the various type structs that implement the [ItemTypeId]-trait. This type is the only kind that
-//! supports parsing from a bare ID, since you have to specify the ID type yourself. It is possible to let the parser
-//! figure out the ID's type from the input by using either [PlayableItem and
-//! PlayableContext](self#playableitem-and-playablecontext) or [SpotifyId](self#spotifyid).
+//! The core [Id] is best thought of as a transparent type-safe wrapper for Spotify IDs. The struct contains a single
+//! Spotify ID of any kind. The struct is generic over the kind of ID it contains using the various type structs that
+//! implement the [ItemTypeId]-trait, such as [TrackId] or [AlbumId].
 //!
-//! You may parse any ID string into an [Id] by specifying the type in the [Id]'s type parameter:
+//! You may parse any ID string into an [Id] by specifying the kind in the [Id]'s type parameter:
 //!
 //! ```
 //! # use ferrispot::model::id::{AlbumId, Id, TrackId};
 //! # use ferrispot::prelude::*;
-//! let uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//! let url_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
-//! let bare_track_string = "2pDPOMX0kWA7kcPBcDCQBu";
-//! let bare_album_string = "0tDsHtvN9YNuZjlqHvDY2P";
+//! let track_id = Id::<TrackId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
 //!
-//! let id_from_uri = Id::<TrackId>::from_uri(uri_string).unwrap();
-//! let id_from_url = Id::<TrackId>::from_url(url_string).unwrap();
-//! let track_id_from_bare = Id::<TrackId>::from_bare(bare_track_string).unwrap();
-//! let album_id_from_bare = Id::<AlbumId>::from_bare(bare_album_string).unwrap();
-//! ```
-//!
-//! You may also let the parser figure out if the input is an URL or an URI:
-//!
-//! ```
-//! # use ferrispot::model::id::{Id, TrackId};
-//! # use ferrispot::prelude::*;
-//! let track_uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//! let track_url_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
-//!
-//! let track_from_uri = Id::<TrackId>::from_url_or_uri(track_uri_string).unwrap();
-//! let track_from_url = Id::<TrackId>::from_url_or_uri(track_url_string).unwrap();
+//! let album_id =
+//!     Id::<AlbumId>::from_url("https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P").unwrap();
 //! ```
 //!
 //! Attempting to parse an ID of the wrong type will fail:
@@ -53,12 +34,37 @@
 //! ```
 //! # use ferrispot::model::id::{Id, AlbumId};
 //! # use ferrispot::prelude::*;
-//! let uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//!
-//! assert!(Id::<AlbumId>::from_uri(uri_string).is_err());
+//! // the URI is for a track, but we're attempting to parse an album ID
+//! assert!(Id::<AlbumId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").is_err());
 //! ```
 //!
-//! ### Efficiency
+//! This type is the only ID type that supports parsing from a bare ID, since you have to specify the ID's kind
+//! yourself. It is possible to let the parser figure out the ID's kind from the input by using either [PlayableItem and
+//! PlayableContext](self#playableitem-and-playablecontext) or [SpotifyId](self#spotifyid).
+//!
+//! ```
+//! # use ferrispot::model::id::{AlbumId, Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! // the given strings are validated only to *look* like valid Spotify IDs. there are no
+//! // guarantees they actually exist within Spotify's catalog
+//! let track_id_from_bare = Id::<TrackId>::from_bare("2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//! let album_id_from_bare = Id::<AlbumId>::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap();
+//! ```
+//!
+//! You may also let the parser figure out if the input is an URL or an URI:
+//!
+//! ```
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let track_from_uri =
+//!     Id::<TrackId>::from_url_or_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//!
+//! let track_from_url =
+//!     Id::<TrackId>::from_url_or_uri("https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu")
+//!         .unwrap();
+//! ```
+//!
+//! ## Efficiency
 //!
 //! [Id] internally stores the originally given string in a [Cow]. This means it will borrow the input string if it is
 //! given as an `&str`, which helps avoid string allocations in certain cases. For example, most Spotify API endpoints
@@ -66,9 +72,52 @@
 //! be used instead of having to allocate a new string. You may also retrieve the ID in an URL form, so if the original
 //! string was also an URL, no new strings are allocated.
 //!
-//! You may convert an [Id] that borrows the original input into a static [Id] that owns its value by using the
-//! [`as_static`](IdTrait::as_static)-method. Note that cloning a borrowing [Id] does not turn it into an owning [Id]!
+//! ```
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! # use std::borrow::Cow;
+//! let id_from_uri =
+//!     Id::<TrackId>::from_uri(String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu")).unwrap();
 //!
+//! // this will borrow the string value from the Id
+//! let uri: Cow<_> = id_from_uri.as_uri();
+//! assert!(matches!(uri, Cow::Borrowed(_)));
+//!
+//! // this will allocate a new string formatted as an URL:
+//! // https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu
+//! let url: Cow<_> = id_from_uri.as_url();
+//! assert!(matches!(url, Cow::Owned(_)));
+//!
+//! // retrieving the bare ID string never allocates, since it can be sliced from any kind of
+//! // ID string
+//! let bare: &str = id_from_uri.as_str();
+//! assert_eq!(bare, "2pDPOMX0kWA7kcPBcDCQBu");
+//! ```
+//!
+//! ### Id references
+//!
+//! A reference to an Id (`&Id<'_, T>`) can be tedious to work with due to the extra lifetime requirements for the
+//! borrow. To aid in this, you may extract a new Id from a given Id with the
+//! [`as_borrowed`-function](IdTrait::as_borrowed). The new Id will borrow from the given Id's underlying value, thus it
+//! may not outlive the original Id. Therefore, the new Id acts as if it was a reference to the original Id without
+//! being a borrowed value (`&Id<'_, T>`).
+//! ```
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let owning_track_id =
+//!     Id::<TrackId>::from_uri(String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu")).unwrap();
+//!
+//! // instead of having to borrow the entire Id type...
+//! let borrowed_id: &Id<'_, _> = &owning_track_id;
+//!
+//! // ... it is more convenient to use a new Id that borrows the given Id's value
+//! let borrowed_id: Id<'_, _> = owning_track_id.as_borrowed();
+//! ```
+//!
+//! ### Owned `Id`s
+//!
+//! You may convert an [Id] that borrows the original input into a static [Id] that owns its value by using the
+//! [`as_owned`-function](IdTrait::as_owned).
 //! ```
 //! # use ferrispot::model::id::{Id, TrackId};
 //! # use ferrispot::prelude::*;
@@ -81,48 +130,118 @@
 //! // drop(id_string);
 //!
 //! // convert the Id into a static Id by cloning the internal borrowed string and drop the borrowing Id
-//! let owning_track_id = track_id.as_static();
+//! let owning_track_id = track_id.as_owned();
 //! drop(track_id);
 //!
 //! // dropping the original string is now possible, since it's not borrowed anymore
 //! drop(id_string);
 //! ```
 //!
-//! ## `PlayableItem` and `PlayableContext`
+//! ### Clone semantics
+//!
+//! The [`as_owned`](IdTrait::as_owned)- and [`as_borrowed`](IdTrait::as_borrowed)-functions may seem very similar to
+//! the `clone`-function natively provided by the language. However, there are certain important differences that
+//! warrant the two special functions.
+//!
+//! #### Borrowing from an owning Id
+//!
+//! Using [`as_borrowed`](IdTrait::as_borrowed) on an owning Id returns a new Id that borrows from the given Id's value.
+//! The new Id's lifetime may not outlive that of the given Id's.
+//! ```compile_fail
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let id_string = String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu");
+//! let original_track_id = Id::<TrackId>::from_uri(id_string).unwrap();
+//!
+//! // this new Id borrows from the string the given Id owns, but acts as if it borrows from the
+//! // Id, much like a reference would
+//! let borrowing_id: Id<TrackId> = original_track_id.as_borrowed();
+//!
+//! // the new Ids lifetime may not outlive that of the original Id's. this will not compile, since
+//! // the borrowing Id is used later
+//! drop(original_track_id);
+//!
+//! let id_str = borrowing_id.as_str();
+//! ```
+//!
+//! #### Borrowing from a borrowing Id
+//!
+//! Using [`as_borrowed`](IdTrait::as_borrowed) on a borrowing Id returns a new Id that borrows from the given Id's
+//! value. The new Id's lifetime may not outlive that of the given Id's.
+//! ```compile_fail
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let original_track_id =
+//!     Id::<TrackId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//!
+//! // this new Id borrows from the same string the given Id borrows from, but acts as if it borrows
+//! // from the Id, much like a reference would
+//! let borrowing_id: Id<TrackId> = original_track_id.as_borrowed();
+//!
+//! // the new Ids lifetime may not outlive that of the original Id's. this will not compile, since
+//! // the borrowing Id is used later
+//! drop(original_track_id);
+//!
+//! let id_str = borrowing_id.as_str();
+//! ```
+//!
+//! Cloning a borrowing Id returns a new Id that borrow's from the given Id's value. The cloned Id's lifetime may not
+//! outlive that of the given Id's *value's* lifetime it borrows from, therefore the cloned Id *may* outlive the given
+//! Id.
+//! ```
+//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::prelude::*;
+//! let original_track_id =
+//!     Id::<TrackId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//!
+//! // this new Id borrows from the same string the given Id borrows from, but otherwise is an
+//! // entirely new Id
+//! let cloned_id: Id<TrackId> = original_track_id.clone();
+//!
+//! // the cloned Id's lifetime may outlive that of the original Id's
+//! drop(original_track_id);
+//!
+//! let id_str = cloned_id.as_str();
+//! ```
+//!
+//! #### Cloning and owning an Id
+//!
+//! Cloning or using [`as_owned`](IdTrait::as_owned) on an owning Id, or using [`as_owned`](IdTrait::as_owned) on a
+//! borrowing Id, returns a new Id that clones the given Id's value and owns it.
+//!
+//! # `PlayableItem` and `PlayableContext`
 //!
 //! [PlayableItem] and [PlayableContext] are wrapper enums that encompass an [Id] in their variants. Their benefit is
 //! that they simplify ID parsing by allowing the parser figure out the correct type for the [Id] from the input ID
 //! string. Their downside is that they do not support parsing from a bare ID, since it is impossible to figure out
 //! which kind of ID it is.
 //!
+//! Playable items are individual items; tracks or episodes. Playable contexts are collections of playable items;
+//! albums, artists, playlists or shows.
+//!
 //! ```
 //! # use ferrispot::model::id::{PlayableContext, PlayableItem};
 //! # use ferrispot::prelude::*;
-//! let track_uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//! let track_url_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
-//! let album_uri_string = "spotify:album:0tDsHtvN9YNuZjlqHvDY2P";
-//! let album_url_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
-//!
 //! // both of these are PlayableItem::Track(Id::<TrackId>)
-//! let track_from_uri = PlayableItem::from_uri(track_uri_string).unwrap();
-//! let track_from_url = PlayableItem::from_url(track_url_string).unwrap();
+//! let track_from_uri = PlayableItem::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//! let track_from_url =
+//!     PlayableItem::from_url("https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu").unwrap();
 //!
 //! // both of these are PlayableContext::Album(Id::<AlbumId>)
-//! let album_from_uri = PlayableContext::from_uri(album_uri_string).unwrap();
-//! let album_from_url = PlayableContext::from_url(album_url_string).unwrap();
+//! let album_from_uri = PlayableContext::from_uri("spotify:album:0tDsHtvN9YNuZjlqHvDY2P").unwrap();
+//! let album_from_url =
+//!     PlayableContext::from_url("https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P").unwrap();
 //! ```
 //!
 //! Attempting to parse an ID of the wrong type will fail:
-//!
 //! ```
 //! # use ferrispot::model::id::PlayableContext;
 //! # use ferrispot::prelude::*;
-//! let uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//!
-//! assert!(PlayableContext::from_uri(uri_string).is_err());
+//! // PlayableContext expects an album, an artist, a playlist or a show, but we're using a track ID
+//! assert!(PlayableContext::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").is_err());
 //! ```
 //!
-//! ## `SpotifyId`
+//! # `SpotifyId`
 //!
 //! [SpotifyId] encompasses both [PlayableItem] and [PlayableContext] into one type which lets you parse any kind of ID
 //! into a single type. Like with [PlayableItem] and [PlayableContext], bare IDs are not supported.
@@ -130,18 +249,16 @@
 //! ```
 //! # use ferrispot::model::id::SpotifyId;
 //! # use ferrispot::prelude::*;
-//! let track_uri_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
-//! let album_url_string = "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P";
-//! let artist_url_string = "https://open.spotify.com/artist/6pNgnvzBa6Bthsv8SrZJYl";
-//!
 //! // SpotifyId::Item(PlayableItem::Track(Id::<TrackId>))
-//! let track_from_uri = SpotifyId::from_uri(track_uri_string).unwrap();
+//! let track_from_uri = SpotifyId::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
 //!
 //! // SpotifyId::Context(PlayableContext::Album(Id::<AlbumId>))
-//! let album_from_url = SpotifyId::from_url(album_url_string).unwrap();
+//! let album_from_url =
+//!     SpotifyId::from_url("https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P").unwrap();
 //!
 //! // SpotifyId::Context(PlayableContext::Artist(Id::<ArtistId>))
-//! let artist_from_url = SpotifyId::from_url(artist_url_string).unwrap();
+//! let artist_from_url =
+//!     SpotifyId::from_url("https://open.spotify.com/artist/6pNgnvzBa6Bthsv8SrZJYl").unwrap();
 //! ```
 
 use std::{borrow::Cow, fmt, marker::PhantomData};
@@ -174,8 +291,14 @@ pub trait ItemTypeId: private::Sealed {
 ///
 /// See the [module-level docs](self) for information on how to work with IDs.
 pub trait IdTrait<'a>: private::Sealed {
-    /// This type that has the `'static` lifetime.
-    type StaticSelf: 'static;
+    /// This type that has the `'static` lifetime, which essentially means it owns its ID value.
+    type Owned: 'static;
+
+    /// This type that has a certain lifetime `'b` that is guaranteed to not outlive this type's lifetime `'a`.
+    type Borrowed<'b>
+    where
+        'a: 'b,
+        Self: 'a;
 
     /// Returns this ID as a bare Spotify ID.
     fn as_str(&'a self) -> &'a str;
@@ -184,16 +307,24 @@ pub trait IdTrait<'a>: private::Sealed {
     ///
     /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
     /// original ID string this ID was constructed from is already an URI. Otherwise, it will allocate a new URI string.
-    fn uri(&'a self) -> Cow<'a, str>;
+    fn as_uri(&'a self) -> Cow<'a, str>;
 
     /// Returns this ID as a Spotify URL.
     ///
     /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
     /// original ID string this ID was constructed from is already an URL. Otherwise, it will allocate a new URL string.
-    fn url(&'a self) -> Cow<'a, str>;
+    fn as_url(&'a self) -> Cow<'a, str>;
 
     /// Returns a new Id that clones the value from this Id and owns it.
-    fn as_static(&'a self) -> Self::StaticSelf;
+    fn as_owned(&'a self) -> Self::Owned;
+
+    /// Returns a new Id that borrows from this Id.
+    ///
+    /// This function is primarily used to avoid double references. A value of type `&Id<'_, T>` can be tedious to work
+    /// with, so this function can be used to return a new Id that borrows from the Id the reference would point to.
+    fn as_borrowed<'b>(&'a self) -> Self::Borrowed<'b>
+    where
+        'a: 'b;
 }
 
 /// Trait for parsing any string-looking type that contains a Spotify URL or URI into an ID type.
@@ -582,7 +713,8 @@ impl<'a, T> IdTrait<'a> for Id<'a, T>
 where
     T: ItemTypeId + 'static,
 {
-    type StaticSelf = Id<'static, T>;
+    type Owned = Id<'static, T>;
+    type Borrowed<'b> = Id<'b, T> where 'a: 'b, Self: 'a;
 
     fn as_str(&self) -> &str {
         match self.kind {
@@ -592,7 +724,7 @@ where
         }
     }
 
-    fn uri(&'a self) -> Cow<'a, str> {
+    fn as_uri(&'a self) -> Cow<'a, str> {
         match &self.kind {
             IdKind::Uri(_) => match &self.value {
                 Cow::Borrowed(b) => Cow::Borrowed(b),
@@ -609,7 +741,7 @@ where
         }
     }
 
-    fn url(&'a self) -> Cow<'a, str> {
+    fn as_url(&'a self) -> Cow<'a, str> {
         match &self.kind {
             IdKind::Url(_) => match &self.value {
                 Cow::Borrowed(b) => Cow::Borrowed(b),
@@ -626,13 +758,21 @@ where
         }
     }
 
-    fn as_static(&'a self) -> Self::StaticSelf {
+    fn as_owned(&'a self) -> Self::Owned {
         Id::new(Cow::Owned(self.value.clone().into_owned()), self.kind)
+    }
+
+    fn as_borrowed<'b>(&'a self) -> Self::Borrowed<'b>
+    where
+        'a: 'b,
+    {
+        Id::new(Cow::Borrowed(&self.value), self.kind)
     }
 }
 
 impl<'a> IdTrait<'a> for SpotifyId<'a> {
-    type StaticSelf = SpotifyId<'static>;
+    type Owned = SpotifyId<'static>;
+    type Borrowed<'b> = SpotifyId<'b> where 'a: 'b, Self: 'a;
 
     fn as_str(&'a self) -> &'a str {
         match self {
@@ -641,30 +781,41 @@ impl<'a> IdTrait<'a> for SpotifyId<'a> {
         }
     }
 
-    fn uri(&'a self) -> Cow<'a, str> {
+    fn as_uri(&'a self) -> Cow<'a, str> {
         match self {
-            SpotifyId::Item(item) => item.uri(),
-            SpotifyId::Context(context) => context.uri(),
+            SpotifyId::Item(item) => item.as_uri(),
+            SpotifyId::Context(context) => context.as_uri(),
         }
     }
 
-    fn url(&'a self) -> Cow<'a, str> {
+    fn as_url(&'a self) -> Cow<'a, str> {
         match self {
-            SpotifyId::Item(item) => item.url(),
-            SpotifyId::Context(context) => context.url(),
+            SpotifyId::Item(item) => item.as_url(),
+            SpotifyId::Context(context) => context.as_url(),
         }
     }
 
-    fn as_static(&'a self) -> Self::StaticSelf {
+    fn as_owned(&'a self) -> Self::Owned {
         match self {
-            SpotifyId::Item(item) => SpotifyId::Item(item.as_static()),
-            SpotifyId::Context(context) => SpotifyId::Context(context.as_static()),
+            SpotifyId::Item(item) => SpotifyId::Item(item.as_owned()),
+            SpotifyId::Context(context) => SpotifyId::Context(context.as_owned()),
+        }
+    }
+
+    fn as_borrowed<'b>(&'a self) -> Self::Borrowed<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            SpotifyId::Item(item) => SpotifyId::Item(item.as_borrowed()),
+            SpotifyId::Context(context) => SpotifyId::Context(context.as_borrowed()),
         }
     }
 }
 
 impl<'a> IdTrait<'a> for PlayableItem<'a> {
-    type StaticSelf = PlayableItem<'static>;
+    type Owned = PlayableItem<'static>;
+    type Borrowed<'b> = PlayableItem<'b> where 'a: 'b, Self: 'a;
 
     fn as_str(&self) -> &str {
         match self {
@@ -673,30 +824,41 @@ impl<'a> IdTrait<'a> for PlayableItem<'a> {
         }
     }
 
-    fn uri(&'a self) -> Cow<'a, str> {
+    fn as_uri(&'a self) -> Cow<'a, str> {
         match self {
-            PlayableItem::Track(track) => track.uri(),
-            PlayableItem::Episode(episode) => episode.uri(),
+            PlayableItem::Track(track) => track.as_uri(),
+            PlayableItem::Episode(episode) => episode.as_uri(),
         }
     }
 
-    fn url(&'a self) -> Cow<'a, str> {
+    fn as_url(&'a self) -> Cow<'a, str> {
         match self {
-            PlayableItem::Track(track) => track.url(),
-            PlayableItem::Episode(episode) => episode.url(),
+            PlayableItem::Track(track) => track.as_url(),
+            PlayableItem::Episode(episode) => episode.as_url(),
         }
     }
 
-    fn as_static(&'a self) -> Self::StaticSelf {
+    fn as_owned(&'a self) -> Self::Owned {
         match self {
-            PlayableItem::Track(track) => PlayableItem::Track(track.as_static()),
-            PlayableItem::Episode(episode) => PlayableItem::Episode(episode.as_static()),
+            PlayableItem::Track(track) => PlayableItem::Track(track.as_owned()),
+            PlayableItem::Episode(episode) => PlayableItem::Episode(episode.as_owned()),
+        }
+    }
+
+    fn as_borrowed<'b>(&'a self) -> Self::Borrowed<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            PlayableItem::Track(track) => PlayableItem::Track(track.as_borrowed()),
+            PlayableItem::Episode(episode) => PlayableItem::Episode(episode.as_borrowed()),
         }
     }
 }
 
 impl<'a> IdTrait<'a> for PlayableContext<'a> {
-    type StaticSelf = PlayableContext<'static>;
+    type Owned = PlayableContext<'static>;
+    type Borrowed<'b> = PlayableContext<'b> where 'a: 'b, Self: 'a;
 
     fn as_str(&self) -> &str {
         match self {
@@ -707,30 +869,42 @@ impl<'a> IdTrait<'a> for PlayableContext<'a> {
         }
     }
 
-    fn uri(&'a self) -> Cow<'a, str> {
+    fn as_uri(&'a self) -> Cow<'a, str> {
         match self {
-            PlayableContext::Artist(artist) => artist.uri(),
-            PlayableContext::Album(album) => album.uri(),
-            PlayableContext::Playlist(playlist) => playlist.uri(),
-            PlayableContext::Show(show) => show.uri(),
+            PlayableContext::Artist(artist) => artist.as_uri(),
+            PlayableContext::Album(album) => album.as_uri(),
+            PlayableContext::Playlist(playlist) => playlist.as_uri(),
+            PlayableContext::Show(show) => show.as_uri(),
         }
     }
 
-    fn url(&'a self) -> Cow<'a, str> {
+    fn as_url(&'a self) -> Cow<'a, str> {
         match self {
-            PlayableContext::Artist(artist) => artist.url(),
-            PlayableContext::Album(album) => album.url(),
-            PlayableContext::Playlist(playlist) => playlist.url(),
-            PlayableContext::Show(show) => show.url(),
+            PlayableContext::Artist(artist) => artist.as_url(),
+            PlayableContext::Album(album) => album.as_url(),
+            PlayableContext::Playlist(playlist) => playlist.as_url(),
+            PlayableContext::Show(show) => show.as_url(),
         }
     }
 
-    fn as_static(&'a self) -> Self::StaticSelf {
+    fn as_owned(&'a self) -> Self::Owned {
         match self {
-            PlayableContext::Artist(artist) => PlayableContext::Artist(artist.as_static()),
-            PlayableContext::Album(album) => PlayableContext::Album(album.as_static()),
-            PlayableContext::Playlist(playlist) => PlayableContext::Playlist(playlist.as_static()),
-            PlayableContext::Show(show) => PlayableContext::Show(show.as_static()),
+            PlayableContext::Artist(artist) => PlayableContext::Artist(artist.as_owned()),
+            PlayableContext::Album(album) => PlayableContext::Album(album.as_owned()),
+            PlayableContext::Playlist(playlist) => PlayableContext::Playlist(playlist.as_owned()),
+            PlayableContext::Show(show) => PlayableContext::Show(show.as_owned()),
+        }
+    }
+
+    fn as_borrowed<'b>(&'a self) -> Self::Borrowed<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            PlayableContext::Artist(artist) => PlayableContext::Artist(artist.as_borrowed()),
+            PlayableContext::Album(album) => PlayableContext::Album(album.as_borrowed()),
+            PlayableContext::Playlist(playlist) => PlayableContext::Playlist(playlist.as_borrowed()),
+            PlayableContext::Show(show) => PlayableContext::Show(show.as_borrowed()),
         }
     }
 }
@@ -1460,7 +1634,7 @@ mod tests {
         let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_uri(id_string).unwrap();
 
-        let uri = id.uri();
+        let uri = id.as_uri();
         assert!(matches!(uri, Cow::Borrowed("spotify:track:2pDPOMX0kWA7kcPBcDCQBu")));
     }
 
@@ -1469,7 +1643,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_url(id_string).unwrap();
 
-        let url = id.url();
+        let url = id.as_url();
         assert!(matches!(
             url,
             Cow::Borrowed("https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu")
@@ -1481,7 +1655,7 @@ mod tests {
         let id_string = "https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_url(id_string).unwrap();
 
-        let uri = id.uri();
+        let uri = id.as_uri();
         assert!(matches!(uri, Cow::Owned(_)));
     }
 
@@ -1490,7 +1664,7 @@ mod tests {
         let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_uri(id_string).unwrap();
 
-        let url = id.url();
+        let url = id.as_url();
         assert!(matches!(url, Cow::Owned(_)));
     }
 
@@ -1499,7 +1673,7 @@ mod tests {
         let id_string = "2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_bare(id_string).unwrap();
 
-        let uri = id.uri();
+        let uri = id.as_uri();
         assert!(matches!(uri, Cow::Owned(_)));
     }
 
@@ -1508,8 +1682,21 @@ mod tests {
         let id_string = "2pDPOMX0kWA7kcPBcDCQBu";
         let id = Id::<TrackId>::from_bare(id_string).unwrap();
 
-        let url = id.url();
+        let url = id.as_url();
         assert!(matches!(url, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn cloned_id_still_borrows() {
+        let id_string = "spotify:track:2pDPOMX0kWA7kcPBcDCQBu";
+        let id = Id::<TrackId>::from_uri(id_string).unwrap();
+
+        let url = id.as_uri();
+        assert!(matches!(url, Cow::Borrowed(_)));
+
+        let cloned = id.clone();
+        let url = cloned.as_uri();
+        assert!(matches!(url, Cow::Borrowed(_)));
     }
 
     #[test]

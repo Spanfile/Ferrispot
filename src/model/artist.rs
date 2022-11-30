@@ -66,7 +66,7 @@ pub trait FullArtistInformation: crate::private::Sealed {
 /// Functions for retrieving information that is available in non-local artists.
 pub trait NonLocalArtistInformation: crate::private::Sealed {
     /// The artist's Spotify ID.
-    fn id(&self) -> &str;
+    fn id(&self) -> Id<'_, ArtistId>;
 }
 
 impl<T> CommonArtistInformation for T
@@ -103,8 +103,8 @@ impl<T> NonLocalArtistInformation for T
 where
     T: private::NonLocalFields + crate::private::Sealed,
 {
-    fn id(&self) -> &str {
-        self.non_local_fields().id.as_str()
+    fn id(&self) -> Id<'_, ArtistId> {
+        self.non_local_fields().id.as_borrowed()
     }
 }
 
