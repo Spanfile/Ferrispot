@@ -314,6 +314,42 @@ impl PartialEq for PartialAlbum {
     }
 }
 
+impl PartialEq<PartialAlbum> for FullAlbum {
+    fn eq(&self, other: &PartialAlbum) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq<LocalAlbum> for FullAlbum {
+    fn eq(&self, other: &LocalAlbum) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<FullAlbum> for PartialAlbum {
+    fn eq(&self, other: &FullAlbum) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq<LocalAlbum> for PartialAlbum {
+    fn eq(&self, other: &LocalAlbum) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<FullAlbum> for LocalAlbum {
+    fn eq(&self, other: &FullAlbum) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<PartialAlbum> for LocalAlbum {
+    fn eq(&self, other: &PartialAlbum) -> bool {
+        self.common == other.common
+    }
+}
+
 impl TryFrom<AlbumObject> for Album {
     type Error = ConversionError;
 
@@ -598,3 +634,6 @@ impl Serialize for LocalAlbum {
         .serialize(serializer)
     }
 }
+
+// TODO: unit tests for all the various functions here. deserializing, serializing, equality between tracks, conversion
+// between tracks

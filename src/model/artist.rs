@@ -208,6 +208,42 @@ impl PartialEq for PartialArtist {
     }
 }
 
+impl PartialEq<PartialArtist> for FullArtist {
+    fn eq(&self, other: &PartialArtist) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq<LocalArtist> for FullArtist {
+    fn eq(&self, other: &LocalArtist) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<FullArtist> for PartialArtist {
+    fn eq(&self, other: &FullArtist) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq<LocalArtist> for PartialArtist {
+    fn eq(&self, other: &LocalArtist) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<FullArtist> for LocalArtist {
+    fn eq(&self, other: &FullArtist) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<PartialArtist> for LocalArtist {
+    fn eq(&self, other: &PartialArtist) -> bool {
+        self.common == other.common
+    }
+}
+
 impl TryFrom<ArtistObject> for Artist {
     type Error = ConversionError;
 
@@ -477,3 +513,6 @@ impl Serialize for LocalArtist {
         .serialize(serializer)
     }
 }
+
+// TODO: unit tests for all the various functions here. deserializing, serializing, equality between tracks, conversion
+// between tracks

@@ -333,6 +333,42 @@ impl PartialEq for PartialTrack {
     }
 }
 
+impl PartialEq<PartialTrack> for FullTrack {
+    fn eq(&self, other: &PartialTrack) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq<LocalTrack> for FullTrack {
+    fn eq(&self, other: &LocalTrack) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<FullTrack> for PartialTrack {
+    fn eq(&self, other: &FullTrack) -> bool {
+        self.id() == other.id()
+    }
+}
+
+impl PartialEq<LocalTrack> for PartialTrack {
+    fn eq(&self, other: &LocalTrack) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<FullTrack> for LocalTrack {
+    fn eq(&self, other: &FullTrack) -> bool {
+        self.common == other.common
+    }
+}
+
+impl PartialEq<PartialTrack> for LocalTrack {
+    fn eq(&self, other: &PartialTrack) -> bool {
+        self.common == other.common
+    }
+}
+
 impl TryFrom<TrackObject> for Track {
     type Error = ConversionError;
 
@@ -600,3 +636,6 @@ impl Serialize for LocalTrack {
         .serialize(serializer)
     }
 }
+
+// TODO: unit tests for all the various functions here. deserializing, serializing, equality between tracks, conversion
+// between tracks

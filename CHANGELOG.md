@@ -4,6 +4,7 @@
 - **New**: The scoped function `currently_playing_track()` has been deprecated and a new function `currently_playing_item()` has been added. Its functionality is identical, but the new function more accurately describes that the currently playing item may be something other than a track. The old function will be removed in a future release.
 - **New**: Add `IdTrait::as_borrowed()` that returns a new `Id` borrowing from the given Id which must not outlive the given `Id`, essentially acting as a reference without being a reference (`&Id`).
 - **New**: Add `RelinkedTrackEquality` trait that allows comparing tracks when Spotify track relinking is applied to either or both of them.
+- **New**: Add ability to compare full, partial and local tracks, albums and artists between each other of the same kind. Item IDs will be compared for full and partial items, otherwise all available fields are compared for local items.
 - **Changed**: Change equality comparison method for tracks, albums and objects: only compare their IDs for full and partial items, and all the fields for local items.
 - **Changed**: The unscoped `.track()` call returns a `NonexistentTrack` error for 404 responses.
 - **Fixed**: Properly build URL for single track lookup.
