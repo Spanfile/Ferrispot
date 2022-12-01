@@ -1,7 +1,7 @@
 //! Contains the [AuthorizationCodeUserClient](AuthorizationCodeUserClient) and its builder structs. The client
 //! implements the authorization code flow with optional PKCE.
 //!
-//! [Spotify documentation on the authorization code flow.](https://developer.spotify.com/documentation/general/guides/authorization/code-flow/).
+//! [Spotify documentation on the authorization code flow.](https://developer.spotify.com/documentation/general/guides/authorization/code-flow/)
 //!
 //! # Usage
 //!
