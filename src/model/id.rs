@@ -303,17 +303,35 @@ pub trait IdTrait<'a>: private::Sealed {
     /// Returns this ID as a bare Spotify ID.
     fn as_str(&'a self) -> &'a str;
 
+    /// Returns this ID as a bare Spotify ID.
+    #[deprecated = "replaced with as_str that better describes what the function returns"]
+    fn id(&'a self) -> &'a str;
+
     /// Returns this ID as a Spotify URI.
     ///
     /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
     /// original ID string this ID was constructed from is already an URI. Otherwise, it will allocate a new URI string.
     fn as_uri(&'a self) -> Cow<'a, str>;
 
+    /// Returns this ID as a Spotify URI.
+    ///
+    /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
+    /// original ID string this ID was constructed from is already an URI. Otherwise, it will allocate a new URI string.
+    #[deprecated = "replaced with as_uri that better conforms to the trait's naming scheme"]
+    fn uri(&'a self) -> Cow<'a, str>;
+
     /// Returns this ID as a Spotify URL.
     ///
     /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
     /// original ID string this ID was constructed from is already an URL. Otherwise, it will allocate a new URL string.
     fn as_url(&'a self) -> Cow<'a, str>;
+
+    /// Returns this ID as a Spotify URL.
+    ///
+    /// This function returns a [Cow], since it allows the function to avoid needlessly allocating a new string if the
+    /// original ID string this ID was constructed from is already an URL. Otherwise, it will allocate a new URL string.
+    #[deprecated = "replaced with as_url that better conforms to the trait's naming scheme"]
+    fn url(&'a self) -> Cow<'a, str>;
 
     /// Returns a new Id that clones the value from this Id and owns it.
     fn as_owned(&'a self) -> Self::Owned;
@@ -716,6 +734,18 @@ where
     type Owned = Id<'static, T>;
     type Borrowed<'b> = Id<'b, T> where 'a: 'b, Self: 'a;
 
+    fn id(&'a self) -> &'a str {
+        self.as_str()
+    }
+
+    fn uri(&'a self) -> Cow<'a, str> {
+        self.as_uri()
+    }
+
+    fn url(&'a self) -> Cow<'a, str> {
+        self.as_url()
+    }
+
     fn as_str(&self) -> &str {
         match self.kind {
             IdKind::Uri(index) => &self.value[index..],
@@ -774,6 +804,18 @@ impl<'a> IdTrait<'a> for SpotifyId<'a> {
     type Owned = SpotifyId<'static>;
     type Borrowed<'b> = SpotifyId<'b> where 'a: 'b, Self: 'a;
 
+    fn id(&'a self) -> &'a str {
+        self.as_str()
+    }
+
+    fn uri(&'a self) -> Cow<'a, str> {
+        self.as_uri()
+    }
+
+    fn url(&'a self) -> Cow<'a, str> {
+        self.as_url()
+    }
+
     fn as_str(&'a self) -> &'a str {
         match self {
             SpotifyId::Item(item) => item.as_str(),
@@ -817,6 +859,18 @@ impl<'a> IdTrait<'a> for PlayableItem<'a> {
     type Owned = PlayableItem<'static>;
     type Borrowed<'b> = PlayableItem<'b> where 'a: 'b, Self: 'a;
 
+    fn id(&'a self) -> &'a str {
+        self.as_str()
+    }
+
+    fn uri(&'a self) -> Cow<'a, str> {
+        self.as_uri()
+    }
+
+    fn url(&'a self) -> Cow<'a, str> {
+        self.as_url()
+    }
+
     fn as_str(&self) -> &str {
         match self {
             PlayableItem::Track(track) => track.as_str(),
@@ -859,6 +913,18 @@ impl<'a> IdTrait<'a> for PlayableItem<'a> {
 impl<'a> IdTrait<'a> for PlayableContext<'a> {
     type Owned = PlayableContext<'static>;
     type Borrowed<'b> = PlayableContext<'b> where 'a: 'b, Self: 'a;
+
+    fn id(&'a self) -> &'a str {
+        self.as_str()
+    }
+
+    fn uri(&'a self) -> Cow<'a, str> {
+        self.as_uri()
+    }
+
+    fn url(&'a self) -> Cow<'a, str> {
+        self.as_url()
+    }
 
     fn as_str(&self) -> &str {
         match self {

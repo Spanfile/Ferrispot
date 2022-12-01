@@ -151,7 +151,7 @@ const API_SEARCH_ENDPOINT: &str = concatcp!(API_BASE_URL, "search");
 
 // scoped endpoints
 const API_PLAYBACK_STATE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player");
-const API_CURRENTLY_PLAYING_TRACK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
+const API_CURRENTLY_PLAYING_ITEM_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
 const API_PLAYER_PLAY_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/play");
 const API_PLAYER_PAUSE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/pause");
 const API_PLAYER_REPEAT_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/repeat");
@@ -519,6 +519,8 @@ impl SpotifyClientWithSecretBuilder {
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .header(
                 header::AUTHORIZATION,
+                // TODO: yeah this is actually going to have to be in the default headers so the user clients have it
+                // in their requests
                 build_authorization_header(&self.client_id, &self.client_secret),
             )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)

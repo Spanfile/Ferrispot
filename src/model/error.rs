@@ -8,6 +8,7 @@ use crate::error::Error;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct AuthenticationErrorResponse {
     pub error: AuthenticationErrorKind,
+    #[serde(default)]
     pub error_description: String,
 }
 

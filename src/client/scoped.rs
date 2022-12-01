@@ -4,7 +4,7 @@ use log::{error, trace, warn};
 use reqwest::{Method, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 
-use super::{private, API_CURRENTLY_PLAYING_TRACK_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT};
+use super::{private, API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT};
 use crate::{
     client::{
         API_PLAYER_DEVICES_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_QUEUE_ENDPOINT,
@@ -45,7 +45,7 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.
     ///
-    /// This function returns a superset of the [currently playing track](Self::currently_playing_track).
+    /// This function returns a superset of the [currently playing item](Self::currently_playing_item).
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
     ///
@@ -74,18 +74,18 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
         Ok(Some(playback_state))
     }
 
-    /// Get the object currently being played on the user's Spotify account.
+    /// Get the item currently being played on the user's Spotify account.
     ///
     /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
     ///
     /// This function's synchronous counterpart is
-    /// [ScopedSyncClient::currently_playing_track](ScopedSyncClient::currently_playing_track).
-    async fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
+    /// [ScopedSyncClient::currently_playing_item](ScopedSyncClient::currently_playing_item).
+    async fn currently_playing_item(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
         let response = self
             .send_http_request(
                 Method::GET,
-                Url::parse(API_CURRENTLY_PLAYING_TRACK_ENDPOINT).expect(
-                    "failed to build currently playing track endpoint URL: invalid base URL (this is likely a bug)",
+                Url::parse(API_CURRENTLY_PLAYING_ITEM_ENDPOINT).expect(
+                    "failed to build currently playing item endpoint URL: invalid base URL (this is likely a bug)",
                 ),
             )
             .send_async()
@@ -93,16 +93,27 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
             .error_for_status()
             .map_err(super::response_to_error)?;
 
-        trace!("Currently playing track response: {:?}", response);
+        trace!("Currently playing item response: {:?}", response);
 
         if response.status() == StatusCode::NO_CONTENT {
             return Ok(None);
         }
 
-        let currently_playing_track = response.json().await?;
-        trace!("Currently playing track body: {:?}", currently_playing_track);
+        let currently_playing_item = response.json().await?;
+        trace!("Currently playing item body: {:?}", currently_playing_item);
 
-        Ok(Some(currently_playing_track))
+        Ok(Some(currently_playing_item))
+    }
+
+    /// Get the track currently being played on the user's Spotify account.
+    ///
+    /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
+    ///
+    /// This function's synchronous counterpart is
+    /// [ScopedSyncClient::currently_playing_track](ScopedSyncClient::currently_playing_track).
+    #[deprecated = "replaced with currently_playing_item that more accurately describes the return value"]
+    async fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
+        self.currently_playing_item().await
     }
 
     /// Start playing a collection of playable items in order; tracks or episodes.
@@ -312,7 +323,7 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.
     ///
-    /// This function returns a superset of the [currently playing track](Self::currently_playing_track).
+    /// This function returns a superset of the [currently playing item](Self::currently_playing_item).
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
     ///
@@ -341,34 +352,45 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
         Ok(Some(playback_state))
     }
 
-    /// Get the object currently being played on the user's Spotify account.
+    /// Get the item currently being played on the user's Spotify account.
     ///
     /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
     ///
     /// This function's asynchronous counterpart is
-    /// [ScopedAsyncClient::currently_playing_track](ScopedAsyncClient::currently_playing_track).
-    fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
+    /// [ScopedAsyncClient::currently_playing_item](ScopedAsyncClient::currently_playing_item).
+    fn currently_playing_item(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
         let response = self
             .send_http_request(
                 Method::GET,
-                Url::parse(API_CURRENTLY_PLAYING_TRACK_ENDPOINT).expect(
-                    "failed to build currently playing track endpoint URL: invalid base URL (this is likely a bug)",
+                Url::parse(API_CURRENTLY_PLAYING_ITEM_ENDPOINT).expect(
+                    "failed to build currently playing item endpoint URL: invalid base URL (this is likely a bug)",
                 ),
             )
             .send_sync()?
             .error_for_status()
             .map_err(super::response_to_error)?;
 
-        trace!("Currently playing track response: {:?}", response);
+        trace!("Currently playing item response: {:?}", response);
 
         if response.status() == StatusCode::NO_CONTENT {
             return Ok(None);
         }
 
-        let currently_playing_track = response.json()?;
-        trace!("Currently playing track body: {:?}", currently_playing_track);
+        let currently_playing_item = response.json()?;
+        trace!("Currently playing item body: {:?}", currently_playing_item);
 
-        Ok(Some(currently_playing_track))
+        Ok(Some(currently_playing_item))
+    }
+
+    /// Get the track currently being played on the user's Spotify account.
+    ///
+    /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
+    ///
+    /// This function's synchronous counterpart is
+    /// [ScopedSyncClient::currently_playing_track](ScopedSyncClient::currently_playing_track).
+    #[deprecated = "replaced with currently_playing_item that more accurately describes the return value"]
+    fn currently_playing_track(&'a self) -> Result<Option<CurrentlyPlayingItem>> {
+        self.currently_playing_item()
     }
 
     /// Start playing a collection of playable items in order; tracks or episodes.

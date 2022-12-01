@@ -17,7 +17,7 @@ async fn main() {
     let incomplete_auth_code_client = spotify_client
         .authorization_code_client("http://localhost/callback")
         .show_dialog(true)
-        .scopes([Scope::UserReadPlaybackState])
+        .scopes([Scope::UserReadPlaybackState, Scope::UserReadCurrentlyPlaying])
         .build();
 
     let authorize_url = incomplete_auth_code_client.get_authorize_url();
@@ -40,10 +40,33 @@ async fn main() {
     // optionally, if you have a valid refresh token (with the correct scope), you may use it as such:
     // let user_client = spotify_client.authorization_code_client_with_refresh_token("refresh token").await.unwrap();
 
+    // there are two way to get the currently playing item: .playback_state(), and .currently_playing_item()
+    // playback state returns a superset of the currently playing item and includes information about the device that is
+    // playing and the player's shuffle and repeat states
+
+    // .playback_state()
+
     let playback_state = user_client.playback_state().await.unwrap();
 
     if let Some(playback_state) = playback_state {
         if let Some(item) = playback_state.currently_playing_item().public_playing_item() {
+            if let PlayingType::Track(full_track) = item.item() {
+                println!(
+                    "{} - {} ({})",
+                    full_track.name(),
+                    full_track.artists().first().unwrap().name(),
+                    full_track.album().name()
+                )
+            }
+        }
+    }
+
+    // .currently_playing_item()
+
+    let currently_playing_item = user_client.currently_playing_item().await.unwrap();
+
+    if let Some(currently_playing_item) = currently_playing_item {
+        if let Some(item) = currently_playing_item.public_playing_item() {
             if let PlayingType::Track(full_track) = item.item() {
                 println!(
                     "{} - {} ({})",
