@@ -584,6 +584,16 @@ impl SpotifyClientWithSecretBuilder {
 
 impl<C> crate::private::Sealed for SpotifyClientWithSecret<C> where C: private::HttpClient + Clone {}
 
+impl<C> SpotifyClientWithSecret<C>
+where
+    C: private::HttpClient + Clone,
+{
+    fn save_access_token(&self, token_response: ClientTokenResponse) {
+        debug!("Got token response for client credentials flow: {:?}", token_response);
+        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
+    }
+}
+
 #[cfg(feature = "async")]
 impl private::BuildHttpRequestAsync for AsyncSpotifyClientWithSecret {
     fn build_http_request<U>(&self, method: Method, url: U) -> reqwest::RequestBuilder
@@ -606,19 +616,12 @@ impl private::BuildHttpRequestSync for SyncSpotifyClientWithSecret {
     }
 }
 
-impl<C> SpotifyClientWithSecret<C>
-where
-    C: private::HttpClient + Clone,
-{
-    fn save_access_token(&self, token_response: ClientTokenResponse) {
-        debug!("Got token response for client credentials flow: {:?}", token_response);
-        *self.inner.access_token.write().expect("access token rwlock poisoned") = token_response.access_token;
-    }
-}
-
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
 impl<'a> UnscopedAsyncClient<'a> for AsyncSpotifyClientWithSecret {}
+
+#[cfg(feature = "sync")]
+impl<'a> UnscopedSyncClient<'a> for SyncSpotifyClientWithSecret {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]

@@ -293,6 +293,12 @@ impl<'a> super::ScopedAsyncClient<'a> for AsyncImplicitGrantUserClient {}
 #[async_trait::async_trait]
 impl<'a> super::UnscopedAsyncClient<'a> for AsyncImplicitGrantUserClient {}
 
+#[cfg(feature = "sync")]
+impl<'a> super::ScopedSyncClient<'a> for SyncImplicitGrantUserClient {}
+
+#[cfg(feature = "sync")]
+impl<'a> super::UnscopedSyncClient<'a> for SyncImplicitGrantUserClient {}
+
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
 impl private::AccessTokenExpiryAsync for AsyncImplicitGrantUserClient {

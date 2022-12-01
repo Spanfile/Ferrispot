@@ -24,10 +24,7 @@ struct TracksResponse {
 /// asynchronous Spotify clients implement this trait.
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-pub trait UnscopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::AccessTokenExpiryAsync
-where
-    Self: Sized,
-{
+pub trait UnscopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::AccessTokenExpiryAsync {
     /// Get Spotify catalog information for a single track identified by its unique Spotify ID.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be
@@ -102,10 +99,7 @@ where
 /// All unscoped Spotify endpoints. The functions in this trait do not require user authentication to use. All
 /// synchronous Spotify clients implement this trait.
 #[cfg(feature = "sync")]
-pub trait UnscopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::AccessTokenExpirySync
-where
-    Self: Sized,
-{
+pub trait UnscopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::AccessTokenExpirySync {
     /// Get Spotify catalog information for a single track identified by its unique Spotify ID.
     ///
     /// An optional market country may be specified. If specified, only content that is available in that market will be

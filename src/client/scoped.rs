@@ -146,6 +146,7 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
     }
 
     // TODO: offset
+    // TODO: docs about what happens when no device is active
     /// Start playing a context; album, artist, playlist or show.
     ///
     /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
