@@ -7,6 +7,7 @@
 - **New**: Add ability to compare full, partial and local tracks, albums and artists between each other of the same kind. Item IDs will be compared for full and partial items, otherwise all available fields are compared for local items.
 - **Changed**: Change equality comparison method for tracks, albums and objects: only compare their IDs for full and partial items, and all the fields for local items.
 - **Changed**: The unscoped `.track()` call returns a `NonexistentTrack` error for 404 responses.
+- **Changed**: `Device` equality is now based only on its ID.
 - **Fixed**: Properly build URL for single track lookup.
 
 # 0.2.1

@@ -6,7 +6,7 @@ use super::{id::PlayableContext, track::FullTrack, ExternalUrls, ItemType};
 use crate::{prelude::IdTrait, util::duration_millis};
 
 /// A device in an user's account that may be used for playback.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 pub struct Device {
     name: String,
     // TODO: aspotify says this and the volume can be nonexistent for whatever reason but I haven't ever seen that
@@ -63,8 +63,10 @@ pub struct CurrentlyPlayingItem {
 
 /// A public playing item.
 ///
-/// Public refers to the playing item being publicly available through the API. If the user has enabled a private
-/// session, or the item is unavailable for some other reason, the item is not considered public.
+/// Public refers to the playing item and its context being publicly available through the API. The item is not
+/// considered public when, but not limited to:
+/// - The user has enabled a private session.
+/// - The playing context is private, e.g. a private playlist.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PublicPlayingItem {
     context: Context,
@@ -163,8 +165,8 @@ impl Device {
         self.is_private_session
     }
 
-    /// Whether controlling this device is restricted. At present if this is `true` when no Web API commands will be
-    /// accepted by this device.
+    /// Whether controlling this device is restricted. If this is `true`, no Web API commands will be accepted by this
+    /// device.
     pub fn is_restricted(&self) -> bool {
         self.is_restricted
     }
@@ -172,6 +174,12 @@ impl Device {
     /// The type of the device.
     pub fn device_type(&self) -> DeviceType {
         self.device_type
+    }
+}
+
+impl PartialEq for Device {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
 
