@@ -711,8 +711,7 @@ impl private::AccessTokenExpiryAsync for AsyncAuthorizationCodeUserClient {
     }
 }
 
-#[cfg(feature = "async")]
-#[async_trait::async_trait]
+#[cfg(feature = "sync")]
 impl private::AccessTokenExpirySync for SyncAuthorizationCodeUserClient {
     fn handle_access_token_expired(&self) -> Result<private::AccessTokenExpiryResult> {
         self.refresh_access_token()?;
