@@ -34,7 +34,7 @@ serde_json = "1.0.87"
 tokio = {version = "1.22.0", features = ["rt-multi-thread", "macros"]}
 
 [features]
-default = ["async", "sync", "tokio_sleep"]
+default = ["async", "tokio_sleep"]
 # default = ["async_std_sleep"]
 
 async = ["dep:reqwest", "dep:sha2", "dep:log", "dep:rand", "dep:base64", "dep:const_format", "dep:async-trait"]
