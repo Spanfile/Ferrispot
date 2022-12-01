@@ -4,11 +4,11 @@ use std::borrow::Cow;
 
 use thiserror::Error;
 
+use crate::model::ItemType;
 #[cfg(any(feature = "async", feature = "sync"))]
-use crate::model::error::AuthenticationErrorKind;
 use crate::model::{
+    error::AuthenticationErrorKind,
     id::{AlbumId, ArtistId, EpisodeId, Id, PlaylistId, ShowId, TrackId},
-    ItemType,
 };
 
 /// The result type the library returns in the public-facing interface.
