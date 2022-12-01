@@ -17,6 +17,7 @@ async fn main() {
     let incomplete_auth_code_client = spotify_client
         .authorization_code_client("http://localhost/callback")
         .scopes([Scope::UserReadPlaybackState])
+        .show_dialog(true)
         .build();
 
     let authorize_url = incomplete_auth_code_client.get_authorize_url();
@@ -42,7 +43,7 @@ async fn main() {
     // at this point you may save the token in some manner
     // imagine at this point some time passes and you're in an entirely new process
 
-    // you can get an AuthorizationCodeClient from the spotify client directly by reusing the previous refresh token
+    // you can get an AuthorizationCodeClient from the Spotify client directly by reusing the previous refresh token
     let user_client = spotify_client
         .authorization_code_client_with_refresh_token(&refresh_token)
         .await

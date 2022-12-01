@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::{client::SpotifyClientBuilder, model::id::Id, prelude::*};
+use ferrispot::{client::SpotifyClientBuilder, model::id::Id, prelude::*, scope::Scope};
 
 #[tokio::main]
 async fn main() {
@@ -13,6 +13,8 @@ async fn main() {
 
     let incomplete_implicit_grant_client = spotify_client
         .implicit_grant_client("http://localhost/callback")
+        .scopes([Scope::UserReadPlaybackState])
+        .show_dialog(true)
         .build();
 
     let authorize_url = incomplete_implicit_grant_client.get_authorize_url();

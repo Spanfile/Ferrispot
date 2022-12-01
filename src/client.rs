@@ -95,7 +95,10 @@ use std::sync::{Arc, RwLock};
 
 use const_format::concatcp;
 use log::debug;
-use reqwest::{header, IntoUrl, Method, StatusCode};
+use reqwest::{
+    header::{self, HeaderMap},
+    IntoUrl, Method, StatusCode,
+};
 use serde::Deserialize;
 
 use self::implicit_grant::ImplicitGrantUserClientBuilder;
@@ -104,13 +107,13 @@ pub use self::unscoped::SearchBuilder;
 use self::{
     authorization_code::{AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder},
     implicit_grant::AsyncImplicitGrantUserClientBuilder,
-    private::AsyncClient,
+    private::{AsyncClient, BuildHttpRequestAsync},
 };
 #[cfg(feature = "sync")]
 use self::{
     authorization_code::{SyncAuthorizationCodeUserClient, SyncAuthorizationCodeUserClientBuilder},
     implicit_grant::SyncImplicitGrantUserClientBuilder,
-    private::SyncClient,
+    private::{BuildHttpRequestSync, SyncClient},
 };
 #[cfg(feature = "async")]
 pub use self::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient};
@@ -241,7 +244,7 @@ where
 #[derive(Debug)]
 struct SpotifyClientWithSecretRef {
     client_id: String,
-    client_secret: String,
+    // client_secret: String,
     access_token: RwLock<String>,
 }
 
@@ -484,6 +487,22 @@ impl SpotifyClientBuilder {
 }
 
 impl SpotifyClientWithSecretBuilder {
+    fn get_default_headers(&self) -> HeaderMap {
+        let mut default_headers = header::HeaderMap::new();
+        default_headers.insert(
+            header::AUTHORIZATION,
+            header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
+                // this can only fail if the header value contains non-ASCII characters, which shouldn't happen since
+                // the given header value is in base64
+                .expect(
+                    "failed to insert authorization header into header map: non-ASCII characters in value (this is \
+                     likely a bug)",
+                ),
+        );
+
+        default_headers
+    }
+
     fn build_client<C>(self, token_response: ClientTokenResponse, http_client: C) -> SpotifyClientWithSecret<C>
     where
         C: private::HttpClient + Clone,
@@ -493,7 +512,7 @@ impl SpotifyClientWithSecretBuilder {
         SpotifyClientWithSecret {
             inner: Arc::new(SpotifyClientWithSecretRef {
                 client_id: self.client_id,
-                client_secret: self.client_secret,
+                // client_secret: self.client_secret,
                 access_token: RwLock::new(token_response.access_token),
             }),
             http_client,
@@ -510,6 +529,10 @@ impl SpotifyClientWithSecretBuilder {
 
         let http_client = AsyncClient(
             reqwest::Client::builder()
+                // it's important to include the client credentials authorization header as default, since this same
+                // HTTP client will be used with future user clients that require the authorization in order to exchange
+                // an authorization code for access and refresh tokens when finalizing the clients
+                .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
                 .expect("failed to build HTTP client: system error or system misconfiguration"),
@@ -517,12 +540,6 @@ impl SpotifyClientWithSecretBuilder {
 
         let response = http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .header(
-                header::AUTHORIZATION,
-                // TODO: yeah this is actually going to have to be in the default headers so the user clients have it
-                // in their requests
-                build_authorization_header(&self.client_id, &self.client_secret),
-            )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
@@ -544,6 +561,10 @@ impl SpotifyClientWithSecretBuilder {
 
         let http_client = SyncClient(
             reqwest::blocking::Client::builder()
+                // it's important to include the client credentials authorization header as default, since this same
+                // HTTP client will be used with future user clients that require the authorization in order to exchange
+                // an authorization code for access and refresh tokens when finalizing the clients
+                .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
                 .expect("failed to build blocking HTTP client: system error or system misconfiguration"),
@@ -551,10 +572,6 @@ impl SpotifyClientWithSecretBuilder {
 
         let response = http_client
             .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .header(
-                header::AUTHORIZATION,
-                build_authorization_header(&self.client_id, &self.client_secret),
-            )
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 
@@ -610,14 +627,9 @@ impl AccessTokenRefreshAsync for AsyncSpotifyClientWithSecret {
         debug!("Refreshing access token for client credentials flow");
 
         // skip the SendHttpRequest trait since it injects a Bearer auth header with the access token, but the token
-        // refresh uses a Basic auth header with a special value
+        // refresh uses Basic auth with the client credentials
         let response = self
-            .http_client
-            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .header(
-                header::AUTHORIZATION,
-                build_authorization_header(&self.inner.client_id, &self.inner.client_secret),
-            )
+            .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
@@ -639,14 +651,9 @@ impl AccessTokenRefreshSync for SyncSpotifyClientWithSecret {
         debug!("Refreshing access token for client credentials flow");
 
         // skip the SendHttpRequest trait since it injects a Bearer auth header with the access token, but the token
-        // refresh uses a Basic auth header with a special value
+        // refresh uses Basic auth with the client credentials
         let response = self
-            .http_client
-            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
-            .header(
-                header::AUTHORIZATION,
-                build_authorization_header(&self.inner.client_id, &self.inner.client_secret),
-            )
+            .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 
