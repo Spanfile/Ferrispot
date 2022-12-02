@@ -651,6 +651,7 @@ fn handle_player_control_response_sync(response: reqwest::blocking::Response) ->
 
         other => {
             warn!("Got unexpected response status to player call: {}", other);
+            // TODO: maybe this should return an unexpected status error
             Ok(())
         }
     }
