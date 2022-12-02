@@ -1,6 +1,6 @@
 # Ferrispot
 
-[![Crates.io](https://img.shields.io/crates/v/ferrispot)](https://crates.io/crate/ferrispot) [![docs.rs](https://img.shields.io/docsrs/ferrispot)](https://docs.rs/ferrispot/latest)
+[![Crates.io](https://img.shields.io/crates/v/ferrispot)](https://crates.io/crates/ferrispot) [![docs.rs](https://img.shields.io/docsrs/ferrispot)](https://docs.rs/ferrispot/latest)
 
 A wrapper for the Spotify Web API that (hopefully) doesn't suck (too much) (I think).
 
