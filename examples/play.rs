@@ -26,7 +26,7 @@ async fn main() {
         .build();
 
     let authorize_url = incomplete_auth_code_client.get_authorize_url();
-    println!("Authorize URL: {}", authorize_url);
+    println!("Authorize URL: {authorize_url}");
 
     let mut code = String::new();
     let mut state = String::new();
@@ -46,7 +46,7 @@ async fn main() {
     // let user_client = spotify_client.authorization_code_client_with_refresh_token("refresh token").await.unwrap();
 
     let devices = user_client.devices().await.expect("failed to get available devices");
-    println!("Available devices: {:#?}", devices);
+    println!("Available devices: {devices:#?}");
 
     user_client
         .play_items(

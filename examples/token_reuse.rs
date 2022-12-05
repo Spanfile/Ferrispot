@@ -21,7 +21,7 @@ async fn main() {
         .build();
 
     let authorize_url = incomplete_auth_code_client.get_authorize_url();
-    println!("Authorize URL: {}", authorize_url);
+    println!("Authorize URL: {authorize_url}");
 
     let mut code = String::new();
     let mut state = String::new();

@@ -264,9 +264,8 @@ impl TryFrom<ArtistObject> for Artist {
 
             (non_local, full) => Err(ConversionError(
                 format!(
-                    "impossible case trying to convert ArtistObject into Artist: non-local artist fields is {:?} \
-                     while full artist fields is {:?}",
-                    non_local, full
+                    "impossible case trying to convert ArtistObject into Artist: non-local artist fields is \
+                     {non_local:?} while full artist fields is {full:?}"
                 )
                 .into(),
             )),
@@ -323,9 +322,8 @@ impl TryFrom<ArtistObject> for FullArtist {
 
             (non_local, full) => Err(ConversionError(
                 format!(
-                    "attempt to convert non-full artist object into full artist (non-local artist fields is {:?}, \
-                     full artist fields is {:?})",
-                    non_local, full
+                    "attempt to convert non-full artist object into full artist (non-local artist fields is \
+                     {non_local:?}, full artist fields is {full:?})"
                 )
                 .into(),
             )),

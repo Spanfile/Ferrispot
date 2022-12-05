@@ -21,7 +21,7 @@ async fn main() {
 
     // all scoped endpoints are now available
     let playback_state = user_client.playback_state().await.unwrap();
-    println!("{:?}", playback_state);
+    println!("{playback_state:?}");
 
     // as well as all unscoped endpoints
     let one_track = user_client

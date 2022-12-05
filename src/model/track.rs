@@ -389,9 +389,8 @@ impl TryFrom<TrackObject> for Track {
 
             (non_local, full) => Err(ConversionError(
                 format!(
-                    "impossible case trying to convert TrackObject into Track: non-local track fields is {:?} while \
-                     full track fields is {:?}",
-                    non_local, full
+                    "impossible case trying to convert TrackObject into Track: non-local track fields is \
+                     {non_local:?} while full track fields is {full:?}"
                 )
                 .into(),
             )),
@@ -446,9 +445,8 @@ impl TryFrom<TrackObject> for FullTrack {
 
             (non_local, full) => Err(ConversionError(
                 format!(
-                    "attempt to convert non-full track object into full track (non-local track fields is {:?}, full \
-                     track fields is {:?})",
-                    non_local, full
+                    "attempt to convert non-full track object into full track (non-local track fields is \
+                     {non_local:?}, full track fields is {full:?})"
                 )
                 .into(),
             )),

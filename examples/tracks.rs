@@ -54,5 +54,5 @@ async fn main() {
         .await
         .unwrap_err();
 
-    println!("{}", nonexistent_id_error);
+    println!("{nonexistent_id_error}");
 }

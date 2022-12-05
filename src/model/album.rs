@@ -370,9 +370,8 @@ impl TryFrom<AlbumObject> for Album {
 
             (non_local, full) => Err(ConversionError(
                 format!(
-                    "impossible case trying to convert AlbumObject into Album: non-local album fields is {:?} while \
-                     full album fields is {:?}",
-                    non_local, full
+                    "impossible case trying to convert AlbumObject into Album: non-local album fields is \
+                     {non_local:?} while full album fields is {full:?}"
                 )
                 .into(),
             )),
@@ -427,9 +426,8 @@ impl TryFrom<AlbumObject> for FullAlbum {
 
             (non_local, full) => Err(ConversionError(
                 format!(
-                    "attempt to convert non-full album object into full album (non-local album fields is {:?}, full \
-                     album fields is {:?})",
-                    non_local, full
+                    "attempt to convert non-full album object into full album (non-local album fields is \
+                     {non_local:?}, full album fields is {full:?})"
                 )
                 .into(),
             )),

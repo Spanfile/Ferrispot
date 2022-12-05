@@ -19,7 +19,7 @@ async fn main() {
 
     let authorize_url = incomplete_implicit_grant_client.get_authorize_url();
 
-    println!("Authorize URL: {}", authorize_url);
+    println!("Authorize URL: {authorize_url}");
 
     let mut access_token = String::new();
     let mut state = String::new();
@@ -36,7 +36,7 @@ async fn main() {
 
     // all scoped endpoints are now available
     let playback_state = user_client.playback_state().await.unwrap();
-    println!("{:?}", playback_state);
+    println!("{playback_state:?}");
 
     // as well as all unscoped endpoints
     let one_track = user_client

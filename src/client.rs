@@ -686,7 +686,7 @@ impl private::AccessTokenExpirySync for SyncSpotifyClientWithSecret {
 }
 
 fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
-    let auth = format!("{}:{}", client_id, client_secret);
+    let auth = format!("{client_id}:{client_secret}");
     format!("Basic {}", base64::encode(auth))
 }
 
