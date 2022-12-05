@@ -64,9 +64,7 @@ pub struct CurrentlyPlayingItem {
 /// A public playing item.
 ///
 /// Public refers to the playing item and its context being publicly available through the API. The item is not
-/// considered public when, but not limited to:
-/// - The user has enabled a private session.
-/// - The playing context is private, e.g. a private playlist.
+/// considered public when, but not limited to, the user has a private session enabled.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PublicPlayingItem {
     context: Context,
@@ -281,5 +279,44 @@ impl Context {
 
     pub fn id(&self) -> PlayableContext {
         self.uri.as_borrowed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialize_context_for_playlist() {
+        let json = r#"{
+            "external_urls": {
+                "spotify": "https://open.spotify.com/playlist/37i9dQZF1DWZipvLjDtZYe"
+            },
+            "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DWZipvLjDtZYe",
+            "type": "playlist",
+            "uri": "spotify:playlist:37i9dQZF1DWZipvLjDtZYe"
+        }"#;
+
+        let context: Context = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(context.uri, PlayableContext::Playlist(_)));
+        assert_eq!("37i9dQZF1DWZipvLjDtZYe", context.uri.as_str());
+    }
+
+    #[test]
+    fn deserialize_context_for_collection() {
+        let json = r#"{
+            "external_urls": {
+                "spotify": "https://open.spotify.com/collection/tracks"
+            },
+            "href": "https://api.spotify.com/v1/me/tracks",
+            "type": "collection",
+            "uri": "spotify:user:1337420:collection"
+        }"#;
+
+        let context: Context = serde_json::from_str(json).unwrap();
+
+        assert!(matches!(context.uri, PlayableContext::Collection(_)));
+        assert_eq!("1337420", context.uri.as_str());
     }
 }

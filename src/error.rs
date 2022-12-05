@@ -131,7 +131,8 @@ pub enum Error {
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum IdError {
-    /// The item type in the input is not one of known Spotify [item types](crate::model::ItemType).
+    /// The item type in the input is not one of known Spotify [item types](crate::model::ItemType), or the item type
+    /// is not applicable for the scenario.
     #[error("Invalid item type: {0}")]
     InvalidItemType(String),
 

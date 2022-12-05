@@ -94,6 +94,7 @@ pub enum CopyrightType {
 /// The type of an item in the Spotify catalog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ItemType {
     Album,
     Artist,
@@ -101,6 +102,8 @@ pub enum ItemType {
     Track,
     Show,
     Episode,
+    Collection,
+    User,
 }
 
 impl crate::private::Sealed for ItemType {}
@@ -114,6 +117,8 @@ impl fmt::Display for ItemType {
             ItemType::Track => write!(f, "track"),
             ItemType::Show => write!(f, "show"),
             ItemType::Episode => write!(f, "episode"),
+            ItemType::Collection => write!(f, "collection"),
+            ItemType::User => write!(f, "user"),
         }
     }
 }
@@ -129,6 +134,8 @@ impl FromStr for ItemType {
             "track" => Ok(Self::Track),
             "show" => Ok(Self::Show),
             "episode" => Ok(Self::Episode),
+            "collection" => Ok(Self::Collection),
+            "user" => Ok(Self::User),
 
             other => Err(IdError::InvalidItemType(other.to_owned())),
         }
