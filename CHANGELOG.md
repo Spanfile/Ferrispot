@@ -1,4 +1,4 @@
-# Unreleased
+# 0.3.2
 - **New**: The following new endpoints have been implemented:
     - Scoped: `next` ([Skip to next](https://developer.spotify.com/documentation/web-api/reference/#/operations/skip-users-playback-to-next-track))
     - Scoped: `previous` ([Skip to previous](https://developer.spotify.com/documentation/web-api/reference/#/operations/skip-users-playback-to-previous-track))
