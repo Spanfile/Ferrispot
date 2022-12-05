@@ -555,8 +555,8 @@ where
     ///
     /// Note that if you change the scopes you request, the new scopes will not be granted for users with existing
     /// approvals for the application. You will have to force users to reapprove the application by setting
-    /// [`show_dialog`](self::show_dialog) to true and directing users through the authorization flow instead of using
-    /// an existing refresh token.
+    /// [`show_dialog`](AuthorizationCodeUserClientBuilder::show_dialog) to true and directing users through the
+    /// authorization flow instead of using an existing refresh token.
     pub fn scopes<T>(self, scopes: T) -> Self
     where
         T: ToScopesString,
@@ -575,10 +575,10 @@ where
     /// redirect URL. If true, the user will not be automatically redirected and will have to approve the application
     /// again.
     ///
-    /// Note that if you change the [scopes you request](self::scopes), the new scopes will not be granted for users
-    /// with existing approvals for the application. You will have to force users to reapprove the application by
-    /// setting this parameter to true and directing users through the authorization flow instead of using
-    /// an existing refresh token.
+    /// Note that if you change the [scopes you request](AuthorizationCodeUserClientBuilder::scopes), the new scopes
+    /// will not be granted for users with existing approvals for the application. You will have to force users to
+    /// reapprove the application by setting this parameter to true and directing users through the authorization
+    /// flow instead of using an existing refresh token.
     pub fn show_dialog(self, show_dialog: bool) -> Self {
         Self { show_dialog, ..self }
     }

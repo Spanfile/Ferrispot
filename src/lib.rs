@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 //! A wrapper for the Spotify Web API that (hopefully) doesn't suck (too much) (I think).
 //!
 //! A lot of the functionality is largely opinionated for my own use. So far only the endpoints I care about are
