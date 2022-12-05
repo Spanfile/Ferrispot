@@ -38,7 +38,10 @@ async fn main() {
         .expect("failed to finalize authorization code client");
 
     // optionally, if you have a valid refresh token (with the correct scope), you may use it as such:
-    // let user_client = spotify_client.authorization_code_client_with_refresh_token("refresh token").await.unwrap();
+    // let user_client = spotify_client
+    //     .authorization_code_client_with_refresh_token("refresh token")
+    //     .await
+    //     .unwrap();
 
     // there are two way to get the currently playing item: .playback_state(), and .currently_playing_item()
     // playback state returns a superset of the currently playing item and includes information about the device that is
@@ -47,16 +50,33 @@ async fn main() {
     // .playback_state()
 
     let playback_state = user_client.playback_state().await.unwrap();
+    // println!("{playback_state:#?}");
 
     if let Some(playback_state) = playback_state {
+        println!(
+            "Repeat: {:?}, shuffle: {}",
+            playback_state.repeat_state(),
+            playback_state.shuffle_state()
+        );
+
+        println!(
+            "Playing on: {} ({}), which is a {:?}",
+            playback_state.device().name(),
+            playback_state.device().id(),
+            playback_state.device().device_type()
+        );
+
         if let Some(item) = playback_state.currently_playing_item().public_playing_item() {
             if let PlayingType::Track(full_track) = item.item() {
                 println!(
-                    "{} - {} ({})",
+                    "{} - {} ({}) [{}] - {:?}/{:?}",
                     full_track.name(),
                     full_track.artists().first().unwrap().name(),
-                    full_track.album().name()
-                )
+                    full_track.album().name(),
+                    full_track.id(),
+                    item.progress(),
+                    full_track.duration(),
+                );
             }
         }
     }
@@ -69,11 +89,14 @@ async fn main() {
         if let Some(item) = currently_playing_item.public_playing_item() {
             if let PlayingType::Track(full_track) = item.item() {
                 println!(
-                    "{} - {} ({})",
+                    "{} - {} ({}) [{}] - {:?}/{:?}",
                     full_track.name(),
                     full_track.artists().first().unwrap().name(),
-                    full_track.album().name()
-                )
+                    full_track.album().name(),
+                    full_track.id(),
+                    item.progress(),
+                    full_track.duration(),
+                );
             }
         }
     }
