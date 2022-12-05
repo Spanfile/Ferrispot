@@ -107,13 +107,13 @@ pub use self::unscoped::SearchBuilder;
 use self::{
     authorization_code::{AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder},
     implicit_grant::AsyncImplicitGrantUserClientBuilder,
-    private::{AsyncClient, BuildHttpRequestAsync},
+    private::AsyncClient,
 };
 #[cfg(feature = "sync")]
 use self::{
     authorization_code::{SyncAuthorizationCodeUserClient, SyncAuthorizationCodeUserClientBuilder},
     implicit_grant::SyncImplicitGrantUserClientBuilder,
-    private::{BuildHttpRequestSync, SyncClient},
+    private::SyncClient,
 };
 #[cfg(feature = "async")]
 pub use self::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient};
@@ -629,10 +629,11 @@ impl AccessTokenRefreshAsync for AsyncSpotifyClientWithSecret {
     async fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
 
-        // skip the SendHttpRequest trait since it injects a Bearer auth header with the access token, but the token
-        // refresh uses Basic auth with the client credentials
+        // build the HTTP request straight from the client so it'll use the client credentials authorization header
+        // instead of the access token
         let response = self
-            .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
+            .http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()
             .await?;
@@ -653,10 +654,11 @@ impl AccessTokenRefreshSync for SyncSpotifyClientWithSecret {
     fn refresh_access_token(&self) -> Result<()> {
         debug!("Refreshing access token for client credentials flow");
 
-        // skip the SendHttpRequest trait since it injects a Bearer auth header with the access token, but the token
-        // refresh uses Basic auth with the client credentials
+        // build the HTTP request straight from the client so it'll use the client credentials authorization header
+        // instead of the access token
         let response = self
-            .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
+            .http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(CLIENT_CREDENTIALS_TOKEN_REQUEST_FORM)
             .send()?;
 
@@ -696,6 +698,8 @@ fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
 async fn extract_authentication_error_async(response: reqwest::Response) -> Result<reqwest::Response> {
     if let StatusCode::BAD_REQUEST = response.status() {
         let error_response: AuthenticationErrorResponse = response.json().await?;
+        debug!("Authentication error response: {error_response:?}");
+
         Err(error_response.into_unhandled_error())
     } else {
         Ok(response)
@@ -708,6 +712,8 @@ async fn extract_authentication_error_async(response: reqwest::Response) -> Resu
 fn extract_authentication_error_sync(response: reqwest::blocking::Response) -> Result<reqwest::blocking::Response> {
     if let StatusCode::BAD_REQUEST = response.status() {
         let error_response: AuthenticationErrorResponse = response.json()?;
+        debug!("Authentication error response: {error_response:?}");
+
         Err(error_response.into_unhandled_error())
     } else {
         Ok(response)

@@ -104,15 +104,9 @@ use super::{
     private, ACCOUNTS_API_TOKEN_ENDPOINT, ACCOUNTS_AUTHORIZE_ENDPOINT, PKCE_VERIFIER_LENGTH, RANDOM_STATE_LENGTH,
 };
 #[cfg(feature = "async")]
-use super::{
-    private::{AsyncClient, BuildHttpRequestAsync},
-    AccessTokenRefreshAsync,
-};
+use super::{private::AsyncClient, AccessTokenRefreshAsync};
 #[cfg(feature = "sync")]
-use super::{
-    private::{BuildHttpRequestSync, SyncClient},
-    AccessTokenRefreshSync,
-};
+use super::{private::SyncClient, AccessTokenRefreshSync};
 use crate::{
     error::{Error, Result},
     model::error::AuthenticationErrorKind,
@@ -660,8 +654,11 @@ impl super::AccessTokenRefreshAsync for AsyncAuthorizationCodeUserClient {
                 refresh_token
             );
 
+            // build the HTTP request straight from the client so it'll use the client credentials authorization header
+            // instead of the access token
             let request = self
-                .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
+                .http_client
+                .post(ACCOUNTS_API_TOKEN_ENDPOINT)
                 .form(&build_refresh_token_request_form(
                     &refresh_token,
                     self.inner.client_id.as_deref(),
@@ -695,8 +692,11 @@ impl super::AccessTokenRefreshSync for SyncAuthorizationCodeUserClient {
             refresh_token
         );
 
+        // build the HTTP request straight from the client so it'll use the client credentials authorization header
+        // instead of the access token
         let response = self
-            .build_http_request(Method::POST, ACCOUNTS_API_TOKEN_ENDPOINT)
+            .http_client
+            .post(ACCOUNTS_API_TOKEN_ENDPOINT)
             .form(&build_refresh_token_request_form(
                 &refresh_token,
                 self.inner.client_id.as_deref(),

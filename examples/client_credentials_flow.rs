@@ -26,4 +26,7 @@ async fn main() {
         one_track.artists().first().unwrap().name(),
         one_track.album().name()
     );
+
+    // Ferrispot will automatically refresh the access token when it expires but it can be manually refreshed as well:
+    spotify_client.refresh_access_token().await.unwrap();
 }
