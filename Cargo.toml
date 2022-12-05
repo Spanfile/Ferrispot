@@ -6,7 +6,7 @@ keywords = ["spotify"]
 license = "MIT OR Apache-2.0"
 name = "ferrispot"
 repository = "https://github.com/Spanfile/Ferrispot"
-version = "0.3.0"
+version = "0.3.1"
 
 [dependencies]
 # async-stream = "0.3.3"
@@ -42,3 +42,7 @@ sync = ["dep:reqwest", "dep:sha2", "dep:log", "dep:rand", "dep:base64", "dep:con
 
 async_std_sleep = ["dep:async-std"]
 tokio_sleep = ["dep:tokio"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

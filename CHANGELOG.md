@@ -1,4 +1,7 @@
-# Unreleased
+# 0.3.1
+- **Fixed**: Access token refreshing uses the wrong credentials and fails with `InvalidClient` (#2).
+
+# 0.3.0
 - **Breaking**: The various `.id()` functions in model objects have been changed to return an `Id` struct that borrow from the models respectively.
 - **New**: `id()`, `uri()` and `url()` in `IdTrait` have been deprecated and new functions `as_str()`, `as_uri()` and `as_url()` respectively have been added. Their functionality is identical, but the new functions better describe their return values and fit the naming scheme better. The old functions will be removed in a future release.
 - **New**: The scoped function `currently_playing_track()` has been deprecated and a new function `currently_playing_item()` has been added. Its functionality is identical, but the new function more accurately describes that the currently playing item may be something other than a track. The old function will be removed in a future release.
