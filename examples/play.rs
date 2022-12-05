@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use dotenvy::dotenv;
 use ferrispot::{
     client::SpotifyClientBuilder,
@@ -43,7 +45,10 @@ async fn main() {
         .expect("failed to finalize authorization code client");
 
     // optionally, if you have a valid refresh token (with the correct scope), you may use it as such:
-    // let user_client = spotify_client.authorization_code_client_with_refresh_token("refresh token").await.unwrap();
+    // let user_client = spotify_client
+    //     .authorization_code_client_with_refresh_token("refresh token")
+    //     .await
+    //     .unwrap();
 
     let devices = user_client.devices().await.expect("failed to get available devices");
     println!("Available devices: {devices:#?}");
@@ -65,6 +70,26 @@ async fn main() {
         )
         .await
         .expect("failed to play tracks");
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!("Pause");
+    user_client.pause(None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!("Resume");
+    user_client.resume(None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!("Next");
+    user_client.next(None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!("Seek");
+    user_client.seek(60 * 1000u32, None).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!("Previous");
+    user_client.previous(None).await.unwrap();
 
     // user_client
     //     .play_context(

@@ -42,6 +42,7 @@ pub(crate) enum ApiErrorMessage {
     PermissionsMissing,
     TokenExpired,
     NoActiveDevice,
+    NotFound,
 
     Other(String),
 }
@@ -84,6 +85,7 @@ impl<'de> Deserialize<'de> for ApiErrorMessage {
                     // TODO: oh god this is ugly. there's actually a "reason" field that says NO_ACTIVE_DEVICE but that
                     // field is not in every error response (because of course it isn't)
                     "Player command failed: No active device found" => Ok(ApiErrorMessage::NoActiveDevice),
+                    "Not found." => Ok(ApiErrorMessage::NotFound),
 
                     _ => Ok(ApiErrorMessage::Other(v)),
                 }

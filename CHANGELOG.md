@@ -1,3 +1,10 @@
+# Unreleased
+- **New**: The following new endpoints have been implemented:
+    - Scoped: `next` ([Skip to next](https://developer.spotify.com/documentation/web-api/reference/#/operations/skip-users-playback-to-next-track))
+    - Scoped: `previous` ([Skip to previous](https://developer.spotify.com/documentation/web-api/reference/#/operations/skip-users-playback-to-previous-track))
+    - Scoped: `seek` ([Seek to position](https://developer.spotify.com/documentation/web-api/reference/#/operations/seek-to-position-in-currently-playing-track))
+- **Fixed**: Player control calls (pause, resume, volume etc.) fail with an unhandled HTTP 411 error.
+
 # 0.3.1
 - **Fixed**: Access token refreshing uses the wrong credentials and fails with `InvalidClient` (#2).
 

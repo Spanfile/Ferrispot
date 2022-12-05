@@ -62,9 +62,14 @@ pub enum Error {
     #[error("The endpoint is forbidden")]
     Forbidden,
 
-    /// No device is currently active in the user's account, or the given device could not be activated for playback.
+    /// No device is currently active in the user's account, the active device didn't respond to the playback in a \
+    /// timely manner or the given device could not be activated for playback.
+    ///
+    /// It is still possible the playback control starts after this error if, for example, the active device is slow to
+    /// respond to playback requests (e.g. smartphones).
     #[error(
-        "No device is currently active in the user's account, or the given device could not be activated for playback"
+        "No device is currently active in the user's account, the active device didn't respond to the playback in a \
+         timely manner or the given device could not be activated for playback"
     )]
     NoActiveDevice,
 

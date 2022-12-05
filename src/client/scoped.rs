@@ -4,11 +4,12 @@ use log::{error, trace, warn};
 use reqwest::{Method, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 
-use super::{private, API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT};
 use crate::{
     client::{
-        API_PLAYER_DEVICES_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_QUEUE_ENDPOINT,
-        API_PLAYER_REPEAT_ENDPOINT, API_PLAYER_SHUFFLE_ENDPOINT, API_PLAYER_VOLUME_ENDPOINT,
+        private, API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT, API_PLAYER_DEVICES_ENDPOINT,
+        API_PLAYER_NEXT_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_PREVIOUS_ENDPOINT,
+        API_PLAYER_QUEUE_ENDPOINT, API_PLAYER_REPEAT_ENDPOINT, API_PLAYER_SEEK_ENDPOINT, API_PLAYER_SHUFFLE_ENDPOINT,
+        API_PLAYER_VOLUME_ENDPOINT,
     },
     error::{Error, Result},
     model::{
@@ -264,6 +265,64 @@ pub trait ScopedAsyncClient<'a>: private::SendHttpRequestAsync<'a> + private::Ac
 
         let response = self.send_http_request(Method::PUT, url).send_async().await?;
         trace!("Set volume response: {:?}", response);
+
+        handle_player_control_response_async(response).await
+    }
+
+    /// Skip to the next track in the user's queue.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::next](ScopedSyncClient::next).
+    async fn next(&'a self, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(API_PLAYER_NEXT_ENDPOINT, &[("device_id", device_id)]);
+        let response = self.send_http_request(Method::POST, url).send_async().await?;
+        trace!("Skip to next response: {:?}", response);
+
+        handle_player_control_response_async(response).await
+    }
+
+    /// Skip to the previous track in the user's queue.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::previous](ScopedSyncClient::previous).
+    async fn previous(&'a self, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(API_PLAYER_PREVIOUS_ENDPOINT, &[("device_id", device_id)]);
+        let response = self.send_http_request(Method::POST, url).send_async().await?;
+        trace!("Skip to previous response: {:?}", response);
+
+        handle_player_control_response_async(response).await
+    }
+
+    /// Seeks to the given position in the user’s currently playing track. `position` is the position in milliseconds to
+    /// seek to. Passing in a position that is greater than the length of the track will cause the player to start
+    /// playing the next song.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedSyncClient::seek](ScopedSyncClient::seek).
+    async fn seek<U>(&'a self, position: U, device_id: Option<&str>) -> Result<()>
+    where
+        U: Into<u64> + Send,
+    {
+        let position = position.into().to_string();
+        let url = build_play_url(
+            API_PLAYER_SEEK_ENDPOINT,
+            &[("position_ms", Some(&position)), ("device_id", device_id)],
+        );
+
+        let response = self.send_http_request(Method::PUT, url).send_async().await?;
+        trace!("Seek to position response: {:?}", response);
 
         handle_player_control_response_async(response).await
     }
@@ -543,6 +602,64 @@ pub trait ScopedSyncClient<'a>: private::SendHttpRequestSync<'a> + private::Acce
         handle_player_control_response_sync(response)
     }
 
+    /// Skip to the next track in the user's queue.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedAsyncClient::next](ScopedAsyncClient::next).
+    fn next(&'a self, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(API_PLAYER_NEXT_ENDPOINT, &[("device_id", device_id)]);
+        let response = self.send_http_request(Method::POST, url).send_sync()?;
+        trace!("Skip to next response: {:?}", response);
+
+        handle_player_control_response_sync(response)
+    }
+
+    /// Skip to the previous track in the user's queue.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedAsyncClient::previous](ScopedAsyncClient::previous).
+    fn previous(&'a self, device_id: Option<&str>) -> Result<()> {
+        let url = build_play_url(API_PLAYER_PREVIOUS_ENDPOINT, &[("device_id", device_id)]);
+        let response = self.send_http_request(Method::POST, url).send_sync()?;
+        trace!("Skip to previous response: {:?}", response);
+
+        handle_player_control_response_sync(response)
+    }
+
+    /// Seeks to the given position in the user’s currently playing track. `position` is the position in milliseconds to
+    /// seek to. Passing in a position that is greater than the length of the track will cause the player to start
+    /// playing the next song.
+    ///
+    /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
+    /// on the user's currently active device.
+    ///
+    /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
+    ///
+    /// This function's synchronous counterpart is [ScopedAsyncClient::seek](ScopedAsyncClient::seek).
+    fn seek<U>(&'a self, position: U, device_id: Option<&str>) -> Result<()>
+    where
+        U: Into<u64>,
+    {
+        let position = position.into().to_string();
+        let url = build_play_url(
+            API_PLAYER_SEEK_ENDPOINT,
+            &[("position_ms", Some(&position)), ("device_id", device_id)],
+        );
+
+        let response = self.send_http_request(Method::PUT, url).send_sync()?;
+        trace!("Seek to position response: {:?}", response);
+
+        handle_player_control_response_sync(response)
+    }
+
     /// Add a playable item to the end of the current playback queue.
     ///
     /// If `device_id` is supplied, playback will be targeted on that device. If not supplied, playback will be targeted
@@ -608,8 +725,8 @@ async fn handle_player_control_response_async(response: reqwest::Response) -> Re
             let error_response: ApiErrorResponse = response.json().await?;
 
             match error_response.error.message {
-                ApiErrorMessage::NoActiveDevice => {
-                    warn!("Player call failed: no active device");
+                ApiErrorMessage::NoActiveDevice | ApiErrorMessage::NotFound => {
+                    warn!("Player call failed: no active device or playback failed on active device");
                     Err(Error::NoActiveDevice)
                 }
 
@@ -622,7 +739,10 @@ async fn handle_player_control_response_async(response: reqwest::Response) -> Re
 
         other => {
             warn!("Got unexpected response status to player call: {}", other);
-            Ok(())
+            let body = response.text().await?;
+            warn!("Response body: {body}");
+
+            Err(Error::UnhandledSpotifyResponseStatusCode(other.as_u16()))
         }
     }
 }
@@ -651,8 +771,10 @@ fn handle_player_control_response_sync(response: reqwest::blocking::Response) ->
 
         other => {
             warn!("Got unexpected response status to player call: {}", other);
-            // TODO: maybe this should return an unexpected status error
-            Ok(())
+            let body = response.text()?;
+            warn!("Response body: {body}");
+
+            Err(Error::UnhandledSpotifyResponseStatusCode(other.as_u16()))
         }
     }
 }

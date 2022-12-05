@@ -160,6 +160,9 @@ const API_PLAYER_PAUSE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/pause
 const API_PLAYER_REPEAT_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/repeat");
 const API_PLAYER_SHUFFLE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/shuffle");
 const API_PLAYER_VOLUME_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/volume");
+const API_PLAYER_NEXT_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/next");
+const API_PLAYER_PREVIOUS_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/previous");
+const API_PLAYER_SEEK_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/seek");
 const API_PLAYER_QUEUE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/queue");
 const API_PLAYER_DEVICES_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/devices");
 
@@ -489,9 +492,14 @@ impl SpotifyClientBuilder {
 impl SpotifyClientWithSecretBuilder {
     fn get_default_headers(&self) -> HeaderMap {
         let mut default_headers = header::HeaderMap::new();
+
+        // insert default client credentials header. the same HTTP client will be used with future user clients that
+        // require the authorization in order to exchange an authorization code for access and refresh tokens
+        // when finalizing the clients
         default_headers.insert(
             header::AUTHORIZATION,
-            header::HeaderValue::from_str(&build_authorization_header(&self.client_id, &self.client_secret))
+            build_authorization_header(&self.client_id, &self.client_secret)
+                .parse()
                 // this can only fail if the header value contains non-ASCII characters, which shouldn't happen since
                 // the given header value is in base64
                 .expect(
@@ -529,9 +537,6 @@ impl SpotifyClientWithSecretBuilder {
 
         let http_client = AsyncClient(
             reqwest::Client::builder()
-                // it's important to include the client credentials authorization header as default, since this same
-                // HTTP client will be used with future user clients that require the authorization in order to exchange
-                // an authorization code for access and refresh tokens when finalizing the clients
                 .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
@@ -561,9 +566,6 @@ impl SpotifyClientWithSecretBuilder {
 
         let http_client = SyncClient(
             reqwest::blocking::Client::builder()
-                // it's important to include the client credentials authorization header as default, since this same
-                // HTTP client will be used with future user clients that require the authorization in order to exchange
-                // an authorization code for access and refresh tokens when finalizing the clients
                 .default_headers(self.get_default_headers())
                 .build()
                 // this can only fail due to a system error or system misconfiguration
