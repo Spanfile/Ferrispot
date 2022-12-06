@@ -950,7 +950,9 @@ impl<'a> IdTrait<'a> for PlayableContext<'a> {
             PlayableContext::Album(album) => album.as_uri(),
             PlayableContext::Playlist(playlist) => playlist.as_uri(),
             PlayableContext::Show(show) => show.as_uri(),
-            PlayableContext::Collection(user) => user.as_uri(),
+
+            // collection URIs have the ":collection" suffix at the end
+            PlayableContext::Collection(user) => format!("{}{URI_COLLECTION_SUFFIX}", user.as_uri()).into(),
         }
     }
 
@@ -960,7 +962,9 @@ impl<'a> IdTrait<'a> for PlayableContext<'a> {
             PlayableContext::Album(album) => album.as_url(),
             PlayableContext::Playlist(playlist) => playlist.as_url(),
             PlayableContext::Show(show) => show.as_url(),
-            PlayableContext::Collection(user) => user.as_url(),
+
+            // collection URLs have the "/collection" suffix at the end
+            PlayableContext::Collection(user) => format!("{}{URL_COLLECTION_SUFFIX}", user.as_url()).into(),
         }
     }
 
@@ -1286,10 +1290,10 @@ impl<'de> Deserialize<'de> for PlayableItem<'static> {
             where
                 E: de::Error,
             {
-                // Id, and therefore PlayableItem, always store the input string in its entirety in themselves for
-                // efficiency. when deserializing a string, it's impossible to reliably borrow the input here since the
-                // `v` parameter isn't guaranteed to outlive the visitor. hence, convert it into an owned String and
-                // deserialize that
+                // Id's can either own or borrow their input string. serde could allow zero-copy deserialization with
+                // the visit_borrowed_str function but the issue is that using it means always borrowing the input, so
+                // in cases where it is wanted to be owned with a 'static lifetime, it would still be attempted to be
+                // borrowed as 'static which would not work. therefore a deserialized Id always owns its value
                 self.visit_string(v.to_owned())
             }
 
@@ -1334,10 +1338,10 @@ impl<'de> Deserialize<'de> for PlayableContext<'static> {
             where
                 E: de::Error,
             {
-                // Id, and therefore PlayableContext, always store the input string in its entirety in themselves for
-                // efficiency. when deserializing a string, it's impossible to reliably borrow the input here since the
-                // `v` parameter isn't guaranteed to outlive the visitor. hence, convert it into an owned String and
-                // deserialize that
+                // Id's can either own or borrow their input string. serde could allow zero-copy deserialization with
+                // the visit_borrowed_str function but the issue is that using it means always borrowing the input, so
+                // in cases where it is wanted to be owned with a 'static lifetime, it would still be attempted to be
+                // borrowed as 'static which would not work. therefore a deserialized Id always owns its value
                 self.visit_string(v.to_owned())
             }
 
@@ -1390,9 +1394,10 @@ where
             where
                 E: de::Error,
             {
-                // Id always stores the input string in its entirety in it for efficiency. when deserializing a string,
-                // it's impossible to reliably borrow the input here since the `v` parameter isn't guaranteed to outlive
-                // the visitor. hence, convert it into an owned String and deserialize that
+                // Id's can either own or borrow their input string. serde could allow zero-copy deserialization with
+                // the visit_borrowed_str function but the issue is that using it means always borrowing the input, so
+                // in cases where it is wanted to be owned with a 'static lifetime, it would still be attempted to be
+                // borrowed as 'static which would not work. therefore a deserialized Id always owns its value
                 self.visit_string(v.to_owned())
             }
 
@@ -1543,6 +1548,52 @@ fn is_ascii_alphanumeric(val: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ===========================
+    // URI and URL representations
+    // ===========================
+
+    #[test]
+    fn collection_uri() {
+        let id = PlayableContext::Collection(Id::<UserId>::from_bare("1337420asdasd").unwrap());
+        assert_eq!(id.as_uri(), "spotify:user:1337420asdasd:collection");
+    }
+
+    #[test]
+    fn collection_url() {
+        let id = PlayableContext::Collection(Id::<UserId>::from_bare("1337420asdasd").unwrap());
+        assert_eq!(id.as_url(), "https://open.spotify.com/user/1337420asdasd/collection");
+    }
+
+    #[test]
+    fn spotify_id_collection_uri() {
+        let id = SpotifyId::Context(PlayableContext::Collection(
+            Id::<UserId>::from_bare("1337420asdasd").unwrap(),
+        ));
+
+        assert_eq!(id.as_uri(), "spotify:user:1337420asdasd:collection");
+    }
+
+    #[test]
+    fn spotify_id_collection_url() {
+        let id = SpotifyId::Context(PlayableContext::Collection(
+            Id::<UserId>::from_bare("1337420asdasd").unwrap(),
+        ));
+
+        assert_eq!(id.as_url(), "https://open.spotify.com/user/1337420asdasd/collection");
+    }
+
+    #[test]
+    fn spotify_id_user_uri() {
+        let id = SpotifyId::User(Id::<UserId>::from_bare("1337420asdasd").unwrap());
+        assert_eq!(id.as_uri(), "spotify:user:1337420asdasd");
+    }
+
+    #[test]
+    fn spotify_id_user_url() {
+        let id = SpotifyId::User(Id::<UserId>::from_bare("1337420asdasd").unwrap());
+        assert_eq!(id.as_url(), "https://open.spotify.com/user/1337420asdasd");
+    }
 
     // ==========
     // conversion
@@ -1811,22 +1862,22 @@ mod tests {
 
     #[test]
     fn playable_context_id_from_user_collection_uri() {
-        let id = PlayableContext::from_uri("spotify:user:vt1urbqy82xlssb:collection").unwrap();
-        assert_eq!(id.as_str(), "vt1urbqy82xlssb");
+        let id = PlayableContext::from_uri("spotify:user:1337420asdasd:collection").unwrap();
+        assert_eq!(id.as_str(), "1337420asdasd");
     }
 
     #[test]
     fn playable_context_id_from_user_collection_url() {
-        let id = PlayableContext::from_url("https://open.spotify.com/user/vt1urbqy82xlssb/collection").unwrap();
-        assert_eq!(id.as_str(), "vt1urbqy82xlssb");
+        let id = PlayableContext::from_url("https://open.spotify.com/user/1337420asdasd/collection").unwrap();
+        assert_eq!(id.as_str(), "1337420asdasd");
     }
 
     #[test]
     fn playable_context_id_from_user_collection_url_with_query() {
-        let id = PlayableContext::from_url("https://open.spotify.com/user/vt1urbqy82xlssb/collection?si=AAAAAAAAAA")
-            .unwrap();
+        let id =
+            PlayableContext::from_url("https://open.spotify.com/user/1337420asdasd/collection?si=AAAAAAAAAA").unwrap();
 
-        assert_eq!(id.as_str(), "vt1urbqy82xlssb");
+        assert_eq!(id.as_str(), "1337420asdasd");
     }
 
     #[test]
@@ -1866,6 +1917,38 @@ mod tests {
 
         assert_eq!(url_id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
         assert_eq!(uri_id.as_str(), "2pDPOMX0kWA7kcPBcDCQBu");
+    }
+
+    #[test]
+    fn spotify_id_from_user_uri() {
+        let id = SpotifyId::from_uri("spotify:user:1337420asdasd").unwrap();
+
+        assert!(matches!(id, SpotifyId::User(_)));
+        assert_eq!(id.as_str(), "1337420asdasd");
+    }
+
+    #[test]
+    fn spotify_id_from_user_collection_uri() {
+        let id = SpotifyId::from_uri("spotify:user:1337420asdasd:collection").unwrap();
+
+        assert!(matches!(id, SpotifyId::Context(PlayableContext::Collection(_))));
+        assert_eq!(id.as_str(), "1337420asdasd");
+    }
+
+    #[test]
+    fn spotify_id_from_user_url() {
+        let id = SpotifyId::from_url("https://open.spotify.com/user/1337420asdasd").unwrap();
+
+        assert!(matches!(id, SpotifyId::User(_)));
+        assert_eq!(id.as_str(), "1337420asdasd");
+    }
+
+    #[test]
+    fn spotify_id_from_user_collection_url() {
+        let id = SpotifyId::from_url("https://open.spotify.com/user/1337420asdasd/collection").unwrap();
+
+        assert!(matches!(id, SpotifyId::Context(PlayableContext::Collection(_))));
+        assert_eq!(id.as_str(), "1337420asdasd");
     }
 
     // ================
