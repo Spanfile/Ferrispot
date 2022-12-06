@@ -140,7 +140,7 @@ pub struct IncompleteImplicitGrantUserClient<C>
 where
     C: HttpClient + Clone,
 {
-    redirect_uri: String, // TODO: figure if this can be &'a str instead
+    redirect_uri: String,
     state: String,
     scopes: Option<String>,
     show_dialog: bool,
@@ -153,7 +153,7 @@ pub struct ImplicitGrantUserClientBuilder<C>
 where
     C: HttpClient + Clone,
 {
-    redirect_uri: String, // TODO: figure if this can be &'a str instead
+    redirect_uri: String,
     scopes: Option<String>,
     show_dialog: bool,
 

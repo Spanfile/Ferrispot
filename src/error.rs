@@ -33,9 +33,9 @@ pub enum Error {
     InvalidAuthorizationCode,
 
     // TODO: actually let the user disable automatic token refreshing if they so wish to
-    /// The access token expired and was not automatically refreshed, due to it being impossible
-    /// ([ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient) does not support refreshing
-    /// its access token), or automatic token refreshing is disabled.
+    /// The access token expired and was not automatically refreshed, due to automatic token refreshind being disabled
+    /// or it being impossible ([ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient)
+    /// does not support refreshing its access token).
     #[error("The access token expired")]
     AccessTokenExpired,
 

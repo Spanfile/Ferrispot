@@ -104,6 +104,8 @@ pub trait FullTrackInformation: crate::private::Sealed {
 
 /// Functions for retrieving information that is available in non-local tracks.
 pub trait NonLocalTrackInformation: crate::private::Sealed {
+    // TODO: tracks should have a method for getting their "original" ID, such that it takes track relinking into
+    // account
     /// The track's Spotify ID.
     fn id(&self) -> Id<'_, TrackId>;
 }
@@ -265,10 +267,12 @@ pub(crate) struct CommonTrackFields {
     item_type: TypeTrack,
 
     // track relinking
+    // TODO: all these fields could be reworked into something more coherent according to the track relinking rules
+    // https://developer.spotify.com/documentation/general/guides/track-relinking-guide/
     #[serde(default)]
     available_markets: HashSet<CountryCode>,
     is_playable: Option<bool>,
-    linked_from: Option<LinkedTrack>, // TODO: this is ew
+    linked_from: Option<LinkedTrack>,
     #[serde(default)]
     restrictions: Restrictions,
 }

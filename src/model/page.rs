@@ -1,5 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
+use log::{debug, warn};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// A trait describing a page-like object that is returned from Spotify's search API.
@@ -105,18 +106,19 @@ where
         C: crate::client::private::SendHttpRequestAsync<'a>,
     {
         if let Some(url) = self.inner.next() {
-            // this will only fail if Spotify returns a malformed URL
-            // TODO: maybe it's an error case?
-            let url =
-                reqwest::Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
+            let Ok(url) =
+                reqwest::Url::parse(url) else {
+                    warn!("Failed to parse next page URL: malformed URL in Spotify response");
+                    return Ok(None);
+                };
 
             let response = client.send_http_request(reqwest::Method::GET, url).send_async().await?;
-            log::debug!("Next page response: {:?}", response);
+            debug!("Next page response: {:?}", response);
 
             response.error_for_status_ref()?;
 
             let next_page: TInner = response.json().await?;
-            log::debug!("Next page: {:?}", next_page);
+            debug!("Next page: {:?}", next_page);
 
             Ok(Some(Page {
                 inner: next_page,
@@ -139,18 +141,19 @@ where
         C: crate::client::private::SendHttpRequestSync<'a>,
     {
         if let Some(url) = self.inner.next() {
-            // this will only fail if Spotify returns a malformed URL
-            // TODO: maybe it's an error case?
-            let url =
-                reqwest::Url::parse(url).expect("failed to parse next page URL: malformed URL in Spotify response");
+            let Ok(url) =
+                reqwest::Url::parse(url) else {
+                    warn!("Failed to parse next page URL: malformed URL in Spotify response");
+                    return Ok(None);
+                };
 
             let response = client.send_http_request(reqwest::Method::GET, url).send_sync()?;
-            log::debug!("Next page response: {:?}", response);
+            debug!("Next page response: {:?}", response);
 
             response.error_for_status_ref()?;
 
             let next_page: TInner = response.json()?;
-            log::debug!("Next page: {:?}", next_page);
+            debug!("Next page: {:?}", next_page);
 
             Ok(Some(Page {
                 inner: next_page,

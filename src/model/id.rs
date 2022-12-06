@@ -1575,6 +1575,7 @@ fn parse_item_type_and_id_from_uri(uri: &str) -> Result<(ItemType, usize, usize)
 }
 
 fn parse_item_type_and_id_from_url(url: &str) -> Result<(ItemType, usize, usize), IdError> {
+    // TODO: bringing in the url crate could help with parsing the URL but then again this does work so far
     // a whole URL could look like: https://open.spotify.com/track/3mXLyNsVeLelMakgpGUp1f?si=AAAAAAAAAAAAAAAA
 
     if let Some((item_type_str, id)) = url
