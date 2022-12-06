@@ -2,7 +2,7 @@
 
 //! A wrapper for the Spotify Web API that (hopefully) doesn't suck (too much) (I think).
 //!
-//! A lot of the functionality is largely opinionated for my own use but I'm trying to make the library ergonimic and
+//! A lot of the functionality is largely opinionated for my own use but I'm trying to make the library ergonomic and
 //! efficient to use. So far only the endpoints I care about are implemented, but if you need some endpoints
 //! implemented, feel free to open an issue.
 //!
