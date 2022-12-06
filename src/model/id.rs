@@ -2,15 +2,19 @@
 //!
 //! # Working with IDs
 //!
-//! There are three different kinds of Spotify IDs that this module can handle:
+//! There are three different formats of Spotify IDs that this module can handle:
 //! - URIs: `spotify:track:2pDPOMX0kWA7kcPBcDCQBu`
 //! - URLs: `https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu`. The URL may contain any query prameters.
 //! - Bare IDs: `2pDPOMX0kWA7kcPBcDCQBu`
 //!
-//! The IDs are split into two kinds: playable items and playable contexts. Playable items are individual items that can
-//! be played; tracks or episodes. Playable contexts are collections of one or more playable items; artists, albums,
-//! playlists or shows. The enums [PlayableItem] and [PlayableContext] represent the two kinds. These two kinds are
-//! grouped into one common [SpotifyId] that encompasses all of them.
+//! There are different kinds of IDs:
+//! - Playable items: individual items that can be played; tracks or podcast episodes.
+//! - Playable contexts: items that are collections of one or more playable items; albums, artists, playlists or podcast
+//!   shows. There is a special playable context, [Collection](PlayableContext::Collection), which refers to a user's
+//!   Liked Songs playlist.
+//! - Users.
+//!
+//! All the different kinds of IDs are grouped into [SpotifyId] that encompasses all of them.
 //!
 //! # The core ID type
 //!
@@ -21,7 +25,7 @@
 //! You may parse any ID string into an [Id] by specifying the kind in the [Id]'s type parameter:
 //!
 //! ```
-//! # use ferrispot::model::id::{AlbumId, Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let track_id = Id::<TrackId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
 //!
@@ -32,7 +36,7 @@
 //! Attempting to parse an ID of the wrong type will fail:
 //!
 //! ```
-//! # use ferrispot::model::id::{Id, AlbumId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! // the URI is for a track, but we're attempting to parse an album ID
 //! assert!(Id::<AlbumId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").is_err());
@@ -43,7 +47,7 @@
 //! PlayableContext](self#playableitem-and-playablecontext) or [SpotifyId](self#spotifyid).
 //!
 //! ```
-//! # use ferrispot::model::id::{AlbumId, Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! // the given strings are validated only to *look* like valid Spotify IDs. there are no
 //! // guarantees they actually exist within Spotify's catalog
@@ -54,7 +58,7 @@
 //! You may also let the parser figure out if the input is an URL or an URI:
 //!
 //! ```
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let track_from_uri =
 //!     Id::<TrackId>::from_url_or_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
@@ -73,7 +77,7 @@
 //! string was also an URL, no new strings are allocated.
 //!
 //! ```
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! # use std::borrow::Cow;
 //! let id_from_uri =
@@ -102,7 +106,7 @@
 //! may not outlive the original Id. Therefore, the new Id acts as if it was a reference to the original Id without
 //! being a borrowed value (`&Id<'_, T>`).
 //! ```
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let owning_track_id =
 //!     Id::<TrackId>::from_uri(String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu")).unwrap();
@@ -119,7 +123,7 @@
 //! You may convert an [Id] that borrows the original input into a static [Id] that owns its value by using the
 //! [`as_owned`-function](IdTrait::as_owned).
 //! ```
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let id_string = String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu");
 //!
@@ -148,7 +152,7 @@
 //! Using [`as_borrowed`](IdTrait::as_borrowed) on an owning Id returns a new Id that borrows from the given Id's value.
 //! The new Id's lifetime may not outlive that of the given Id's.
 //! ```compile_fail
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let id_string = String::from("spotify:track:2pDPOMX0kWA7kcPBcDCQBu");
 //! let original_track_id = Id::<TrackId>::from_uri(id_string).unwrap();
@@ -169,7 +173,7 @@
 //! Using [`as_borrowed`](IdTrait::as_borrowed) on a borrowing Id returns a new Id that borrows from the given Id's
 //! value. The new Id's lifetime may not outlive that of the given Id's.
 //! ```compile_fail
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let original_track_id =
 //!     Id::<TrackId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
@@ -189,7 +193,7 @@
 //! outlive that of the given Id's *value's* lifetime it borrows from, therefore the cloned Id *may* outlive the given
 //! Id.
 //! ```
-//! # use ferrispot::model::id::{Id, TrackId};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! let original_track_id =
 //!     Id::<TrackId>::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
@@ -220,17 +224,25 @@
 //! albums, artists, playlists or shows.
 //!
 //! ```
-//! # use ferrispot::model::id::{PlayableContext, PlayableItem};
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
-//! // both of these are PlayableItem::Track(Id::<TrackId>)
+//! // PlayableItem::Track(Id::<TrackId>)
 //! let track_from_uri = PlayableItem::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//! assert!(matches!(track_from_uri, PlayableItem::Track(_)));
+//!
 //! let track_from_url =
 //!     PlayableItem::from_url("https://open.spotify.com/track/2pDPOMX0kWA7kcPBcDCQBu").unwrap();
 //!
-//! // both of these are PlayableContext::Album(Id::<AlbumId>)
+//! assert!(matches!(track_from_uri, PlayableItem::Track(_)));
+//!
+//! // PlayableContext::Album(Id::<AlbumId>)
 //! let album_from_uri = PlayableContext::from_uri("spotify:album:0tDsHtvN9YNuZjlqHvDY2P").unwrap();
+//! assert!(matches!(album_from_uri, PlayableContext::Album(_)));
+//!
 //! let album_from_url =
 //!     PlayableContext::from_url("https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P").unwrap();
+//!
+//! assert!(matches!(album_from_uri, PlayableContext::Album(_)));
 //! ```
 //!
 //! Attempting to parse an ID of the wrong type will fail:
@@ -241,24 +253,100 @@
 //! assert!(PlayableContext::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").is_err());
 //! ```
 //!
-//! # `SpotifyId`
+//! ## Collection context
 //!
-//! [SpotifyId] encompasses both [PlayableItem] and [PlayableContext] into one type which lets you parse any kind of ID
-//! into a single type. Like with [PlayableItem] and [PlayableContext], bare IDs are not supported.
+//! The [Collection](PlayableContext::Collection) context is a special context that refers to a user's Liked Songs
+//! playlist. Its URIs are in the form `spotify:user:<user id>:collection` and URLs in the form
+//! `https://open.spotify.com/user/<user id>/collection`.
 //!
 //! ```
-//! # use ferrispot::model::id::SpotifyId;
+//! # use ferrispot::model::id::*;
+//! # use ferrispot::prelude::*;
+//!
+//! let collection_from_uri =
+//!     PlayableContext::from_uri("spotify:user:1337420asdasd:collection").unwrap();
+//!
+//! let collection_from_url =
+//!     PlayableContext::from_url("https://open.spotify.com/user/1337420asdasd/collection")
+//!         .unwrap();
+//!
+//! assert_eq!(collection_from_uri.as_str(), "1337420asdasd");
+//! assert_eq!(collection_from_url.as_str(), "1337420asdasd");
+//!
+//! // retrieving an URL or an URI from a collection will include the special suffixes
+//!
+//! let collection_from_bare =
+//!     PlayableContext::Collection(Id::<UserId>::from_bare("1337420asdasd").unwrap());
+//!
+//! let uri = collection_from_bare.as_uri();
+//! let url = collection_from_bare.as_url();
+//!
+//! assert_eq!(uri, "spotify:user:1337420asdasd:collection");
+//! assert_eq!(
+//!     url,
+//!     "https://open.spotify.com/user/1337420asdasd/collection"
+//! );
+//! ```
+//!
+//! # `SpotifyId`
+//!
+//! [SpotifyId] encompasses [PlayableItem], [PlayableContext] and user IDs into one type which lets you parse any kind
+//! of ID into a single type. Like with [PlayableItem] and [PlayableContext], bare IDs are not supported.
+//!
+//! ```
+//! # use ferrispot::model::id::*;
 //! # use ferrispot::prelude::*;
 //! // SpotifyId::Item(PlayableItem::Track(Id::<TrackId>))
 //! let track_from_uri = SpotifyId::from_uri("spotify:track:2pDPOMX0kWA7kcPBcDCQBu").unwrap();
+//! assert!(matches!(
+//!     track_from_uri,
+//!     SpotifyId::Item(PlayableItem::Track(_))
+//! ));
 //!
 //! // SpotifyId::Context(PlayableContext::Album(Id::<AlbumId>))
 //! let album_from_url =
 //!     SpotifyId::from_url("https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P").unwrap();
+//! assert!(matches!(
+//!     album_from_url,
+//!     SpotifyId::Context(PlayableContext::Album(_))
+//! ));
 //!
 //! // SpotifyId::Context(PlayableContext::Artist(Id::<ArtistId>))
 //! let artist_from_url =
 //!     SpotifyId::from_url("https://open.spotify.com/artist/6pNgnvzBa6Bthsv8SrZJYl").unwrap();
+//! assert!(matches!(
+//!     artist_from_url,
+//!     SpotifyId::Context(PlayableContext::Artist(_))
+//! ));
+//!
+//! // SpotifyId::User(Id::<UserId>)
+//! let user_from_url = SpotifyId::from_url("https://open.spotify.com/user/1337420asdasd").unwrap();
+//! assert!(matches!(user_from_url, SpotifyId::User(_)));
+//! ```
+//!
+//! ## Note on ID type conversion
+//!
+//! [PlayableContext] implements `From<Id<UserId>>` such that it returns
+//! [`PlayableContext::Collection`](PlayableContext::Collection), which refers to the given user's Liked Songs playlist.
+//! In contrast, [SpotifyId] implements `From<Id<UserId>>` such that it returns [`SpotifyId::User`](SpotifyId::User)
+//! instead of [`SpotifyId::Context`](SpotifyId::Context). If you have to convert a user ID into
+//! [`SpotifyId::Context`](SpotifyId::Context), you should convert the ID into a [PlayableContext] first and then wrap
+//! it in [SpotifyId].
+//!
+//! ```
+//! # use ferrispot::prelude::*;
+//! # use ferrispot::model::id::*;
+//! // SpotifyId::User
+//! let user_id: SpotifyId = Id::<UserId>::from_bare("1337420asdasd").unwrap().into();
+//! assert!(matches!(user_id, SpotifyId::User(_)));
+//!
+//! // PlayableContext::Collection
+//! let collection_id: PlayableContext = Id::<UserId>::from_bare("1337420asdasd").unwrap().into();
+//! assert!(matches!(collection_id, PlayableContext::Collection(_)));
+//!
+//! // SpotifyId::Context
+//! let context_id = SpotifyId::Context(Id::<UserId>::from_bare("1337420asdasd").unwrap().into());
+//! assert!(matches!(context_id, SpotifyId::Context(_)));
 //! ```
 
 use std::{borrow::Cow, fmt, marker::PhantomData};
@@ -424,8 +512,11 @@ enum IdKind {
 /// See the [module-level docs](self) for information on how to work with IDs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpotifyId<'a> {
+    /// A playable item in the Spotify catalog. See [PlayableItem].
     Item(PlayableItem<'a>),
+    /// A playable context in the Spotify catalog. See [PlayableContext].
     Context(PlayableContext<'a>),
+    /// A Spotify user.
     User(Id<'a, UserId>),
 }
 
@@ -434,7 +525,9 @@ pub enum SpotifyId<'a> {
 /// See the [module-level docs](self) for information on how to work with IDs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlayableItem<'a> {
+    /// A track.
     Track(Id<'a, TrackId>),
+    /// A podcast episode.
     Episode(Id<'a, EpisodeId>),
 }
 
@@ -443,10 +536,15 @@ pub enum PlayableItem<'a> {
 /// See the [module-level docs](self) for information on how to work with IDs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlayableContext<'a> {
+    /// An artist.
     Artist(Id<'a, ArtistId>),
+    /// An album.
     Album(Id<'a, AlbumId>),
+    /// A playlist.
     Playlist(Id<'a, PlaylistId>),
+    /// A podcast show.
     Show(Id<'a, ShowId>),
+    /// A user's Liked Songs playlist.
     Collection(Id<'a, UserId>),
 }
 

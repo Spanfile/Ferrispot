@@ -1,3 +1,6 @@
+# Unreleased
+- **New**: Add support for user IDs and collection URIs / URLs, which refer to a user's Liked Songs playlist.
+
 # 0.3.2
 - **New**: The following new endpoints have been implemented:
     - Scoped: `next` ([Skip to next](https://developer.spotify.com/documentation/web-api/reference/#/operations/skip-users-playback-to-next-track))
