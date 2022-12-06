@@ -1,4 +1,4 @@
-# Unreleased
+# 0.3.3
 - **New**: Add support for user IDs and collection URIs / URLs, which refer to a user's Liked Songs playlist.
 
 # 0.3.2
