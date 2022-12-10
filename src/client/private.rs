@@ -216,8 +216,8 @@ where
                 request = request.json(body);
             // Spotify requires that all empty POST and PUT have a Content-Length header set to 0. reqwest doesn't do it
             // so we have to do it ourselves. and before you ask, it cannot be set as a default header in the client
-            // because reqwest doesn't seem to set it at all for *asynchronous* requests, so setting it to default 0
-            // means it'll always be 0, even if there's a body, which causes issues
+            // because reqwest doesn't seem to set it at all for requests, so setting it to default 0 means it'll always
+            // be 0, even if there's a body, which causes issues
             } else if self.method == Method::POST || self.method == Method::PUT {
                 request = request.header(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
             }
@@ -267,6 +267,12 @@ where
 
             if let Some(body) = &self.body {
                 request = request.json(body);
+            // Spotify requires that all empty POST and PUT have a Content-Length header set to 0. reqwest doesn't do it
+            // so we have to do it ourselves. and before you ask, it cannot be set as a default header in the client
+            // because reqwest doesn't seem to set it at all for requests, so setting it to default 0 means it'll always
+            // be 0, even if there's a body, which causes issues
+            } else if self.method == Method::POST || self.method == Method::PUT {
+                request = request.header(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
             }
 
             let response = request.send()?;

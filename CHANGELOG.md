@@ -1,3 +1,6 @@
+# 0.3.4
+- **Fixed**: Synchronous player control calls fail with an unhandled HTTP 411 error.
+
 # 0.3.3
 - **New**: Add support for user IDs and collection URIs / URLs, which refer to a user's Liked Songs playlist.
 
