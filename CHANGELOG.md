@@ -2,17 +2,20 @@
 
 ## The neat thing
 
-Every endpoint function have been changed to return a request builder that allows for setting certain parameters for the request before sending it. The request builder may be sent with the `.send_async()` and `.send_sync()` functions on the builder. Because of this, there are no longer separate async and sync traits for scoped and unscoped clients; they have been merged into just `ScopedClient` and `UnscopedClient`.
+Every endpoint function has been changed to return a request builder that allows for setting certain parameters for the request before sending it. The request builder may be sent with the `.send_async()` and `.send_sync()` functions on the builder. Because of this change, there are no longer separate async and sync traits for scoped and unscoped clients; they have been merged into just `ScopedClient` and `UnscopedClient`.
 
 This change allows, for one:
   - Choosing whether or not Ferrispot automatically reacts to being rate limited per-request using the `react_to_rate_limit`-function in every request builder. Default: `true`.
   - Choosing whether or not Ferrispot automatically refreshes the client's access token when it expires, if applicable, using the `auto_refresh_access_token`-function in every request builder. Default: `true`.
   - Neater way of choosing opt-in options such as the device ID in player requests or the market country code in catalog searches.
+  - More easily implementing new endpoints in the future.
 
 ## As for the rest...
 
 - **Breaking**: `.context()` in `PublicPlayingItem` now returns `Option<Context>` to account for cases where the playing context is not publicly available.
 - **Breaking**: The previously deprecated functions in Id have been removed.
+- **Fixed**: The album in a relinked track object fails to deserialize.
+- ... and likely something else as well I've missed, my commit messages are terrible.
 
 # 0.3.4
 - **Fixed**: Synchronous player control calls fail with an unhandled HTTP 411 error.
