@@ -374,7 +374,7 @@ where
     TBuilder: BaseRequestBuilder<TReturn, C, TBody>,
     TBody: Serialize + Send,
     TReturn: Debug + DeserializeOwned + Send + Sync,
-    C: for<'a> super::private::SendHttpRequestAsync<'a> + super::private::AccessTokenExpiryAsync + Send + Sync,
+    C: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
 {
 }
 
@@ -384,6 +384,6 @@ where
     TBuilder: BaseRequestBuilder<TReturn, C, TBody>,
     TBody: Serialize,
     TReturn: Debug + DeserializeOwned,
-    C: for<'a> super::private::SendHttpRequestSync<'a> + super::private::AccessTokenExpirySync,
+    C: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
 {
 }
