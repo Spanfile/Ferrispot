@@ -25,6 +25,19 @@ mod private {
         fn take_base_builder(self) -> RequestBuilder<TClient, TResponse, TBody, TReturn>;
         fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TClient, TResponse, TBody, TReturn>;
 
+        fn replace_body<F>(self, replacer: F) -> Self
+        where
+            F: FnOnce(TBody) -> TBody,
+        {
+            let common = self.take_base_builder();
+            if let Some(body) = common.body {
+                let new_body = (replacer)(body);
+                Self::new_with_body(common.method, common.base_url, new_body, common.client)
+            } else {
+                Self::new(common.method, common.base_url, common.client)
+            }
+        }
+
         fn append_query<S>(mut self, key: &'static str, value: S) -> Self
         where
             S: Into<Cow<'static, str>>,
@@ -178,7 +191,7 @@ fn extract_rate_limit_retry_after(headers: &HeaderMap) -> Result<u64> {
 pub trait AsyncRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
     Self: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
-    TBody: Serialize + Send,
+    TBody: Debug + Serialize + Send,
     TResponse: Debug + DeserializeOwned + TryFromEmptyResponse + Send + Sync,
     TReturn: TryFrom<TResponse> + Send + Sync,
     TClient: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
@@ -192,6 +205,7 @@ where
             let mut request = common.client.build_http_request(common.method.clone(), url.clone());
 
             if let Some(body) = &common.body {
+                trace!("Request body: {:?}", body);
                 request = request.json(body);
             // Spotify requires that all empty POST and PUT have a Content-Length header set to 0. reqwest doesn't do it
             // so we have to do it ourselves. and before you ask, it cannot be set as a default header in the client
@@ -272,7 +286,7 @@ where
 pub trait SyncRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
     Self: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
-    TBody: Serialize,
+    TBody: Debug + Serialize,
     TResponse: Debug + DeserializeOwned + TryFromEmptyResponse,
     TReturn: TryFrom<TResponse>,
     TClient: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
@@ -286,6 +300,7 @@ where
             let mut request = common.client.build_http_request(common.method.clone(), url.clone());
 
             if let Some(body) = &common.body {
+                trace!("Request body: {:?}", body);
                 request = request.json(body);
             // Spotify requires that all empty POST and PUT have a Content-Length header set to 0. reqwest doesn't do it
             // so we have to do it ourselves. and before you ask, it cannot be set as a default header in the client
@@ -445,7 +460,7 @@ impl<TBuilder, TClient, TResponse, TBody, TReturn> BaseRequestBuilder<TClient, T
 impl<TBuilder, TClient, TResponse, TBody, TReturn> AsyncRequestBuilder<TClient, TResponse, TBody, TReturn> for TBuilder
 where
     TBuilder: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
-    TBody: Serialize + Send,
+    TBody: Debug + Serialize + Send,
     TResponse: Debug + DeserializeOwned + TryFromEmptyResponse + Send + Sync,
     TReturn: TryFrom<TResponse> + Send + Sync,
     TClient: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
@@ -457,7 +472,7 @@ where
 impl<TBuilder, TClient, TResponse, TBody, TReturn> SyncRequestBuilder<TClient, TResponse, TBody, TReturn> for TBuilder
 where
     TBuilder: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
-    TBody: Serialize,
+    TBody: Debug + Serialize,
     TResponse: Debug + DeserializeOwned + TryFromEmptyResponse,
     TReturn: TryFrom<TResponse>,
     TClient: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,

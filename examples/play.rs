@@ -3,7 +3,7 @@ use std::time::Duration;
 use dotenvy::dotenv;
 use ferrispot::{
     client::SpotifyClientBuilder,
-    model::id::{Id, PlayableItem, TrackId},
+    model::id::{Id, PlayableContext, PlayableItem, TrackId},
     prelude::*,
     scope::Scope,
 };
@@ -77,7 +77,7 @@ async fn main() {
     println!("Pause");
     user_client.pause().send_async().await.unwrap();
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
     println!("Resume");
     user_client.resume().send_async().await.unwrap();
 
@@ -92,6 +92,16 @@ async fn main() {
     tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Previous");
     user_client.previous().send_async().await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    println!("Play context");
+
+    user_client
+        .play_context(PlayableContext::from_url("https://open.spotify.com/album/4muEF5biWb506ZojGMfHb7").unwrap())
+        .offset(1u32)
+        .send_async()
+        .await
+        .unwrap();
 
     // user_client
     //     .play_context(

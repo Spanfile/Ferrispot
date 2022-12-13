@@ -16,6 +16,14 @@ mod private {
     #[derive(Debug, Serialize)]
     pub struct PlayContextBody {
         pub context_uri: String,
+        pub offset: PlayContextOffset,
+    }
+
+    #[derive(Debug, Serialize)]
+    pub struct PlayContextOffset {
+        pub position: Option<u32>,
+        // TODO: support URI offsets
+        pub uri: Option<String>,
     }
 
     #[derive(Debug, Deserialize)]
@@ -148,11 +156,15 @@ where
     fn play_context<'a>(&'a self, context: PlayableContext<'a>) -> PlayContextRequestBuilder<Self> {
         let body = private::PlayContextBody {
             context_uri: context.as_uri().to_string(),
+            offset: private::PlayContextOffset {
+                position: Some(0),
+                uri: None,
+            },
         };
 
         trace!("Play body: {:?}", body);
         let mut builder =
-            PlayContextRequestBuilder::new_with_body(Method::POST, API_PLAYER_PLAY_ENDPOINT, body, self.clone());
+            PlayContextRequestBuilder::new_with_body(Method::PUT, API_PLAYER_PLAY_ENDPOINT, body, self.clone());
 
         #[cfg(feature = "async")]
         {
