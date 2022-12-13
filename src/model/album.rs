@@ -240,6 +240,7 @@ struct CommonAlbumFields {
     item_type: TypeAlbum,
 
     // track relinking
+    #[serde(default)]
     available_markets: HashSet<CountryCode>,
     #[serde(default)]
     restrictions: Restrictions,
@@ -272,6 +273,7 @@ pub struct FullAlbum {
     common: CommonAlbumFields,
     non_local: NonLocalAlbumFields,
     full: FullAlbumFields,
+    // TODO: there's a total_tracks field in I think common fields but make sure anyways and add it
 }
 
 /// A partial album. Contains all [common](self::CommonAlbumInformation) and [non-local](self::NonLocalAlbumInformation)

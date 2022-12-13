@@ -482,6 +482,7 @@ where
         C: Into<Cow<'a, str>>;
 }
 
+// TODO: better debug representation that leaves the phantom out
 /// Common type that contains a single Spotify ID of a certain kind. The generic type parameter `T` is used to signify
 /// which kind of ID it contains.
 ///

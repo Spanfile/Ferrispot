@@ -1,5 +1,10 @@
 use dotenvy::dotenv;
-use ferrispot::{client::SpotifyClientBuilder, error::Error, model::id::Id, prelude::*};
+use ferrispot::{
+    client::SpotifyClientBuilder,
+    error::Error,
+    model::{id::Id, CountryCode},
+    prelude::*,
+};
 
 #[tokio::main]
 async fn main() {
@@ -54,5 +59,21 @@ async fn main() {
         .await
         .unwrap_err();
 
+    println!("{nonexistent_id_error}");
     assert!(matches!(nonexistent_id_error, Error::NonexistentTrack(_)));
+
+    let track_for_market = spotify_client
+        .track(Id::from_bare("0871AdnvzzSGr5XdTJaDHC").unwrap())
+        // by specifying a certain market, only catalog items available in that market are returned, and track relinking
+        // may be applied
+        .market(CountryCode::FI)
+        .send_async()
+        .await
+        .unwrap();
+
+    println!(
+        "{} has been relinked from {}",
+        track_for_market.id(),
+        track_for_market.linked_from().unwrap().id
+    );
 }
