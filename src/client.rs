@@ -88,6 +88,7 @@ pub mod authorization_code;
 pub mod implicit_grant;
 pub mod request_builder;
 
+pub(crate) mod object;
 pub(crate) mod private;
 pub(crate) mod scoped;
 pub(crate) mod unscoped;
@@ -115,10 +116,7 @@ use self::{
     implicit_grant::SyncImplicitGrantUserClientBuilder,
     private::SyncClient,
 };
-pub use self::{
-    scoped::ScopedClient,
-    unscoped::{SearchBuilder, UnscopedClient},
-};
+pub use self::{scoped::ScopedClient, unscoped::UnscopedClient};
 use crate::{
     error::{Error, Result},
     model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},

@@ -56,11 +56,7 @@ pub mod prelude {
     #[cfg(feature = "async")]
     pub use crate::client::{request_builder::AsyncRequestBuilder, AccessTokenRefreshAsync};
     #[cfg(any(feature = "async", feature = "sync"))]
-    pub use crate::client::{
-        request_builder::BaseRequestBuilder, scoped::BasePlayerControlRequestBuilder,
-        scoped::PlayContextRequestBuilder, scoped::PlayItemsRequestBuilder, scoped::PlayerControlRequestBuilder,
-        unscoped::CatalogItemRequestBuilder, ScopedClient, UnscopedClient,
-    };
+    pub use crate::client::{request_builder::BaseRequestBuilder, ScopedClient, UnscopedClient};
     #[cfg(feature = "sync")]
     pub use crate::client::{request_builder::SyncRequestBuilder, AccessTokenRefreshSync};
     pub use crate::{

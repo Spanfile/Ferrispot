@@ -1,3 +1,6 @@
+//! Contains the various request builders and the request builder functionality traits.
+// TODO: docs about using request builders?
+
 mod private {
     use std::borrow::Cow;
 
@@ -77,6 +80,10 @@ mod private {
     }
 }
 
+mod catalog_item_builder;
+mod player_control_builder;
+mod search_builder;
+
 use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
 #[cfg(feature = "async")]
 use std::{future::Future, pin::Pin};
@@ -86,6 +93,14 @@ use reqwest::{header, header::HeaderMap, Method, StatusCode, Url};
 use serde::{de::DeserializeOwned, Serialize};
 
 pub(crate) use self::private::{BaseRequestBuilderContainer, TryFromEmptyResponse};
+pub use self::{
+    catalog_item_builder::CatalogItemRequestBuilder,
+    player_control_builder::{
+        BasePlayerControlRequestBuilder, PlayContextRequestBuilder, PlayItemsRequestBuilder,
+        PlayerControlRequestBuilder,
+    },
+    search_builder::SearchBuilder,
+};
 use crate::{
     client::private::AccessTokenExpiryResult,
     error::{Error, Result},
@@ -197,6 +212,7 @@ where
     TClient: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
     Error: From<<TReturn as TryFrom<TResponse>>::Error>,
 {
+    /// Send the request asynchronously and process the response, extracting the result object from the body.
     async fn send_async(self) -> Result<TReturn> {
         let common = self.take_base_builder();
         let url = common.build_url();
@@ -292,6 +308,7 @@ where
     TClient: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
     Error: From<<TReturn as TryFrom<TResponse>>::Error>,
 {
+    /// Send the request synchronously and process the response, extracting the result object from the body.
     fn send_sync(self) -> Result<TReturn> {
         let common = self.take_base_builder();
         let url = common.build_url();
@@ -377,7 +394,9 @@ where
 }
 
 /// A "base" request builder that doesn't include any special functionality. The commonly available options are
-/// available in the [BaseRequestBuilder]-trait.
+/// available in the [BaseRequestBuilder]-trait. Asynchronous builders implement the [AsyncRequestBuilder]-trait for
+/// sending the request and retrieving its response. Synchronous builders implement the [SyncRequestBuilder]-trait for
+/// the same functionality.
 pub struct RequestBuilder<TClient, TResponse, TBody = (), TReturn = TResponse> {
     client: TClient,
     method: Method,

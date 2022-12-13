@@ -25,7 +25,7 @@ impl TryFromEmptyResponse for AlbumSearchResults {}
 impl TryFromEmptyResponse for ArtistSearchResults {}
 
 /// A builder for a search in Spotify's catalog. New instances are returned by the
-/// [search-function](super::UnscopedClient::search) in [UnscopedClient](super::UnscopedClient)
+/// [search-function](crate::client::UnscopedClient::search) in [UnscopedClient](crate::client::UnscopedClient)
 pub struct SearchBuilder<TClient>(RequestBuilder<TClient, SearchResultsObject, (), SearchResults>);
 
 impl<TClient> BaseRequestBuilderContainer<TClient, SearchResultsObject, (), SearchResults> for SearchBuilder<TClient> {

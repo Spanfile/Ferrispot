@@ -67,7 +67,7 @@ pub struct CurrentlyPlayingItem {
 /// limited to, the user has a private session enabled.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct PublicPlayingItem {
-    context: Context,
+    context: Option<Context>,
     #[serde(rename = "progress_ms", with = "duration_millis")]
     progress: Duration,
     #[serde(flatten)]
@@ -241,9 +241,10 @@ impl CurrentlyPlayingItem {
 }
 
 impl PublicPlayingItem {
-    /// The item's playback context (i.e. album, artist, playlist or show).
-    pub fn context(&self) -> &Context {
-        &self.context
+    /// The item's playback context (i.e. album, artist, playlist or show). Will return `None` if the context isn't
+    /// publicly available.
+    pub fn context(&self) -> Option<&Context> {
+        self.context.as_ref()
     }
 
     /// The item's playback progress.

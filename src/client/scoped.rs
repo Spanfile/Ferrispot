@@ -1,60 +1,16 @@
-mod player_control_builder;
-
-mod private {
-    use serde::{Deserialize, Serialize};
-
-    use crate::{
-        client::request_builder::TryFromEmptyResponse,
-        model::playback::{CurrentlyPlayingItem, Device, PlaybackState},
-    };
-
-    #[derive(Debug, Serialize)]
-    pub struct PlayItemsBody {
-        pub uris: Vec<String>,
-    }
-
-    #[derive(Debug, Serialize)]
-    pub struct PlayContextBody {
-        pub context_uri: String,
-        pub offset: PlayContextOffset,
-    }
-
-    #[derive(Debug, Serialize)]
-    pub struct PlayContextOffset {
-        pub position: Option<u32>,
-        // TODO: support URI offsets
-        pub uri: Option<String>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    pub struct DevicesResponse {
-        pub devices: Vec<Device>,
-    }
-
-    impl From<DevicesResponse> for Vec<Device> {
-        fn from(response: DevicesResponse) -> Self {
-            response.devices
-        }
-    }
-
-    impl TryFromEmptyResponse for DevicesResponse {}
-    impl TryFromEmptyResponse for Option<PlaybackState> {}
-    impl TryFromEmptyResponse for Option<CurrentlyPlayingItem> {}
-}
-
 #[cfg(feature = "async")]
 use std::{future::Future, pin::Pin};
 
 use log::{error, trace, warn};
 use reqwest::{Method, StatusCode};
 
-pub use self::player_control_builder::{
-    BasePlayerControlRequestBuilder, PlayContextRequestBuilder, PlayItemsRequestBuilder, PlayerControlRequestBuilder,
-};
-use self::private::DevicesResponse;
-use super::request_builder::{BaseRequestBuilderContainer, RequestBuilder};
 use crate::{
     client::{
+        object,
+        request_builder::{
+            BaseRequestBuilderContainer, PlayContextRequestBuilder, PlayItemsRequestBuilder,
+            PlayerControlRequestBuilder, RequestBuilder,
+        },
         API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT, API_PLAYER_DEVICES_ENDPOINT,
         API_PLAYER_NEXT_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_PREVIOUS_ENDPOINT,
         API_PLAYER_QUEUE_ENDPOINT, API_PLAYER_REPEAT_ENDPOINT, API_PLAYER_SEEK_ENDPOINT, API_PLAYER_SHUFFLE_ENDPOINT,
@@ -67,13 +23,6 @@ use crate::{
         playback::{CurrentlyPlayingItem, Device, PlaybackState, RepeatState},
     },
 };
-
-const DEVICE_ID_QUERY: &str = "device_id";
-const REPEAT_STATE_QUERY: &str = "repeat_state";
-const SHUFFLE_QUERY: &str = "shuffle";
-const VOLUME_PERCENT_QUERY: &str = "volume_percent";
-const SEEK_POSITION_QUERY: &str = "position_ms";
-const QUEUE_URI_QUERY: &str = "uri";
 
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
 /// certain user. The clients
@@ -103,16 +52,16 @@ where
     /// Get information about the user's available devices.
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
-    fn devices(&self) -> RequestBuilder<Self, DevicesResponse, (), Vec<Device>> {
+    fn devices(&self) -> RequestBuilder<Self, object::DevicesResponse, (), Vec<Device>> {
         RequestBuilder::new(Method::GET, API_PLAYER_DEVICES_ENDPOINT, self.clone())
     }
 
     /// Start playing a collection of playable items in order; tracks or episodes.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -122,7 +71,7 @@ where
         P: Into<PlayableItem<'a>>,
     {
         let tracks: Vec<_> = items.into_iter().map(|id| id.into()).collect();
-        let body = private::PlayItemsBody {
+        let body = object::PlayItemsBody {
             uris: tracks.iter().map(|id| id.as_uri().to_string()).collect(),
         };
 
@@ -143,20 +92,19 @@ where
         builder
     }
 
-    // TODO: offset
     /// Start playing a context; album, artist, playlist or show.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will return an
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will return an
     /// [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
     fn play_context<'a>(&'a self, context: PlayableContext<'a>) -> PlayContextRequestBuilder<Self> {
-        let body = private::PlayContextBody {
+        let body = object::PlayContextBody {
             context_uri: context.as_uri().to_string(),
-            offset: private::PlayContextOffset {
+            offset: object::PlayContextOffset {
                 position: Some(0),
                 uri: None,
             },
@@ -182,9 +130,9 @@ where
     /// Resume current playback.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -207,9 +155,9 @@ where
     /// Pause current playback.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -232,15 +180,15 @@ where
     /// Set the repeat state for the current playback.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
     fn repeat_state(&self, repeat_state: RepeatState) -> PlayerControlRequestBuilder<Self> {
         let mut builder = PlayerControlRequestBuilder::new(Method::PUT, API_PLAYER_REPEAT_ENDPOINT, self.clone())
-            .append_query(REPEAT_STATE_QUERY, repeat_state.as_str());
+            .append_query(object::REPEAT_STATE_QUERY, repeat_state.as_str());
 
         #[cfg(feature = "async")]
         {
@@ -258,15 +206,15 @@ where
     /// Set the shuffle mode for the current playback.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
     fn shuffle(&self, shuffle: bool) -> PlayerControlRequestBuilder<Self> {
         let mut builder = PlayerControlRequestBuilder::new(Method::PUT, API_PLAYER_SHUFFLE_ENDPOINT, self.clone())
-            .append_query(SHUFFLE_QUERY, if shuffle { "true" } else { "false" });
+            .append_query(object::SHUFFLE_QUERY, if shuffle { "true" } else { "false" });
 
         #[cfg(feature = "async")]
         {
@@ -284,9 +232,9 @@ where
     /// Set the volume for the current playback. `volume_percent` is an integer between 0 and 100 inclusive.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -296,7 +244,7 @@ where
     {
         let volume_percent = volume_percent.into().to_string();
         let mut builder = PlayerControlRequestBuilder::new(Method::PUT, API_PLAYER_VOLUME_ENDPOINT, self.clone())
-            .append_query(VOLUME_PERCENT_QUERY, volume_percent);
+            .append_query(object::VOLUME_PERCENT_QUERY, volume_percent);
 
         #[cfg(feature = "async")]
         {
@@ -314,9 +262,9 @@ where
     /// Skip to the next track in the user's queue.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -339,9 +287,9 @@ where
     /// Skip to the next track in the user's queue.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -364,11 +312,11 @@ where
     /// Seeks to the given position in the user’s currently playing track. `position` is the position in milliseconds to
     /// seek to. Passing in a position that is greater than the length of the track will cause the player to start
     /// playing the next song.
-    //
+    ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
@@ -378,7 +326,7 @@ where
     {
         let position = position.into().to_string();
         let mut builder = PlayerControlRequestBuilder::new(Method::PUT, API_PLAYER_SEEK_ENDPOINT, self.clone())
-            .append_query(SEEK_POSITION_QUERY, position);
+            .append_query(object::SEEK_POSITION_QUERY, position);
 
         #[cfg(feature = "async")]
         {
@@ -396,15 +344,15 @@ where
     /// Add a playable item to the end of the current playback queue.
     ///
     /// A Spotify device ID in the user's account may be supplied with the [`device_id`-function in the request builder
-    /// this function returns](BasePlayerControlRequestBuilder::device_id) such that playback will be targeted on that
-    /// device. If no device is given, playback will be targeted on the user's currently active device. In case no
-    /// device is active and no device is given, the function will
+    /// this function returns](crate::client::request_builder::BasePlayerControlRequestBuilder::device_id) such that
+    /// playback will be targeted on that device. If no device is given, playback will be targeted on the user's
+    /// currently active device. In case no device is active and no device is given, the function will
     /// return an [Error::NoActiveDevice](crate::error::Error::NoActiveDevice).
     ///
     /// Required scope: [UserModifyPlaybackState](crate::scope::Scope::UserModifyPlaybackState).
     fn add_to_queue<'a>(&'a self, item: PlayableItem<'a>) -> PlayerControlRequestBuilder<Self> {
         let mut builder = PlayerControlRequestBuilder::new(Method::POST, API_PLAYER_QUEUE_ENDPOINT, self.clone())
-            .append_query(QUEUE_URI_QUERY, item.as_uri().to_string());
+            .append_query(object::QUEUE_URI_QUERY, item.as_uri().to_string());
 
         #[cfg(feature = "async")]
         {
