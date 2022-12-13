@@ -1,7 +1,16 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
 
-use log::{debug, warn};
+use log::trace;
+use reqwest::Method;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+#[cfg(feature = "async")]
+use crate::client::request_builder::AsyncRequestBuilder;
+#[cfg(feature = "sync")]
+use crate::client::request_builder::SyncRequestBuilder;
+use crate::client::request_builder::{BaseRequestBuilderContainer, RequestBuilder, TryFromEmptyResponse};
+
+struct PageRequestBuilder<TClient, TInner>(RequestBuilder<TClient, TInner>);
 
 /// A trait describing a page-like object that is returned from Spotify's search API.
 ///
@@ -21,7 +30,7 @@ where
     fn take_items(self) -> Self::Items;
 
     /// Returns the URL for the next page from this page, if it exists.
-    fn next(&self) -> Option<&str>;
+    fn next(self) -> Option<String>;
 }
 
 /// A page of items.
@@ -54,6 +63,30 @@ where
     total: usize,
 }
 
+impl<TClient, TInner> BaseRequestBuilderContainer<TClient, TInner> for PageRequestBuilder<TClient, TInner> {
+    fn new<S>(method: Method, base_url: S, client: TClient) -> Self
+    where
+        S: Into<Cow<'static, str>>,
+    {
+        Self(RequestBuilder::new(method, base_url, client))
+    }
+
+    fn new_with_body<S>(method: Method, base_url: S, body: (), client: TClient) -> Self
+    where
+        S: Into<Cow<'static, str>>,
+    {
+        Self(RequestBuilder::new_with_body(method, base_url, body, client))
+    }
+
+    fn take_base_builder(self) -> RequestBuilder<TClient, TInner> {
+        self.0
+    }
+
+    fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TClient, TInner> {
+        &mut self.0
+    }
+}
+
 impl<T> crate::private::Sealed for PageObject<T> where T: Serialize {}
 
 impl<TItem, TReturn> PageInformation<TReturn> for PageObject<TItem>
@@ -74,8 +107,8 @@ where
         self.items.into_iter().filter_map(|item| item.try_into().ok()).collect()
     }
 
-    fn next(&self) -> Option<&str> {
-        self.next.as_deref()
+    fn next(self) -> Option<String> {
+        self.next
     }
 }
 
@@ -98,27 +131,22 @@ where
 #[cfg(feature = "async")]
 impl<TInner, TItem> Page<TInner, TItem>
 where
-    TInner: PageInformation<TItem> + DeserializeOwned + Debug,
+    TInner: PageInformation<TItem> + DeserializeOwned + Debug + TryFromEmptyResponse + Send + Sync,
 {
     /// Return the next page from this page, if it exists.
-    pub async fn next_page_async<'a, C>(self, client: &'a C) -> crate::error::Result<Option<Page<TInner, TItem>>>
+    pub async fn next_page_async<C>(self, client: &'_ C) -> crate::error::Result<Option<Page<TInner, TItem>>>
     where
-        C: crate::client::private::SendHttpRequestAsync<'a>,
+        C: crate::client::private::BuildHttpRequestAsync
+            + crate::client::private::AccessTokenExpiryAsync
+            + Clone
+            + Send
+            + Sync,
     {
         if let Some(url) = self.inner.next() {
-            let Ok(url) =
-                reqwest::Url::parse(url) else {
-                    warn!("Failed to parse next page URL: malformed URL in Spotify response");
-                    return Ok(None);
-                };
-
-            let response = client.send_http_request(reqwest::Method::GET, url).send_async().await?;
-            debug!("Next page response: {:?}", response);
-
-            response.error_for_status_ref()?;
-
-            let next_page: TInner = response.json().await?;
-            debug!("Next page: {:?}", next_page);
+            let next_page = PageRequestBuilder::new(Method::GET, url, client.clone())
+                .send_async()
+                .await?;
+            trace!("Next page: {next_page:?}");
 
             Ok(Some(Page {
                 inner: next_page,
@@ -133,27 +161,16 @@ where
 #[cfg(feature = "sync")]
 impl<TInner, TItem> Page<TInner, TItem>
 where
-    TInner: PageInformation<TItem> + DeserializeOwned + Debug,
+    TInner: PageInformation<TItem> + DeserializeOwned + Debug + TryFromEmptyResponse,
 {
     /// Return the next page from this page, if it exists.
-    pub fn next_page_sync<'a, C>(self, client: &'a C) -> crate::error::Result<Option<Page<TInner, TItem>>>
+    pub fn next_page_sync<C>(self, client: &'_ C) -> crate::error::Result<Option<Page<TInner, TItem>>>
     where
-        C: crate::client::private::SendHttpRequestSync<'a>,
+        C: crate::client::private::BuildHttpRequestSync + crate::client::private::AccessTokenExpirySync + Clone,
     {
         if let Some(url) = self.inner.next() {
-            let Ok(url) =
-                reqwest::Url::parse(url) else {
-                    warn!("Failed to parse next page URL: malformed URL in Spotify response");
-                    return Ok(None);
-                };
-
-            let response = client.send_http_request(reqwest::Method::GET, url).send_sync()?;
-            debug!("Next page response: {:?}", response);
-
-            response.error_for_status_ref()?;
-
-            let next_page: TInner = response.json()?;
-            debug!("Next page: {:?}", next_page);
+            let next_page = PageRequestBuilder::new(Method::GET, url, client.clone()).send_sync()?;
+            trace!("Next page: {next_page:?}");
 
             Ok(Some(Page {
                 inner: next_page,

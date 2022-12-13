@@ -757,10 +757,3 @@ fn map_client_authentication_error(err: Error) -> Error {
         err
     }
 }
-
-fn response_to_error(err: reqwest::Error) -> Error {
-    match err.status() {
-        Some(status) => Error::UnhandledSpotifyResponseStatusCode(status.as_u16()),
-        None => err.into(),
-    }
-}

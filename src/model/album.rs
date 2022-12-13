@@ -573,8 +573,8 @@ impl PageInformation<PartialTrack> for AlbumTracks {
         self.page.take_items()
     }
 
-    fn next(&self) -> Option<&str> {
-        <PageObject<TrackObject> as PageInformation<PartialTrack>>::next(&self.page)
+    fn next(self) -> Option<String> {
+        <PageObject<TrackObject> as PageInformation<PartialTrack>>::next(self.page)
     }
 }
 

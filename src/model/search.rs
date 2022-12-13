@@ -137,8 +137,8 @@ impl PageInformation<FullTrack> for TrackSearchResults {
         self.tracks.take_items()
     }
 
-    fn next(&self) -> Option<&str> {
-        <PageObject<TrackObject> as PageInformation<FullTrack>>::next(&self.tracks)
+    fn next(self) -> Option<String> {
+        <PageObject<TrackObject> as PageInformation<FullTrack>>::next(self.tracks)
     }
 }
 
@@ -153,8 +153,8 @@ impl PageInformation<FullArtist> for ArtistSearchResults {
         self.artists.take_items()
     }
 
-    fn next(&self) -> Option<&str> {
-        <PageObject<ArtistObject> as PageInformation<FullArtist>>::next(&self.artists)
+    fn next(self) -> Option<String> {
+        <PageObject<ArtistObject> as PageInformation<FullArtist>>::next(self.artists)
     }
 }
 
@@ -169,8 +169,8 @@ impl PageInformation<FullAlbum> for AlbumSearchResults {
         self.albums.take_items()
     }
 
-    fn next(&self) -> Option<&str> {
-        <PageObject<AlbumObject> as PageInformation<FullAlbum>>::next(&self.albums)
+    fn next(self) -> Option<String> {
+        <PageObject<AlbumObject> as PageInformation<FullAlbum>>::next(self.albums)
     }
 }
 

@@ -5,7 +5,8 @@ use std::{future::Future, pin::Pin};
 use log::{error, trace, warn};
 use reqwest::{Method, StatusCode};
 
-use super::request_builder::{private::BaseRequestBuilderContainer, RequestBuilder};
+use self::private::DevicesResponse;
+use super::request_builder::{BaseRequestBuilderContainer, RequestBuilder};
 use crate::{
     client::{
         API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT, API_PLAYER_DEVICES_ENDPOINT,
@@ -24,7 +25,10 @@ use crate::{
 mod private {
     use serde::{Deserialize, Serialize};
 
-    use crate::model::playback::Device;
+    use crate::{
+        client::request_builder::TryFromEmptyResponse,
+        model::playback::{CurrentlyPlayingItem, Device, PlaybackState},
+    };
 
     #[derive(Debug, Serialize)]
     pub struct PlayItemsBody {
@@ -36,11 +40,20 @@ mod private {
         pub context_uri: String,
     }
 
-    // TODO
     #[derive(Debug, Deserialize)]
     pub struct DevicesResponse {
         pub devices: Vec<Device>,
     }
+
+    impl From<DevicesResponse> for Vec<Device> {
+        fn from(response: DevicesResponse) -> Self {
+            response.devices
+        }
+    }
+
+    impl TryFromEmptyResponse for DevicesResponse {}
+    impl TryFromEmptyResponse for Option<PlaybackState> {}
+    impl TryFromEmptyResponse for Option<CurrentlyPlayingItem> {}
 }
 
 const DEVICE_ID_QUERY: &str = "device_id";
@@ -50,11 +63,11 @@ const VOLUME_PERCENT_QUERY: &str = "volume_percent";
 const SEEK_POSITION_QUERY: &str = "position_ms";
 const QUEUE_URI_QUERY: &str = "uri";
 
-pub struct BasePlayerControlRequestBuilder<C, TBody>(RequestBuilder<(), C, TBody>);
+pub struct BasePlayerControlRequestBuilder<TClient, TBody>(RequestBuilder<TClient, (), TBody>);
 
-pub type PlayItemsRequestBuilder<C> = BasePlayerControlRequestBuilder<C, private::PlayItemsBody>;
-pub type PlayContextRequestBuilder<C> = BasePlayerControlRequestBuilder<C, private::PlayContextBody>;
-pub type PlayerControlRequestBuilder<C> = BasePlayerControlRequestBuilder<C, ()>;
+pub type PlayItemsRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, private::PlayItemsBody>;
+pub type PlayContextRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, private::PlayContextBody>;
+pub type PlayerControlRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, ()>;
 
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
 /// certain user. The clients
@@ -70,21 +83,21 @@ where
     /// This function returns a superset of the [currently playing item](Self::currently_playing_item).
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
-    fn playback_state(&self) -> RequestBuilder<Option<PlaybackState>, Self> {
+    fn playback_state(&self) -> RequestBuilder<Self, Option<PlaybackState>> {
         RequestBuilder::new(Method::GET, API_PLAYBACK_STATE_ENDPOINT, self.clone())
     }
 
     /// Get the item currently being played on the user's Spotify account.
     ///
     /// Required scope: [UserReadCurrentlyPlaying](crate::scope::Scope::UserReadCurrentlyPlaying).
-    fn currently_playing_item(&self) -> RequestBuilder<Option<CurrentlyPlayingItem>, Self> {
+    fn currently_playing_item(&self) -> RequestBuilder<Self, Option<CurrentlyPlayingItem>> {
         RequestBuilder::new(Method::GET, API_CURRENTLY_PLAYING_ITEM_ENDPOINT, self.clone())
     }
 
     /// Get information about the user's available devices.
     ///
     /// Required scope: [UserReadPlaybackState](crate::scope::Scope::UserReadPlaybackState).
-    fn devices(&self) -> RequestBuilder<Vec<Device>, Self> {
+    fn devices(&self) -> RequestBuilder<Self, DevicesResponse, (), Vec<Device>> {
         RequestBuilder::new(Method::GET, API_PLAYER_DEVICES_ENDPOINT, self.clone())
     }
 
@@ -109,7 +122,7 @@ where
 
         trace!("Play body: {:?}", body);
         let mut builder =
-            PlayItemsRequestBuilder::new_with_body(Method::POST, API_PLAYER_PLAY_ENDPOINT, body, self.clone());
+            PlayItemsRequestBuilder::new_with_body(Method::PUT, API_PLAYER_PLAY_ENDPOINT, body, self.clone());
 
         #[cfg(feature = "async")]
         {
@@ -397,26 +410,28 @@ where
     }
 }
 
-impl<C, TBody> BaseRequestBuilderContainer<(), C, TBody> for BasePlayerControlRequestBuilder<C, TBody> {
-    fn new<S>(method: Method, base_url: S, client: C) -> Self
+impl<TClient, TBody> BaseRequestBuilderContainer<TClient, (), TBody>
+    for BasePlayerControlRequestBuilder<TClient, TBody>
+{
+    fn new<S>(method: Method, base_url: S, client: TClient) -> Self
     where
         S: Into<Cow<'static, str>>,
     {
         Self(RequestBuilder::new(method, base_url, client))
     }
 
-    fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: C) -> Self
+    fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: TClient) -> Self
     where
         S: Into<Cow<'static, str>>,
     {
         Self(RequestBuilder::new_with_body(method, base_url, body, client))
     }
 
-    fn take_base_builder(self) -> RequestBuilder<(), C, TBody> {
+    fn take_base_builder(self) -> RequestBuilder<TClient, (), TBody> {
         self.0
     }
 
-    fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<(), C, TBody> {
+    fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TClient, (), TBody> {
         &mut self.0
     }
 }

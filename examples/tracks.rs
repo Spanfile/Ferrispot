@@ -1,5 +1,5 @@
 use dotenvy::dotenv;
-use ferrispot::{self, client::SpotifyClientBuilder, model::id::Id, prelude::*};
+use ferrispot::{client::SpotifyClientBuilder, error::Error, model::id::Id, prelude::*};
 
 #[tokio::main]
 async fn main() {
@@ -54,5 +54,5 @@ async fn main() {
         .await
         .unwrap_err();
 
-    println!("{nonexistent_id_error}");
+    assert!(matches!(nonexistent_id_error, Error::NonexistentTrack(_)));
 }

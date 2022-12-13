@@ -1,6 +1,6 @@
 //! Various error types exposed by the crate.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, convert::Infallible};
 
 use thiserror::Error;
 
@@ -109,6 +109,10 @@ pub enum Error {
     #[error("Unhandled Spotify API response status code {0}")]
     UnhandledSpotifyResponseStatusCode(u16),
 
+    /// Spotify returned an unexpected empty response (HTTP 204 No Content)
+    #[error("Spotify returned an unexpected empty response (HTTP 204 No Content)")]
+    EmptyResponse,
+
     /// Parsing a string to a Spotify [ID](crate::model::id::Id) failed.
     #[error(transparent)]
     InvalidSpotifyId(#[from] IdError),
@@ -158,5 +162,11 @@ impl std::error::Error for ConversionError {}
 impl std::fmt::Display for ConversionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "object conversion failed: {}", self.0)
+    }
+}
+
+impl From<Infallible> for Error {
+    fn from(_: Infallible) -> Self {
+        panic!("how did you manage to try and convert a type that could never exist into something that does")
     }
 }

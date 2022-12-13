@@ -2,18 +2,18 @@ use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
 #[cfg(feature = "async")]
 use std::{future::Future, pin::Pin};
 
-use log::{error, trace, warn};
+use log::{error, info, trace, warn};
 use reqwest::{header, header::HeaderMap, Method, StatusCode, Url};
 use serde::{de::DeserializeOwned, Serialize};
 
-use self::private::BaseRequestBuilderContainer;
+pub(crate) use self::private::{BaseRequestBuilderContainer, TryFromEmptyResponse};
 use crate::{
     client::private::AccessTokenExpiryResult,
     error::{Error, Result},
     model::error::{ApiErrorMessage, ApiErrorResponse},
 };
 
-pub(crate) mod private {
+mod private {
     use std::borrow::Cow;
 
     use reqwest::Method;
@@ -23,21 +23,22 @@ pub(crate) mod private {
     use super::RequestBuilder;
     #[cfg(feature = "sync")]
     use super::SyncResponseHandler;
+    use crate::error::{Error, Result};
 
-    pub trait BaseRequestBuilderContainer<TReturn, C, TBody = ()>
+    pub trait BaseRequestBuilderContainer<TClient, TResponse, TBody = (), TReturn = TResponse>
     where
         Self: Sized,
     {
-        fn new<S>(method: Method, base_url: S, client: C) -> Self
+        fn new<S>(method: Method, base_url: S, client: TClient) -> Self
         where
             S: Into<Cow<'static, str>>;
 
-        fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: C) -> Self
+        fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: TClient) -> Self
         where
             S: Into<Cow<'static, str>>;
 
-        fn take_base_builder(self) -> RequestBuilder<TReturn, C, TBody>;
-        fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TReturn, C, TBody>;
+        fn take_base_builder(self) -> RequestBuilder<TClient, TResponse, TBody, TReturn>;
+        fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TClient, TResponse, TBody, TReturn>;
 
         fn append_query<S>(mut self, key: &'static str, value: S) -> Self
         where
@@ -59,6 +60,23 @@ pub(crate) mod private {
             self
         }
     }
+
+    // TODO: I really do not like having to use this trait but not doing so would require, yet again, stabilised
+    // specialisation
+    pub trait TryFromEmptyResponse
+    where
+        Self: Sized,
+    {
+        fn try_from_empty_response() -> Result<Self> {
+            Err(Error::EmptyResponse)
+        }
+    }
+
+    impl TryFromEmptyResponse for () {
+        fn try_from_empty_response() -> Result<Self> {
+            Ok(())
+        }
+    }
 }
 
 #[cfg(feature = "async")]
@@ -73,26 +91,39 @@ pub(crate) type SyncResponseHandler =
 fn async_response_handler_noop(
     resp: reqwest::Response,
 ) -> Pin<Box<dyn Future<Output = Result<reqwest::Response>> + Send>> {
-    Box::pin(async move { Ok(resp) })
+    Box::pin(async move {
+        match resp.error_for_status() {
+            Ok(resp) => Ok(resp),
+            Err(e) => Err(response_error_to_unhandled_code(e)),
+        }
+    })
 }
 
 #[cfg(feature = "sync")]
 fn sync_response_handler_noop(resp: reqwest::blocking::Response) -> Result<reqwest::blocking::Response> {
-    Ok(resp)
+    match resp.error_for_status() {
+        Ok(resp) => Ok(resp),
+        Err(e) => Err(response_error_to_unhandled_code(e)),
+    }
 }
 
-pub trait BaseRequestBuilder<TReturn, C, TBody>
+fn response_error_to_unhandled_code(err: reqwest::Error) -> Error {
+    match err.status() {
+        Some(status) => Error::UnhandledSpotifyResponseStatusCode(status.as_u16()),
+        None => err.into(),
+    }
+}
+
+pub trait BaseRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
-    Self: private::BaseRequestBuilderContainer<TReturn, C, TBody> + Sized,
+    Self: private::BaseRequestBuilderContainer<TClient, TResponse, TBody, TReturn> + Sized,
 {
-    // TODO: implement
     /// Whether or not to react to being rate limited by waiting the wanted time in the response. Defaults to `true`.
     fn react_to_rate_limit(mut self, react_to_rate_limit: bool) -> Self {
         self.get_base_builder_mut().react_to_rate_limit = react_to_rate_limit;
         self
     }
 
-    // TODO: implement
     /// Whether or not to automatically refresh the client's access token, if applicable, when it expires. Defaults to
     /// `true`.
     fn auto_refresh_access_token(mut self, auto_refresh_access_token: bool) -> Self {
@@ -101,10 +132,9 @@ where
     }
 }
 
-// TODO: this is a terrible function name
 /// Returns Ok if the given API error response is because of an expired token. Else, returns an error based on the API
 /// error response.
-fn handle_api_error_response(error_response: ApiErrorResponse) -> Result<()> {
+fn is_api_error_expired_access_token(error_response: ApiErrorResponse) -> Result<()> {
     match error_response.error.message {
         ApiErrorMessage::TokenExpired => {
             warn!("Access token expired, attempting to refresh");
@@ -143,12 +173,14 @@ fn extract_rate_limit_retry_after(headers: &HeaderMap) -> Result<u64> {
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-pub trait AsyncRequestBuilder<TReturn, C, TBody>
+pub trait AsyncRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
-    Self: BaseRequestBuilder<TReturn, C, TBody>,
+    Self: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
     TBody: Serialize + Send,
-    TReturn: Debug + DeserializeOwned + Send + Sync,
-    C: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
+    TResponse: Debug + DeserializeOwned + TryFromEmptyResponse + Send + Sync,
+    TReturn: TryFrom<TResponse> + Send + Sync,
+    TClient: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
+    Error: From<<TReturn as TryFrom<TResponse>>::Error>,
 {
     async fn send_async(self) -> Result<TReturn> {
         let common = self.take_base_builder();
@@ -186,11 +218,16 @@ where
                 StatusCode::UNAUTHORIZED => {
                     warn!("Got 401 Unauthorized response");
                     let error_response = response.json().await?;
-                    handle_api_error_response(error_response)?;
+                    is_api_error_expired_access_token(error_response)?;
 
                     // handle_api_error_response handles all other errors except the access token being expired
-                    if common.client.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable {
-                        warn!("Refreshing access tokens is inapplicable to this client");
+                    if !common.auto_refresh_access_token
+                        || common.client.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable
+                    {
+                        warn!(
+                            "Refreshing access tokens is disabled for this request, or is inapplicable to this client"
+                        );
+
                         return Err(Error::AccessTokenExpired);
                     }
                 }
@@ -199,19 +236,29 @@ where
                     let headers = response.headers();
                     let retry_after = extract_rate_limit_retry_after(headers)?;
 
-                    super::rate_limit_sleep_async(retry_after).await?;
+                    if common.react_to_rate_limit {
+                        info!("Got rate limited, waiting {retry_after} seconds...");
+                        super::rate_limit_sleep_async(retry_after).await?;
+                    } else {
+                        warn!("Got rate limited {retry_after} seconds and reacting to rate limits is disabled");
+                        return Err(Error::RateLimit(retry_after));
+                    }
                 }
 
                 _ => {
-                    let response = response.error_for_status().map_err(super::response_to_error);
-                    trace!("Response: {response:?}");
+                    let response = (common.async_response_handler)(response).await;
+                    trace!("Handled response: {response:?}");
 
-                    let response = (common.async_response_handler)(response?).await?;
+                    let response = response?;
 
-                    let response_body = response.json().await?;
+                    let response_body = if response.status() == StatusCode::NO_CONTENT {
+                        TResponse::try_from_empty_response()?
+                    } else {
+                        response.json().await?
+                    };
+
                     trace!("Body: {response_body:?}");
-
-                    return Ok(response_body);
+                    return Ok(response_body.try_into()?);
                 }
             }
         }
@@ -219,12 +266,14 @@ where
 }
 
 #[cfg(feature = "sync")]
-pub trait SyncRequestBuilder<TReturn, C, TBody>
+pub trait SyncRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
-    Self: BaseRequestBuilder<TReturn, C, TBody>,
+    Self: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
     TBody: Serialize,
-    TReturn: Debug + DeserializeOwned,
-    C: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
+    TResponse: Debug + DeserializeOwned + TryFromEmptyResponse,
+    TReturn: TryFrom<TResponse>,
+    TClient: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
+    Error: From<<TReturn as TryFrom<TResponse>>::Error>,
 {
     fn send_sync(self) -> Result<TReturn> {
         let common = self.take_base_builder();
@@ -262,11 +311,16 @@ where
                 StatusCode::UNAUTHORIZED => {
                     warn!("Got 401 Unauthorized response");
                     let error_response = response.json()?;
-                    handle_api_error_response(error_response)?;
+                    is_api_error_expired_access_token(error_response)?;
 
                     // handle_api_error_response handles all other errors except the access token being expired
-                    if common.client.handle_access_token_expired()? == AccessTokenExpiryResult::Inapplicable {
-                        warn!("Refreshing access tokens is inapplicable to this client");
+                    if !common.auto_refresh_access_token
+                        || common.client.handle_access_token_expired()? == AccessTokenExpiryResult::Inapplicable
+                    {
+                        warn!(
+                            "Refreshing access tokens is disabled for this request, or is inapplicable to this client"
+                        );
+
                         return Err(Error::AccessTokenExpired);
                     }
                 }
@@ -275,27 +329,37 @@ where
                     let headers = response.headers();
                     let retry_after = extract_rate_limit_retry_after(headers)?;
 
-                    super::rate_limit_sleep_sync(retry_after)?;
+                    if common.react_to_rate_limit {
+                        info!("Got rate limited, waiting {retry_after} seconds...");
+                        super::rate_limit_sleep_sync(retry_after)?;
+                    } else {
+                        warn!("Got rate limited ({retry_after}) and reacting to rate limits is disabled");
+                        return Err(Error::RateLimit(retry_after));
+                    }
                 }
 
                 _ => {
-                    let response = response.error_for_status().map_err(super::response_to_error);
-                    trace!("Response: {response:?}");
+                    let response = (common.sync_response_handler)(response);
+                    trace!("Handled response: {response:?}");
 
-                    let response = (common.sync_response_handler)(response?)?;
+                    let response = response?;
 
-                    let response_body = response.json()?;
+                    let response_body = if response.status() == StatusCode::NO_CONTENT {
+                        TResponse::try_from_empty_response()?
+                    } else {
+                        response.json()?
+                    };
+
                     trace!("Body: {response_body:?}");
-
-                    return Ok(response_body);
+                    return Ok(response_body.try_into()?);
                 }
             }
         }
     }
 }
 
-pub struct RequestBuilder<TReturn, C, TBody = ()> {
-    client: C,
+pub struct RequestBuilder<TClient, TResponse, TBody = (), TReturn = TResponse> {
+    client: TClient,
     method: Method,
     base_url: Cow<'static, str>,
     query_params: Vec<(&'static str, Cow<'static, str>)>,
@@ -309,18 +373,21 @@ pub struct RequestBuilder<TReturn, C, TBody = ()> {
     react_to_rate_limit: bool,
     auto_refresh_access_token: bool,
 
-    phantom: PhantomData<TReturn>,
+    return_phantom: PhantomData<TReturn>,
+    response_phantom: PhantomData<TResponse>,
 }
 
-impl<TReturn, C, TBody> RequestBuilder<TReturn, C, TBody> {
+impl<TClient, TResponse, TBody, TReturn> RequestBuilder<TClient, TResponse, TBody, TReturn> {
     fn build_url(&self) -> Url {
         Url::parse_with_params(&self.base_url, &self.query_params)
             .unwrap_or_else(|_| panic!("failed to build URL from base: {}", self.base_url))
     }
 }
 
-impl<TReturn, C, TBody> private::BaseRequestBuilderContainer<TReturn, C, TBody> for RequestBuilder<TReturn, C, TBody> {
-    fn new<S>(method: Method, base_url: S, client: C) -> Self
+impl<TClient, TResponse, TBody, TReturn> private::BaseRequestBuilderContainer<TClient, TResponse, TBody, TReturn>
+    for RequestBuilder<TClient, TResponse, TBody, TReturn>
+{
+    fn new<S>(method: Method, base_url: S, client: TClient) -> Self
     where
         S: Into<Cow<'static, str>>,
     {
@@ -339,11 +406,12 @@ impl<TReturn, C, TBody> private::BaseRequestBuilderContainer<TReturn, C, TBody> 
             react_to_rate_limit: true,
             auto_refresh_access_token: true,
 
-            phantom: PhantomData,
+            return_phantom: PhantomData,
+            response_phantom: PhantomData,
         }
     }
 
-    fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: C) -> Self
+    fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: TClient) -> Self
     where
         S: Into<Cow<'static, str>>,
     {
@@ -353,37 +421,41 @@ impl<TReturn, C, TBody> private::BaseRequestBuilderContainer<TReturn, C, TBody> 
         }
     }
 
-    fn take_base_builder(self) -> RequestBuilder<TReturn, C, TBody> {
+    fn take_base_builder(self) -> RequestBuilder<TClient, TResponse, TBody, TReturn> {
         self
     }
 
-    fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TReturn, C, TBody> {
+    fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TClient, TResponse, TBody, TReturn> {
         self
     }
 }
 
-impl<TBuilder, TReturn, C, TBody> BaseRequestBuilder<TReturn, C, TBody> for TBuilder where
-    TBuilder: BaseRequestBuilderContainer<TReturn, C, TBody>
+impl<TBuilder, TClient, TResponse, TBody, TReturn> BaseRequestBuilder<TClient, TResponse, TBody, TReturn> for TBuilder where
+    TBuilder: BaseRequestBuilderContainer<TClient, TResponse, TBody, TReturn>
 {
 }
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
-impl<TBuilder, TReturn, C, TBody> AsyncRequestBuilder<TReturn, C, TBody> for TBuilder
+impl<TBuilder, TClient, TResponse, TBody, TReturn> AsyncRequestBuilder<TClient, TResponse, TBody, TReturn> for TBuilder
 where
-    TBuilder: BaseRequestBuilder<TReturn, C, TBody>,
+    TBuilder: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
     TBody: Serialize + Send,
-    TReturn: Debug + DeserializeOwned + Send + Sync,
-    C: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
+    TResponse: Debug + DeserializeOwned + TryFromEmptyResponse + Send + Sync,
+    TReturn: TryFrom<TResponse> + Send + Sync,
+    TClient: super::private::BuildHttpRequestAsync + super::private::AccessTokenExpiryAsync + Send + Sync,
+    Error: From<<TReturn as TryFrom<TResponse>>::Error>,
 {
 }
 
 #[cfg(feature = "sync")]
-impl<TBuilder, TReturn, C, TBody> SyncRequestBuilder<TReturn, C, TBody> for TBuilder
+impl<TBuilder, TClient, TResponse, TBody, TReturn> SyncRequestBuilder<TClient, TResponse, TBody, TReturn> for TBuilder
 where
-    TBuilder: BaseRequestBuilder<TReturn, C, TBody>,
+    TBuilder: BaseRequestBuilder<TClient, TResponse, TBody, TReturn>,
     TBody: Serialize,
-    TReturn: Debug + DeserializeOwned,
-    C: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
+    TResponse: Debug + DeserializeOwned + TryFromEmptyResponse,
+    TReturn: TryFrom<TResponse>,
+    TClient: super::private::BuildHttpRequestSync + super::private::AccessTokenExpirySync,
+    Error: From<<TReturn as TryFrom<TResponse>>::Error>,
 {
 }
