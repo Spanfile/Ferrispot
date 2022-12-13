@@ -54,9 +54,15 @@ pub mod prelude {
     //! convenience.
 
     #[cfg(feature = "async")]
-    pub use crate::client::{AccessTokenRefreshAsync, ScopedAsyncClient, UnscopedAsyncClient};
+    pub use crate::client::{request_builder::AsyncRequestBuilder, AccessTokenRefreshAsync};
+    #[cfg(any(feature = "async", feature = "sync"))]
+    pub use crate::client::{
+        request_builder::BaseRequestBuilder, scoped::BasePlayerControlRequestBuilder,
+        scoped::PlayContextRequestBuilder, scoped::PlayItemsRequestBuilder, scoped::PlayerControlRequestBuilder,
+        unscoped::CatalogItemRequestBuilder, ScopedClient, UnscopedClient,
+    };
     #[cfg(feature = "sync")]
-    pub use crate::client::{AccessTokenRefreshSync, ScopedSyncClient, UnscopedSyncClient};
+    pub use crate::client::{request_builder::SyncRequestBuilder, AccessTokenRefreshSync};
     pub use crate::{
         model::{
             album::{CommonAlbumInformation, FullAlbumInformation, NonLocalAlbumInformation},

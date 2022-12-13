@@ -49,7 +49,7 @@ async fn main() {
         .await
         .expect("failed to create authorization code client");
 
-    let playback_state = user_client.playback_state().await.unwrap();
+    let playback_state = user_client.playback_state().send_async().await.unwrap();
 
     if let Some(playback_state) = playback_state {
         if let Some(item) = playback_state.currently_playing_item().public_playing_item() {

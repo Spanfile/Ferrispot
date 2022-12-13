@@ -1,5 +1,10 @@
 use dotenvy::dotenv;
-use ferrispot::{client::SpotifyClientBuilder, model::id::Id, prelude::*, scope::Scope};
+use ferrispot::{
+    client::SpotifyClientBuilder,
+    model::{id::Id, playback::PlayingType},
+    prelude::*,
+    scope::Scope,
+};
 
 #[tokio::main]
 async fn main() {
@@ -37,13 +42,24 @@ async fn main() {
         .await
         .expect("failed to finalize authorization code client");
 
-    // all scoped endpoints are now available
-    let playback_state = user_client.playback_state().await.unwrap();
-    println!("{playback_state:?}");
+    // all scoped endpoints are now available...
+    let playback_state = user_client.playback_state().send_async().await.unwrap();
+    if let Some(playing_item) =
+        playback_state.and_then(|playback| playback.take_currently_playing_item().take_public_playing_item())
+    {
+        if let PlayingType::Track(track) = playing_item.item() {
+            println!(
+                "Now playing: {} - {}",
+                track.name(),
+                track.artists().first().unwrap().name()
+            );
+        }
+    }
 
-    // as well as all unscoped endpoints
+    // ... as well as all unscoped endpoints
     let one_track = user_client
-        .track(Id::from_bare("2PoYyfBkedDBPGAh0ZUoHW").unwrap(), None)
+        .track(Id::from_bare("2PoYyfBkedDBPGAh0ZUoHW").unwrap())
+        .send_async()
         .await
         .unwrap();
 

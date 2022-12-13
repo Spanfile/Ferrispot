@@ -50,46 +50,48 @@ async fn main() {
     //     .await
     //     .unwrap();
 
-    let devices = user_client.devices().await.expect("failed to get available devices");
+    let devices = user_client
+        .devices()
+        .send_async()
+        .await
+        .expect("failed to get available devices");
     println!("Available devices: {devices:#?}");
 
     user_client
-        .play_items(
-            [
-                // the function expects an iterator of PlayableItems. single PlayableItems can be parsed from either a
-                // Spotify URI or a share URL, but "bare" IDs have to be specified as being track or episode IDs, then
-                // converted into PlayableItems with .into()
-                PlayableItem::from_uri("spotify:track:3mXLyNsVeLelMakgpGUp1f").expect("failed to parse track URI"),
-                PlayableItem::from_url("https://open.spotify.com/track/367IrkRR4wk5WtSL41rONn?si=asdasdasdasd")
-                    .expect("failed to parse track URL"),
-                Id::<TrackId>::from_bare("1GxzaUNoSvzNqL4JB9ztXq")
-                    .expect("failed to parse bare ID")
-                    .into(),
-            ],
-            None,
-        )
+        .play_items([
+            // the function expects an iterator of PlayableItems. single PlayableItems can be parsed from either a
+            // Spotify URI or a share URL, but "bare" IDs have to be specified as being track or episode IDs, then
+            // converted into PlayableItems with .into()
+            PlayableItem::from_uri("spotify:track:3mXLyNsVeLelMakgpGUp1f").expect("failed to parse track URI"),
+            PlayableItem::from_url("https://open.spotify.com/track/367IrkRR4wk5WtSL41rONn?si=asdasdasdasd")
+                .expect("failed to parse track URL"),
+            Id::<TrackId>::from_bare("1GxzaUNoSvzNqL4JB9ztXq")
+                .expect("failed to parse bare ID")
+                .into(),
+        ])
+        .send_async()
         .await
         .expect("failed to play tracks");
 
     tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Pause");
-    user_client.pause(None).await.unwrap();
+    user_client.pause().send_async().await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Resume");
-    user_client.resume(None).await.unwrap();
+    user_client.resume().send_async().await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Next");
-    user_client.next(None).await.unwrap();
+    user_client.next().send_async().await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Seek");
-    user_client.seek(60 * 1000u32, None).await.unwrap();
+    user_client.seek(60 * 1000u32).send_async().await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(5)).await;
     println!("Previous");
-    user_client.previous(None).await.unwrap();
+    user_client.previous().send_async().await.unwrap();
 
     // user_client
     //     .play_context(

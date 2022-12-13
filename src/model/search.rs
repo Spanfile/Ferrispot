@@ -20,7 +20,7 @@ pub trait ToTypesString: crate::private::Sealed {
     fn to_types_string(self) -> String;
 }
 
-/// First pages of search results from a [search](crate::client::unscoped::UnscopedAsyncClient::search).
+/// First pages of search results from a [search](crate::client::unscoped::UnscopedClient::search).
 #[derive(Debug)]
 pub struct SearchResults {
     pub(crate) inner: SearchResultsObject,
@@ -36,8 +36,8 @@ pub(crate) struct SearchResultsObject {
     // episodes: Page<Episode>,
 }
 
-/// Continuation page of search results from a [search](crate::client::unscoped::UnscopedAsyncClient::search) that
-/// contains only tracks.
+/// Continuation page of search results from a [search](crate::client::unscoped::UnscopedClient::search) that contains
+/// only tracks.
 ///
 /// This object is retrieved only through requesting the [next page](Page::next_page) from an existing page of results.
 /// You won't be interacting objects of this type directly.
@@ -47,8 +47,8 @@ pub struct TrackSearchResults {
     tracks: PageObject<TrackObject>,
 }
 
-/// Continuation page of search results from a [search](crate::client::unscoped::UnscopedAsyncClient::search) that
-/// contains only artists.
+/// Continuation page of search results from a [search](crate::client::unscoped::UnscopedClient::search) that contains
+/// only artists.
 ///
 /// This object is retrieved only through requesting the [next page](Page::next_page) from an existing page of results.
 /// You won't be interacting objects of this type directly.
@@ -58,8 +58,8 @@ pub struct ArtistSearchResults {
     artists: PageObject<ArtistObject>,
 }
 
-/// Continuation page of search results from a [search](crate::client::unscoped::UnscopedAsyncClient::search) that
-/// contains only albums.
+/// Continuation page of search results from a [search](crate::client::unscoped::UnscopedClient::search) that contains
+/// only albums.
 ///
 /// This object is retrieved only through requesting the [next page](Page::next_page) from an existing page of results.
 /// You won't be interacting objects of this type directly.

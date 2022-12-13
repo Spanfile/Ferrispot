@@ -49,7 +49,7 @@ async fn main() {
 
     // .playback_state()
 
-    let playback_state = user_client.playback_state().await.unwrap();
+    let playback_state = user_client.playback_state().send_async().await.unwrap();
     // println!("{playback_state:#?}");
 
     if let Some(playback_state) = playback_state {
@@ -83,7 +83,7 @@ async fn main() {
 
     // .currently_playing_item()
 
-    let currently_playing_item = user_client.currently_playing_item().await.unwrap();
+    let currently_playing_item = user_client.currently_playing_item().send_async().await.unwrap();
 
     if let Some(currently_playing_item) = currently_playing_item {
         if let Some(item) = currently_playing_item.public_playing_item() {

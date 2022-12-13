@@ -112,8 +112,7 @@ pub type SyncImplicitGrantUserClientBuilder = ImplicitGrantUserClientBuilder<Syn
 /// A client that uses the implicit grant flow to authenticate an user with Spotify. See the [module-level docs](self)
 /// for more information.
 ///
-/// Implements all the [scoped](crate::client::ScopedAsyncClient) and [unscoped
-/// endpoints](crate::client::UnscopedAsyncClient).
+/// Implements all the [scoped](crate::client::ScopedClient) and [unscoped endpoints](crate::client::UnscopedClient).
 ///
 /// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
 /// client types directly, hence there are type aliases for both kinds of clients: [AsyncImplicitGrantUserClient] and
@@ -286,18 +285,16 @@ impl private::BuildHttpRequestSync for SyncImplicitGrantUserClient {
 }
 
 #[cfg(feature = "async")]
-#[async_trait::async_trait]
-impl<'a> super::ScopedAsyncClient<'a> for AsyncImplicitGrantUserClient {}
+impl super::ScopedClient for AsyncImplicitGrantUserClient {}
+
+#[cfg(feature = "sync")]
+impl super::ScopedClient for SyncImplicitGrantUserClient {}
 
 #[cfg(feature = "async")]
-#[async_trait::async_trait]
-impl<'a> super::UnscopedAsyncClient<'a> for AsyncImplicitGrantUserClient {}
+impl super::UnscopedClient for AsyncImplicitGrantUserClient {}
 
 #[cfg(feature = "sync")]
-impl<'a> super::ScopedSyncClient<'a> for SyncImplicitGrantUserClient {}
-
-#[cfg(feature = "sync")]
-impl<'a> super::UnscopedSyncClient<'a> for SyncImplicitGrantUserClient {}
+impl super::UnscopedClient for SyncImplicitGrantUserClient {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]

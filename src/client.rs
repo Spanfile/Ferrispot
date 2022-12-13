@@ -11,12 +11,12 @@
 //! Every client requires an application client ID. You can create a new application in the
 //! [Spotify developer dashboard](https://developer.spotify.com/dashboard), from where you get the application's client
 //! ID and secret. If the secret can be safely stored in your environment, you may use the client credentials flow by
-//! building a [SpotifyClientWithSecret] which can access all [unscoped endpoints](UnscopedAsyncClient). From there, you
+//! building a [SpotifyClientWithSecret] which can access all [unscoped endpoints](UnscopedClient). From there, you
 //! can retrieve a user-authorized [authorization code flow client](authorization_code) which can access all [scoped
-//! endpoints](ScopedAsyncClient) in addition to the [unscoped endpoints](UnscopedAsyncClient).
+//! endpoints](ScopedClient) in addition to the [unscoped endpoints](UnscopedClient).
 //!
 //! However, if the client secret cannot be safely stored in your environment, you may still access all
-//! [unscoped](UnscopedAsyncClient) and [scoped endpoints](ScopedAsyncClient) by using the [authorization code flow with
+//! [unscoped](UnscopedClient) and [scoped endpoints](ScopedClient) by using the [authorization code flow with
 //! PKCE](SpotifyClient::authorization_code_client_with_pkce). The [implicit grant flow is also
 //! supported](SpotifyClient::implicit_grant_client), but it is not recommended for use.
 //!
@@ -77,7 +77,7 @@
 //! endpoints.
 
 // TODO: this table would be really neat to have if rustfmt didn't mess it up
-// | Authorization flow | [Access user resources](ScopedAsyncClient) | Requires secret key | [Access token
+// | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token
 // refresh](AccessTokenRefresh) | |-|-|-|-|
 // | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
 // | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
@@ -86,6 +86,7 @@
 
 pub mod authorization_code;
 pub mod implicit_grant;
+pub mod request_builder;
 
 pub(crate) mod private;
 pub(crate) mod scoped;
@@ -102,7 +103,6 @@ use reqwest::{
 use serde::Deserialize;
 
 use self::implicit_grant::ImplicitGrantUserClientBuilder;
-pub use self::unscoped::SearchBuilder;
 #[cfg(feature = "async")]
 use self::{
     authorization_code::{AsyncAuthorizationCodeUserClient, AsyncAuthorizationCodeUserClientBuilder},
@@ -115,10 +115,10 @@ use self::{
     implicit_grant::SyncImplicitGrantUserClientBuilder,
     private::SyncClient,
 };
-#[cfg(feature = "async")]
-pub use self::{scoped::ScopedAsyncClient, unscoped::UnscopedAsyncClient};
-#[cfg(feature = "sync")]
-pub use self::{scoped::ScopedSyncClient, unscoped::UnscopedSyncClient};
+pub use self::{
+    scoped::ScopedClient,
+    unscoped::{SearchBuilder, UnscopedClient},
+};
 use crate::{
     error::{Error, Result},
     model::error::{AuthenticationErrorKind, AuthenticationErrorResponse},
@@ -225,9 +225,9 @@ struct SpotifyClientRef {
 
 /// A base Spotify client that has a client secret.
 ///
-/// This client can be used to access all [unscoped Spotify endpoints](UnscopedAsyncClient). It can also be used to
-/// retrieve an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that
-/// can access all [scoped endpoints](ScopedAsyncClient).
+/// This client can be used to access all [unscoped Spotify endpoints](UnscopedClient). It can also be used to retrieve
+/// an user-authenticated [AuthorizationCodeUserClient](authorization_code::AuthorizationCodeUserClient) that can access
+/// all [scoped endpoints](ScopedClient).
 ///
 /// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
 /// client types directly, hence there are type aliases for both kinds of clients: [AsyncSpotifyClientWithSecret] and
@@ -619,11 +619,10 @@ impl private::BuildHttpRequestSync for SyncSpotifyClientWithSecret {
 }
 
 #[cfg(feature = "async")]
-#[async_trait::async_trait]
-impl<'a> UnscopedAsyncClient<'a> for AsyncSpotifyClientWithSecret {}
+impl UnscopedClient for AsyncSpotifyClientWithSecret {}
 
 #[cfg(feature = "sync")]
-impl<'a> UnscopedSyncClient<'a> for SyncSpotifyClientWithSecret {}
+impl UnscopedClient for SyncSpotifyClientWithSecret {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
@@ -722,7 +721,6 @@ fn extract_authentication_error_sync(response: reqwest::blocking::Response) -> R
     }
 }
 
-// TODO: let the rate limit sleep behaviour be determined per-client
 /// Sleep for the specified amount of time by blocking the current thread.
 #[cfg(feature = "sync")]
 fn rate_limit_sleep_sync(sleep_time: u64) -> Result<()> {

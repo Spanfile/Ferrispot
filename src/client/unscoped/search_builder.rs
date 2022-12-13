@@ -13,9 +13,7 @@ use crate::{
 };
 
 /// A builder for a search in Spotify's catalog. New instances are returned by the
-/// [asynchronous search-function](super::UnscopedAsyncClient::search) in
-/// [UnscopedAsyncClient](super::UnscopedAsyncClient) or the [synchronous
-/// search-function](super::UnscopedSyncClient::search) in [UnscopedSyncClient](super::UnscopedSyncClient)
+/// [search-function](super::UnscopedClient::search) in [UnscopedClient](super::UnscopedClient)
 pub struct SearchBuilder<'a, C, S>
 where
     C: ?Sized,

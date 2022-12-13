@@ -16,7 +16,8 @@ async fn main() {
 
     // all unscoped endpoints are now available
     let one_track = spotify_client
-        .track(Id::from_bare("2PoYyfBkedDBPGAh0ZUoHW").unwrap(), None)
+        .track(Id::from_bare("2PoYyfBkedDBPGAh0ZUoHW").unwrap())
+        .send_async()
         .await
         .unwrap();
 

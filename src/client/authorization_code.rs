@@ -146,8 +146,7 @@ pub type SyncAuthorizationCodeUserClientBuilder = AuthorizationCodeUserClientBui
 /// A client that implements the authorization code flow to authenticate an user with Spotify. May optionally use PKCE
 /// if the client secret is not available. See the [module-level documentation](self) for more information.
 ///
-/// Implements all the [scoped](crate::client::ScopedAsyncClient) and [unscoped
-/// endpoints](crate::client::UnscopedAsyncClient).
+/// Implements all the [scoped](crate::client::ScopedClient) and [unscoped endpoints](crate::client::UnscopedClient).
 ///
 /// This struct is generic over its internal asynchronous/synchronous HTTP client. You cannot refer to the internal
 /// client types directly, hence there are type aliases for both kinds of clients: [AsyncAuthorizationCodeUserClient]
@@ -629,18 +628,16 @@ impl private::BuildHttpRequestSync for SyncAuthorizationCodeUserClient {
 }
 
 #[cfg(feature = "async")]
-#[async_trait::async_trait]
-impl<'a> super::ScopedAsyncClient<'a> for AsyncAuthorizationCodeUserClient {}
+impl super::ScopedClient for AsyncAuthorizationCodeUserClient {}
+
+#[cfg(feature = "sync")]
+impl super::ScopedClient for SyncAuthorizationCodeUserClient {}
 
 #[cfg(feature = "async")]
-#[async_trait::async_trait]
-impl<'a> super::UnscopedAsyncClient<'a> for AsyncAuthorizationCodeUserClient {}
+impl super::UnscopedClient for AsyncAuthorizationCodeUserClient {}
 
 #[cfg(feature = "sync")]
-impl<'a> super::ScopedSyncClient<'a> for SyncAuthorizationCodeUserClient {}
-
-#[cfg(feature = "sync")]
-impl<'a> super::UnscopedSyncClient<'a> for SyncAuthorizationCodeUserClient {}
+impl super::UnscopedClient for SyncAuthorizationCodeUserClient {}
 
 #[cfg(feature = "async")]
 #[async_trait::async_trait]

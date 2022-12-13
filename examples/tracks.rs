@@ -15,7 +15,8 @@ async fn main() {
             .expect("failed to build Spotify client");
 
     let one_track = spotify_client
-        .track(Id::from_bare("0871AdnvzzSGr5XdTJaDHC").unwrap(), None)
+        .track(Id::from_bare("0871AdnvzzSGr5XdTJaDHC").unwrap())
+        .send_async()
         .await
         .unwrap();
 
@@ -27,16 +28,14 @@ async fn main() {
     );
 
     let multiple_tracks = spotify_client
-        .tracks(
-            [
-                Id::from_bare("3mXLyNsVeLelMakgpGUp1f").unwrap(),
-                Id::from_bare("367IrkRR4wk5WtSL41rONn").unwrap(),
-                Id::from_bare("1GxzaUNoSvzNqL4JB9ztXq").unwrap(),
-                // nonexistent tracks are omitted from the result without returning an error
-                Id::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap(),
-            ],
-            None,
-        )
+        .tracks([
+            Id::from_bare("3mXLyNsVeLelMakgpGUp1f").unwrap(),
+            Id::from_bare("367IrkRR4wk5WtSL41rONn").unwrap(),
+            Id::from_bare("1GxzaUNoSvzNqL4JB9ztXq").unwrap(),
+            // nonexistent tracks are omitted from the result without returning an error
+            Id::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap(),
+        ])
+        .send_async()
         .await
         .unwrap();
 
@@ -50,7 +49,8 @@ async fn main() {
     }
 
     let nonexistent_id_error = spotify_client
-        .track(Id::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap(), None)
+        .track(Id::from_bare("aaaaaaaaaaaaaaaaaaaaaa").unwrap())
+        .send_async()
         .await
         .unwrap_err();
 
