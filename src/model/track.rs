@@ -35,18 +35,35 @@ use std::{collections::HashSet, time::Duration};
 
 use serde::{Deserialize, Serialize, Serializer};
 
-use super::{
-    album::PartialAlbum,
-    artist::PartialArtist,
-    country_code::CountryCode,
-    id::{Id, IdTrait, TrackId},
-    object_type::{object_type_serialize, TypeTrack},
-    ExternalIds, ExternalUrls, Restrictions,
+pub(crate) use self::private::TrackObject;
+use self::private::{CommonTrackFields, FullTrackFields, NonLocalTrackFields};
+use crate::{
+    error::ConversionError,
+    model::{
+        album::PartialAlbum,
+        artist::PartialArtist,
+        country_code::CountryCode,
+        id::{Id, IdTrait, TrackId},
+        ExternalIds, ExternalUrls, Restrictions,
+    },
 };
-use crate::{error::ConversionError, util::duration_millis};
 
 mod private {
-    use super::{CommonTrackFields, FullTrackFields, NonLocalTrackFields};
+    use std::{collections::HashSet, time::Duration};
+
+    use serde::{Deserialize, Serialize};
+
+    use crate::{
+        model::{
+            album::PartialAlbum,
+            artist::PartialArtist,
+            id::{Id, TrackId},
+            object_type::{object_type_serialize, TypeTrack},
+            track::LinkedTrack,
+            CountryCode, ExternalIds, ExternalUrls, Restrictions,
+        },
+        util::duration_millis,
+    };
 
     pub(super) trait CommonFields {
         fn common_fields(&self) -> &CommonTrackFields;
@@ -58,6 +75,64 @@ mod private {
 
     pub(super) trait NonLocalFields {
         fn non_local_fields(&self) -> &NonLocalTrackFields;
+    }
+
+    /// This struct covers all the possible track responses from Spotify's API. It has a function that converts it into
+    /// a [Track], depending on which fields are set.
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct TrackObject {
+        /// Fields available in every track
+        #[serde(flatten)]
+        pub(crate) common: CommonTrackFields,
+
+        /// Fields only in non-local tracks
+        #[serde(flatten)]
+        pub(crate) non_local: Option<NonLocalTrackFields>,
+
+        /// Fields only in full tracks
+        #[serde(flatten)]
+        pub(crate) full: Option<FullTrackFields>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct CommonTrackFields {
+        // basic information
+        pub(crate) name: String,
+        pub(crate) artists: Vec<PartialArtist>,
+        pub(crate) track_number: u32,
+        pub(crate) disc_number: u32,
+        #[serde(rename = "duration_ms", with = "duration_millis")]
+        pub(crate) duration: Duration,
+        pub(crate) explicit: bool,
+        pub(crate) preview_url: Option<String>,
+        pub(crate) is_local: bool, // TODO: i don't like this field
+        #[serde(default)]
+        pub(crate) external_urls: ExternalUrls,
+        #[serde(rename = "type", with = "object_type_serialize")]
+        pub(crate) item_type: TypeTrack,
+
+        // track relinking
+        // TODO: all these fields could be reworked into something more coherent according to the track relinking rules
+        // https://developer.spotify.com/documentation/general/guides/track-relinking-guide/
+        #[serde(default)]
+        pub available_markets: HashSet<CountryCode>,
+        pub is_playable: Option<bool>,
+        pub linked_from: Option<LinkedTrack>,
+        #[serde(default)]
+        pub restrictions: Restrictions,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct FullTrackFields {
+        pub(crate) album: PartialAlbum,
+        #[serde(default)]
+        pub(crate) external_ids: ExternalIds,
+        pub(crate) popularity: u32,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct NonLocalTrackFields {
+        pub(crate) id: Id<'static, TrackId>,
     }
 }
 
@@ -218,23 +293,6 @@ pub enum Track {
     Local(Box<LocalTrack>),
 }
 
-/// This struct covers all the possible track responses from Spotify's API. It has a function that converts it into a
-/// [Track], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct TrackObject {
-    /// Fields available in every track
-    #[serde(flatten)]
-    common: CommonTrackFields,
-
-    /// Fields only in non-local tracks
-    #[serde(flatten)]
-    non_local: Option<NonLocalTrackFields>,
-
-    /// Fields only in full tracks
-    #[serde(flatten)]
-    full: Option<FullTrackFields>,
-}
-
 /// This struct's only purpose is to make serializing more efficient by holding only references to its data. When
 /// attempting to serialize a track object, its fields will be passed as references to this object which is then
 /// serialized. This avoids having to clone the entire track in order to reconstruct a TrackObject.
@@ -246,47 +304,6 @@ struct TrackObjectRef<'a> {
     non_local: Option<&'a NonLocalTrackFields>,
     #[serde(flatten)]
     full: Option<&'a FullTrackFields>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct CommonTrackFields {
-    // basic information
-    name: String,
-    artists: Vec<PartialArtist>,
-    track_number: u32,
-    disc_number: u32,
-    #[serde(rename = "duration_ms", with = "duration_millis")]
-    duration: Duration,
-    explicit: bool,
-    preview_url: Option<String>,
-    is_local: bool, // TODO: i don't like this field
-    #[serde(default)]
-    external_urls: ExternalUrls,
-    #[serde(rename = "type", with = "object_type_serialize")]
-    item_type: TypeTrack,
-
-    // track relinking
-    // TODO: all these fields could be reworked into something more coherent according to the track relinking rules
-    // https://developer.spotify.com/documentation/general/guides/track-relinking-guide/
-    #[serde(default)]
-    available_markets: HashSet<CountryCode>,
-    is_playable: Option<bool>,
-    linked_from: Option<LinkedTrack>,
-    #[serde(default)]
-    restrictions: Restrictions,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct FullTrackFields {
-    album: PartialAlbum,
-    #[serde(default)]
-    external_ids: ExternalIds,
-    popularity: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct NonLocalTrackFields {
-    id: Id<'static, TrackId>,
 }
 
 /// A full track. Contains [full information](self::FullTrackInformation), in addition to all

@@ -22,15 +22,21 @@
 
 use serde::{Deserialize, Serialize, Serializer};
 
+pub(crate) use self::private::{ArtistObject, CommonArtistFields, FullArtistFields, NonLocalArtistFields};
 use super::{
     id::{ArtistId, Id, IdTrait},
-    object_type::{object_type_serialize, TypeArtist},
     ExternalUrls, Image,
 };
 use crate::error::ConversionError;
 
 mod private {
-    use super::{CommonArtistFields, FullArtistFields, NonLocalArtistFields};
+    use serde::{Deserialize, Serialize};
+
+    use crate::model::{
+        id::{ArtistId, Id},
+        object_type::{object_type_serialize, TypeArtist},
+        ExternalUrls, Image,
+    };
 
     pub(super) trait CommonFields {
         fn common_fields(&self) -> &CommonArtistFields;
@@ -42,6 +48,45 @@ mod private {
 
     pub(super) trait NonLocalFields {
         fn non_local_fields(&self) -> &NonLocalArtistFields;
+    }
+
+    /// This struct covers all the possible artist responses from Spotify's API. It has a function that converts it into
+    /// an [Artist], depending on which fields are set.
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct ArtistObject {
+        /// Fields available in every artist
+        #[serde(flatten)]
+        pub(crate) common: CommonArtistFields,
+
+        /// Fields only in non-local artist
+        #[serde(flatten)]
+        pub(crate) non_local: Option<NonLocalArtistFields>,
+
+        /// Fields only in full artist
+        #[serde(flatten)]
+        pub(crate) full: Option<FullArtistFields>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct CommonArtistFields {
+        pub(crate) name: String,
+        #[serde(default)]
+        pub(crate) external_urls: ExternalUrls,
+        #[serde(rename = "type", with = "object_type_serialize")]
+        pub(crate) item_type: TypeArtist,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct FullArtistFields {
+        // followers: Followers,
+        pub(crate) genres: Vec<String>,
+        pub(crate) images: Vec<Image>,
+        pub(crate) popularity: u32,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct NonLocalArtistFields {
+        pub(crate) id: Id<'static, ArtistId>,
     }
 }
 
@@ -116,23 +161,6 @@ pub enum Artist {
     Local(Box<LocalArtist>),
 }
 
-/// This struct covers all the possible artist responses from Spotify's API. It has a function that converts it into an
-/// [Artist], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct ArtistObject {
-    /// Fields available in every artist
-    #[serde(flatten)]
-    common: CommonArtistFields,
-
-    /// Fields only in non-local artist
-    #[serde(flatten)]
-    non_local: Option<NonLocalArtistFields>,
-
-    /// Fields only in full artist
-    #[serde(flatten)]
-    full: Option<FullArtistFields>,
-}
-
 /// This struct's only purpose is to make serializing more efficient by holding only references to its data. When
 /// attempting to serialize an artist object, its fields will be passed as references to this object which is then
 /// serialized. This avoids having to clone the entire artist in order to reconstruct a ArtistObject.
@@ -144,28 +172,6 @@ struct ArtistObjectRef<'a> {
     non_local: Option<&'a NonLocalArtistFields>,
     #[serde(flatten)]
     full: Option<&'a FullArtistFields>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct CommonArtistFields {
-    name: String,
-    #[serde(default)]
-    external_urls: ExternalUrls,
-    #[serde(rename = "type", with = "object_type_serialize")]
-    item_type: TypeArtist,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct FullArtistFields {
-    // followers: Followers,
-    genres: Vec<String>,
-    images: Vec<Image>,
-    popularity: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct NonLocalArtistFields {
-    id: Id<'static, ArtistId>,
 }
 
 /// A full artist. Contains [full information](self::FullArtistInformation), in addition to all

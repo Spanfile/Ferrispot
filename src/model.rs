@@ -11,9 +11,8 @@ pub mod playback;
 pub mod search;
 pub mod track;
 
-pub(crate) mod object_type;
-
 mod country_code;
+pub(crate) mod object_type;
 mod page;
 
 use std::{fmt, str::FromStr};

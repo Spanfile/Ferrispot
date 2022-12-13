@@ -2,13 +2,38 @@ use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
 
 use log::trace;
 use reqwest::Method;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
+pub(crate) use self::private::PageObject;
 #[cfg(feature = "async")]
 use crate::client::request_builder::AsyncRequestBuilder;
 #[cfg(feature = "sync")]
 use crate::client::request_builder::SyncRequestBuilder;
 use crate::client::request_builder::{BaseRequestBuilderContainer, RequestBuilder, TryFromEmptyResponse};
+
+mod private {
+    use serde::{Deserialize, Serialize};
+
+    /// A page object returned from Spotify.
+    ///
+    /// This object is only referenced through [Page] and the various wrapper types for paged information.
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct PageObject<T>
+    where
+        T: Serialize,
+    {
+        pub items: Vec<T>,
+        pub next: Option<String>,
+
+        // these fields aren't actually needed but keep them around for logging purposes
+        #[allow(dead_code)]
+        limit: usize,
+        #[allow(dead_code)]
+        offset: usize,
+        #[allow(dead_code)]
+        total: usize,
+    }
+}
 
 struct PageRequestBuilder<TClient, TInner>(RequestBuilder<TClient, TInner>);
 
@@ -41,26 +66,6 @@ where
 {
     pub(crate) inner: TInner,
     pub(crate) phantom: PhantomData<TItem>,
-}
-
-/// A page object returned from Spotify.
-///
-/// This object is only referenced through [Page] and the various wrapper types for paged information.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct PageObject<T>
-where
-    T: Serialize,
-{
-    items: Vec<T>,
-    next: Option<String>,
-
-    // these fields aren't actually needed but keep them around for logging purposes
-    #[allow(dead_code)]
-    limit: usize,
-    #[allow(dead_code)]
-    offset: usize,
-    #[allow(dead_code)]
-    total: usize,
 }
 
 impl<TClient, TInner> BaseRequestBuilderContainer<TClient, TInner> for PageRequestBuilder<TClient, TInner> {

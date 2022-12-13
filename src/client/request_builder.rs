@@ -114,6 +114,7 @@ fn response_error_to_unhandled_code(err: reqwest::Error) -> Error {
     }
 }
 
+/// Options available in each request builder.
 pub trait BaseRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
     Self: private::BaseRequestBuilderContainer<TClient, TResponse, TBody, TReturn> + Sized,
@@ -171,6 +172,7 @@ fn extract_rate_limit_retry_after(headers: &HeaderMap) -> Result<u64> {
     }
 }
 
+/// Asynchronous request builder functionality, namely sending the request and processing its response asynchronously.
 #[cfg(feature = "async")]
 #[async_trait::async_trait]
 pub trait AsyncRequestBuilder<TClient, TResponse, TBody, TReturn>
@@ -265,6 +267,7 @@ where
     }
 }
 
+/// Synchronous request builder functionality, namely sending the request and processing its response synchronously.
 #[cfg(feature = "sync")]
 pub trait SyncRequestBuilder<TClient, TResponse, TBody, TReturn>
 where
@@ -358,6 +361,8 @@ where
     }
 }
 
+/// A "base" request builder that doesn't include any special functionality. The commonly available options are
+/// available in the [BaseRequestBuilder]-trait.
 pub struct RequestBuilder<TClient, TResponse, TBody = (), TReturn = TResponse> {
     client: TClient,
     method: Method,

@@ -7,7 +7,7 @@ use reqwest::{Method, StatusCode};
 
 use self::private::TracksResponse;
 pub use self::search_builder::SearchBuilder;
-use super::{request_builder::RequestBuilder, API_TRACKS_ENDPOINT};
+use super::{request_builder::RequestBuilder, API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT};
 #[cfg(feature = "async")]
 use crate::client::request_builder::AsyncResponseHandler;
 #[cfg(feature = "sync")]
@@ -131,7 +131,7 @@ where
     where
         S: Into<String>,
     {
-        SearchBuilder::new(self.clone(), query.into())
+        SearchBuilder::new(Method::GET, API_SEARCH_ENDPOINT, self.clone()).query(query.into())
     }
 }
 

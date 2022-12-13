@@ -24,11 +24,11 @@ use std::{collections::HashSet, marker::PhantomData};
 
 use serde::{Deserialize, Serialize, Serializer};
 
+pub(crate) use self::private::{AlbumObject, CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
 use super::{
     artist::PartialArtist,
     country_code::CountryCode,
     id::{AlbumId, Id, IdTrait},
-    object_type::{object_type_serialize, TypeAlbum},
     page::{Page, PageInformation, PageObject},
     track::{PartialTrack, TrackObject},
     Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
@@ -36,7 +36,17 @@ use super::{
 use crate::error::ConversionError;
 
 mod private {
-    use super::{CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
+    use std::collections::HashSet;
+
+    use serde::{Deserialize, Serialize};
+
+    use crate::model::{
+        album::{AlbumTracks, AlbumType},
+        artist::PartialArtist,
+        id::{AlbumId, Id},
+        object_type::{object_type_serialize, TypeAlbum},
+        Copyright, CountryCode, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
+    };
 
     pub(super) trait CommonFields {
         fn common_fields(&self) -> &CommonAlbumFields;
@@ -48,6 +58,60 @@ mod private {
 
     pub(super) trait NonLocalFields {
         fn non_local_fields(&self) -> &NonLocalAlbumFields;
+    }
+
+    /// This struct covers all the possible album responses from Spotify's API. It has a function that converts it into
+    /// an [Album], depending on which fields are set.
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct AlbumObject {
+        /// Fields available in every album
+        #[serde(flatten)]
+        pub(crate) common: CommonAlbumFields,
+
+        /// Fields only in non-local albums
+        #[serde(flatten)]
+        pub(crate) non_local: Option<NonLocalAlbumFields>,
+
+        /// Fields only in full albums
+        #[serde(flatten)]
+        pub(crate) full: Option<FullAlbumFields>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct CommonAlbumFields {
+        // basic information
+        pub(crate) name: String,
+        pub(crate) artists: Vec<PartialArtist>,
+        pub(crate) images: Vec<Image>,
+        #[serde(default)]
+        pub(crate) external_urls: ExternalUrls,
+        #[serde(rename = "type", with = "object_type_serialize")]
+        pub(crate) item_type: TypeAlbum,
+
+        // track relinking
+        #[serde(default)]
+        pub(crate) available_markets: HashSet<CountryCode>,
+        #[serde(default)]
+        pub(crate) restrictions: Restrictions,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct FullAlbumFields {
+        pub(crate) copyrights: Vec<Copyright>,
+        pub(crate) external_ids: ExternalIds,
+        pub(crate) genres: Vec<String>,
+        pub(crate) label: String,
+        pub(crate) popularity: u32,
+        pub(crate) tracks: AlbumTracks,
+        // TODO: the artist album thing with the album group field
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub(crate) struct NonLocalAlbumFields {
+        pub(crate) album_type: AlbumType,
+        pub(crate) id: Id<'static, AlbumId>,
+        pub(crate) release_date: String, // TODO: proper date type pls
+        pub(crate) release_date_precision: DatePrecision,
     }
 }
 
@@ -187,23 +251,6 @@ pub enum Album {
     Local(Box<LocalAlbum>),
 }
 
-/// This struct covers all the possible album responses from Spotify's API. It has a function that converts it into an
-/// [Album], depending on which fields are set.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct AlbumObject {
-    /// Fields available in every album
-    #[serde(flatten)]
-    common: CommonAlbumFields,
-
-    /// Fields only in non-local albums
-    #[serde(flatten)]
-    non_local: Option<NonLocalAlbumFields>,
-
-    /// Fields only in full albums
-    #[serde(flatten)]
-    full: Option<FullAlbumFields>,
-}
-
 /// This struct's only purpose is to make serializing more efficient by holding only references to its data. When
 /// attempting to serialize an album object, its fields will be passed as references to this object which is then
 /// serialized. This avoids having to clone the entire album in order to reconstruct a AlbumObject.
@@ -226,43 +273,6 @@ struct AlbumObjectRef<'a> {
 pub struct AlbumTracks {
     #[serde(flatten)]
     page: PageObject<TrackObject>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct CommonAlbumFields {
-    // basic information
-    name: String,
-    artists: Vec<PartialArtist>,
-    images: Vec<Image>,
-    #[serde(default)]
-    external_urls: ExternalUrls,
-    #[serde(rename = "type", with = "object_type_serialize")]
-    item_type: TypeAlbum,
-
-    // track relinking
-    #[serde(default)]
-    available_markets: HashSet<CountryCode>,
-    #[serde(default)]
-    restrictions: Restrictions,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct FullAlbumFields {
-    copyrights: Vec<Copyright>,
-    external_ids: ExternalIds,
-    genres: Vec<String>,
-    label: String,
-    popularity: u32,
-    tracks: AlbumTracks,
-    // TODO: the artist album thing with the album group field
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct NonLocalAlbumFields {
-    album_type: AlbumType,
-    id: Id<'static, AlbumId>,
-    release_date: String, // TODO: proper date type pls
-    release_date_precision: DatePrecision,
 }
 
 /// A full album. Contains [full information](self::FullAlbumInformation), in addition to all

@@ -1,7 +1,8 @@
-use std::marker::PhantomData;
+use std::{convert::Infallible, marker::PhantomData};
 
 use serde::Deserialize;
 
+pub(crate) use self::private::SearchResultsObject;
 use super::{
     album::{AlbumObject, FullAlbum},
     artist::{ArtistObject, FullArtist},
@@ -10,9 +11,33 @@ use super::{
     ItemType,
 };
 
+mod private {
+    use serde::Deserialize;
+
+    use crate::model::{
+        page::PageObject,
+        search::{AlbumObject, ArtistObject},
+        track::TrackObject,
+    };
+
+    #[derive(Debug, Deserialize)]
+    pub struct SearchResultsObject {
+        pub tracks: Option<PageObject<TrackObject>>,
+        pub artists: Option<PageObject<ArtistObject>>,
+        pub albums: Option<PageObject<AlbumObject>>,
+        // playlists: Page<Playlist>,
+        // shows: Page<Show>,
+        // episodes: Page<Episode>,
+    }
+}
+
 // TODO: it'd be really cool if this was a const fn or smth
 /// The default search types.
 pub const DEFAULT_SEARCH_TYPES_STRING: &str = "album,artist,playlist,track,show,episode";
+/// The default search limit, i.e. how many items there are in each page.
+pub const DEFAULT_SEARCH_LIMIT: u32 = 20;
+/// The default search offset.
+pub const DEFAULT_SEARCH_OFFSET: u32 = 0;
 
 /// Trait for converting an object to a string used in Spotify's search types. This is currently implemented for all
 /// iterators of [ItemType]-enums.
@@ -24,16 +49,6 @@ pub trait ToTypesString: crate::private::Sealed {
 #[derive(Debug)]
 pub struct SearchResults {
     pub(crate) inner: SearchResultsObject,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct SearchResultsObject {
-    tracks: Option<PageObject<TrackObject>>,
-    artists: Option<PageObject<ArtistObject>>,
-    albums: Option<PageObject<AlbumObject>>,
-    // playlists: Page<Playlist>,
-    // shows: Page<Show>,
-    // episodes: Page<Episode>,
 }
 
 /// Continuation page of search results from a [search](crate::client::unscoped::UnscopedClient::search) that contains
@@ -67,6 +82,14 @@ pub struct ArtistSearchResults {
 #[doc(hidden)]
 pub struct AlbumSearchResults {
     albums: PageObject<AlbumObject>,
+}
+
+impl TryFrom<SearchResultsObject> for SearchResults {
+    type Error = Infallible;
+
+    fn try_from(value: SearchResultsObject) -> Result<Self, Self::Error> {
+        Ok(Self { inner: value })
+    }
 }
 
 impl SearchResults {
