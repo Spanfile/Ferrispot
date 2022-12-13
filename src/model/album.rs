@@ -20,21 +20,6 @@
 //! Two albums are considered equal when their Spotify IDs are the same. However, since [LocalAlbum] doesn't have a
 //! Spotify ID, it resorts to comparing all available fields.
 
-use std::{collections::HashSet, marker::PhantomData};
-
-use serde::{Deserialize, Serialize, Serializer};
-
-pub(crate) use self::private::{AlbumObject, CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
-use super::{
-    artist::PartialArtist,
-    country_code::CountryCode,
-    id::{AlbumId, Id, IdTrait},
-    page::{Page, PageInformation, PageObject},
-    track::{PartialTrack, TrackObject},
-    Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
-};
-use crate::error::ConversionError;
-
 mod private {
     use std::collections::HashSet;
 
@@ -114,6 +99,21 @@ mod private {
         pub(crate) release_date_precision: DatePrecision,
     }
 }
+
+use std::{collections::HashSet, marker::PhantomData};
+
+use serde::{Deserialize, Serialize, Serializer};
+
+pub(crate) use self::private::{AlbumObject, CommonAlbumFields, FullAlbumFields, NonLocalAlbumFields};
+use super::{
+    artist::PartialArtist,
+    country_code::CountryCode,
+    id::{AlbumId, Id, IdTrait},
+    page::{Page, PageInformation, PageObject},
+    track::{PartialTrack, TrackObject},
+    Copyright, DatePrecision, ExternalIds, ExternalUrls, Image, Restrictions,
+};
+use crate::error::ConversionError;
 
 /// Functions for retrieving information that is common to every album type.
 pub trait CommonAlbumInformation: crate::private::Sealed {

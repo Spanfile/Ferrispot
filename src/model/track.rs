@@ -31,23 +31,6 @@
 //! their relinked track IDs if available, and then through their own IDs. Two tracks are considered equal if one's
 //! relinked track ID is the same as the other's own ID, or both tracks are relinked from the same track.
 
-use std::{collections::HashSet, time::Duration};
-
-use serde::{Deserialize, Serialize, Serializer};
-
-pub(crate) use self::private::TrackObject;
-use self::private::{CommonTrackFields, FullTrackFields, NonLocalTrackFields};
-use crate::{
-    error::ConversionError,
-    model::{
-        album::PartialAlbum,
-        artist::PartialArtist,
-        country_code::CountryCode,
-        id::{Id, IdTrait, TrackId},
-        ExternalIds, ExternalUrls, Restrictions,
-    },
-};
-
 mod private {
     use std::{collections::HashSet, time::Duration};
 
@@ -135,6 +118,23 @@ mod private {
         pub(crate) id: Id<'static, TrackId>,
     }
 }
+
+use std::{collections::HashSet, time::Duration};
+
+use serde::{Deserialize, Serialize, Serializer};
+
+pub(crate) use self::private::TrackObject;
+use self::private::{CommonTrackFields, FullTrackFields, NonLocalTrackFields};
+use crate::{
+    error::ConversionError,
+    model::{
+        album::PartialAlbum,
+        artist::PartialArtist,
+        country_code::CountryCode,
+        id::{Id, IdTrait, TrackId},
+        ExternalIds, ExternalUrls, Restrictions,
+    },
+};
 
 /// Functions for retrieving information that is common to every track type.
 pub trait CommonTrackInformation: crate::private::Sealed {

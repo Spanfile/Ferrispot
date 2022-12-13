@@ -1,27 +1,5 @@
 mod search_builder;
 
-use std::borrow::Cow;
-
-use log::warn;
-use reqwest::{Method, StatusCode};
-
-use self::private::TracksResponse;
-pub use self::search_builder::SearchBuilder;
-use super::{request_builder::RequestBuilder, API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT};
-#[cfg(feature = "async")]
-use crate::client::request_builder::AsyncResponseHandler;
-#[cfg(feature = "sync")]
-use crate::client::request_builder::SyncResponseHandler;
-use crate::{
-    client::request_builder::BaseRequestBuilderContainer,
-    error::Error,
-    model::{
-        id::{Id, IdTrait, TrackId},
-        track::FullTrack,
-        CountryCode,
-    },
-};
-
 mod private {
     use serde::Deserialize;
 
@@ -62,6 +40,28 @@ mod private {
     impl TryFromEmptyResponse for TrackObject {}
     impl TryFromEmptyResponse for Vec<FullTrack> {}
 }
+
+use std::borrow::Cow;
+
+use log::warn;
+use reqwest::{Method, StatusCode};
+
+use self::private::TracksResponse;
+pub use self::search_builder::SearchBuilder;
+use super::{request_builder::RequestBuilder, API_SEARCH_ENDPOINT, API_TRACKS_ENDPOINT};
+#[cfg(feature = "async")]
+use crate::client::request_builder::AsyncResponseHandler;
+#[cfg(feature = "sync")]
+use crate::client::request_builder::SyncResponseHandler;
+use crate::{
+    client::request_builder::BaseRequestBuilderContainer,
+    error::Error,
+    model::{
+        id::{Id, IdTrait, TrackId},
+        track::FullTrack,
+        CountryCode,
+    },
+};
 
 const TRACKS_IDS_QUERY: &str = "ids";
 const MARKET_QUERY: &str = "market";

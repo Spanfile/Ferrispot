@@ -1,16 +1,3 @@
-use std::{convert::Infallible, marker::PhantomData};
-
-use serde::Deserialize;
-
-pub(crate) use self::private::SearchResultsObject;
-use super::{
-    album::{AlbumObject, FullAlbum},
-    artist::{ArtistObject, FullArtist},
-    page::{Page, PageInformation, PageObject},
-    track::{FullTrack, TrackObject},
-    ItemType,
-};
-
 mod private {
     use serde::Deserialize;
 
@@ -30,6 +17,19 @@ mod private {
         // episodes: Page<Episode>,
     }
 }
+
+use std::{convert::Infallible, marker::PhantomData};
+
+use serde::Deserialize;
+
+pub(crate) use self::private::SearchResultsObject;
+use super::{
+    album::{AlbumObject, FullAlbum},
+    artist::{ArtistObject, FullArtist},
+    page::{Page, PageInformation, PageObject},
+    track::{FullTrack, TrackObject},
+    ItemType,
+};
 
 // TODO: it'd be really cool if this was a const fn or smth
 /// The default search types.

@@ -1,18 +1,3 @@
-use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
-#[cfg(feature = "async")]
-use std::{future::Future, pin::Pin};
-
-use log::{error, info, trace, warn};
-use reqwest::{header, header::HeaderMap, Method, StatusCode, Url};
-use serde::{de::DeserializeOwned, Serialize};
-
-pub(crate) use self::private::{BaseRequestBuilderContainer, TryFromEmptyResponse};
-use crate::{
-    client::private::AccessTokenExpiryResult,
-    error::{Error, Result},
-    model::error::{ApiErrorMessage, ApiErrorResponse},
-};
-
 mod private {
     use std::borrow::Cow;
 
@@ -78,6 +63,21 @@ mod private {
         }
     }
 }
+
+use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
+#[cfg(feature = "async")]
+use std::{future::Future, pin::Pin};
+
+use log::{error, info, trace, warn};
+use reqwest::{header, header::HeaderMap, Method, StatusCode, Url};
+use serde::{de::DeserializeOwned, Serialize};
+
+pub(crate) use self::private::{BaseRequestBuilderContainer, TryFromEmptyResponse};
+use crate::{
+    client::private::AccessTokenExpiryResult,
+    error::{Error, Result},
+    model::error::{ApiErrorMessage, ApiErrorResponse},
+};
 
 #[cfg(feature = "async")]
 pub(crate) type AsyncResponseHandler =

@@ -20,15 +20,6 @@
 //! Two artists are considered equal when their Spotify IDs are the same. However, since [LocalArtist] doesn't have a
 //! Spotify ID, it resorts to comparing all available fields.
 
-use serde::{Deserialize, Serialize, Serializer};
-
-pub(crate) use self::private::{ArtistObject, CommonArtistFields, FullArtistFields, NonLocalArtistFields};
-use super::{
-    id::{ArtistId, Id, IdTrait},
-    ExternalUrls, Image,
-};
-use crate::error::ConversionError;
-
 mod private {
     use serde::{Deserialize, Serialize};
 
@@ -89,6 +80,15 @@ mod private {
         pub(crate) id: Id<'static, ArtistId>,
     }
 }
+
+use serde::{Deserialize, Serialize, Serializer};
+
+pub(crate) use self::private::{ArtistObject, CommonArtistFields, FullArtistFields, NonLocalArtistFields};
+use super::{
+    id::{ArtistId, Id, IdTrait},
+    ExternalUrls, Image,
+};
+use crate::error::ConversionError;
 
 /// Functions for retrieving information that is common to every artist type.
 pub trait CommonArtistInformation: crate::private::Sealed {

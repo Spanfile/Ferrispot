@@ -1,26 +1,4 @@
-use std::borrow::Cow;
-#[cfg(feature = "async")]
-use std::{future::Future, pin::Pin};
-
-use log::{error, trace, warn};
-use reqwest::{Method, StatusCode};
-
-use self::private::DevicesResponse;
-use super::request_builder::{BaseRequestBuilderContainer, RequestBuilder};
-use crate::{
-    client::{
-        API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT, API_PLAYER_DEVICES_ENDPOINT,
-        API_PLAYER_NEXT_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_PREVIOUS_ENDPOINT,
-        API_PLAYER_QUEUE_ENDPOINT, API_PLAYER_REPEAT_ENDPOINT, API_PLAYER_SEEK_ENDPOINT, API_PLAYER_SHUFFLE_ENDPOINT,
-        API_PLAYER_VOLUME_ENDPOINT,
-    },
-    error::{Error, Result},
-    model::{
-        error::{ApiErrorMessage, ApiErrorResponse},
-        id::{IdTrait, PlayableContext, PlayableItem},
-        playback::{CurrentlyPlayingItem, Device, PlaybackState, RepeatState},
-    },
-};
+mod player_control_builder;
 
 mod private {
     use serde::{Deserialize, Serialize};
@@ -56,18 +34,38 @@ mod private {
     impl TryFromEmptyResponse for Option<CurrentlyPlayingItem> {}
 }
 
+#[cfg(feature = "async")]
+use std::{future::Future, pin::Pin};
+
+use log::{error, trace, warn};
+use reqwest::{Method, StatusCode};
+
+pub use self::player_control_builder::{
+    BasePlayerControlRequestBuilder, PlayContextRequestBuilder, PlayItemsRequestBuilder, PlayerControlRequestBuilder,
+};
+use self::private::DevicesResponse;
+use super::request_builder::{BaseRequestBuilderContainer, RequestBuilder};
+use crate::{
+    client::{
+        API_CURRENTLY_PLAYING_ITEM_ENDPOINT, API_PLAYBACK_STATE_ENDPOINT, API_PLAYER_DEVICES_ENDPOINT,
+        API_PLAYER_NEXT_ENDPOINT, API_PLAYER_PAUSE_ENDPOINT, API_PLAYER_PLAY_ENDPOINT, API_PLAYER_PREVIOUS_ENDPOINT,
+        API_PLAYER_QUEUE_ENDPOINT, API_PLAYER_REPEAT_ENDPOINT, API_PLAYER_SEEK_ENDPOINT, API_PLAYER_SHUFFLE_ENDPOINT,
+        API_PLAYER_VOLUME_ENDPOINT,
+    },
+    error::{Error, Result},
+    model::{
+        error::{ApiErrorMessage, ApiErrorResponse},
+        id::{IdTrait, PlayableContext, PlayableItem},
+        playback::{CurrentlyPlayingItem, Device, PlaybackState, RepeatState},
+    },
+};
+
 const DEVICE_ID_QUERY: &str = "device_id";
 const REPEAT_STATE_QUERY: &str = "repeat_state";
 const SHUFFLE_QUERY: &str = "shuffle";
 const VOLUME_PERCENT_QUERY: &str = "volume_percent";
 const SEEK_POSITION_QUERY: &str = "position_ms";
 const QUEUE_URI_QUERY: &str = "uri";
-
-pub struct BasePlayerControlRequestBuilder<TClient, TBody>(RequestBuilder<TClient, (), TBody>);
-
-pub type PlayItemsRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, private::PlayItemsBody>;
-pub type PlayContextRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, private::PlayContextBody>;
-pub type PlayerControlRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, ()>;
 
 /// All scoped Spotify endpoints. The functions in this trait require user authentication, since they're specific to a
 /// certain user. The clients
@@ -407,42 +405,6 @@ where
         }
 
         builder
-    }
-}
-
-impl<TClient, TBody> BaseRequestBuilderContainer<TClient, (), TBody>
-    for BasePlayerControlRequestBuilder<TClient, TBody>
-{
-    fn new<S>(method: Method, base_url: S, client: TClient) -> Self
-    where
-        S: Into<Cow<'static, str>>,
-    {
-        Self(RequestBuilder::new(method, base_url, client))
-    }
-
-    fn new_with_body<S>(method: Method, base_url: S, body: TBody, client: TClient) -> Self
-    where
-        S: Into<Cow<'static, str>>,
-    {
-        Self(RequestBuilder::new_with_body(method, base_url, body, client))
-    }
-
-    fn take_base_builder(self) -> RequestBuilder<TClient, (), TBody> {
-        self.0
-    }
-
-    fn get_base_builder_mut(&mut self) -> &mut RequestBuilder<TClient, (), TBody> {
-        &mut self.0
-    }
-}
-
-impl<C, TReturn> BasePlayerControlRequestBuilder<C, TReturn> {
-    /// Target playback on a certain Spotify device in the user's account.
-    pub fn device_id<S>(self, device_id: S) -> Self
-    where
-        S: Into<Cow<'static, str>>,
-    {
-        self.append_query(DEVICE_ID_QUERY, device_id.into())
     }
 }
 
