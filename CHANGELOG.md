@@ -1,3 +1,6 @@
+# Unreleased
+- **Changed**: Request builders internally uses a hash map to store query parameters. This prevents certain bugs with trying to append the same parameter multiple times.
+
 # 0.4.0
 
 ## The neat thing

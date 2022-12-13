@@ -45,7 +45,7 @@ mod private {
         where
             S: Into<Cow<'static, str>>,
         {
-            self.get_base_builder_mut().query_params.push((key, value.into()));
+            self.get_base_builder_mut().query_params.insert(key, value.into());
             self
         }
 
@@ -84,7 +84,7 @@ mod catalog_item_builder;
 mod player_control_builder;
 mod search_builder;
 
-use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, marker::PhantomData};
 #[cfg(feature = "async")]
 use std::{future::Future, pin::Pin};
 
@@ -401,7 +401,7 @@ pub struct RequestBuilder<TClient, TResponse, TBody = (), TReturn = TResponse> {
     client: TClient,
     method: Method,
     base_url: Cow<'static, str>,
-    query_params: Vec<(&'static str, Cow<'static, str>)>,
+    query_params: HashMap<&'static str, Cow<'static, str>>,
     body: Option<TBody>,
 
     #[cfg(feature = "async")]
@@ -434,7 +434,7 @@ impl<TClient, TResponse, TBody, TReturn> private::BaseRequestBuilderContainer<TC
             client,
             method,
             base_url: base_url.into(),
-            query_params: Vec::new(),
+            query_params: HashMap::new(),
             body: None,
 
             #[cfg(feature = "async")]
