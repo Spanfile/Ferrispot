@@ -43,6 +43,7 @@ pub(crate) enum ApiErrorMessage {
     TokenExpired,
     NoActiveDevice,
     NotFound,
+    RestrictionViolated,
 
     Other(String),
 }
@@ -86,6 +87,7 @@ impl<'de> Deserialize<'de> for ApiErrorMessage {
                     // field is not in every error response (because of course it isn't)
                     "Player command failed: No active device found" => Ok(ApiErrorMessage::NoActiveDevice),
                     "Not found." => Ok(ApiErrorMessage::NotFound),
+                    "Player command failed: Restriction violated" => Ok(ApiErrorMessage::RestrictionViolated),
 
                     _ => Ok(ApiErrorMessage::Other(v)),
                 }

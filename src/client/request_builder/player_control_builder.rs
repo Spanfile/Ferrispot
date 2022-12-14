@@ -9,13 +9,11 @@ use crate::client::{
 
 /// A base builder type for the various player control request builders.
 pub struct BasePlayerControlRequestBuilder<TClient, TBody>(RequestBuilder<TClient, (), TBody>);
-
 /// A builder type for playing a context.
 pub struct PlayContextRequestBuilder<TClient>(RequestBuilder<TClient, (), object::PlayContextBody>);
 
 /// A type alias for a builder type for playing one or more playable items.
 pub type PlayItemsRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, object::PlayItemsBody>;
-
 /// A type alias for the various player control requests.
 pub type PlayerControlRequestBuilder<TClient> = BasePlayerControlRequestBuilder<TClient, ()>;
 

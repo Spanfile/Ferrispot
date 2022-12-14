@@ -161,6 +161,18 @@ where
     }
 }
 
+fn handle_403_forbidden_api_response(error_response: ApiErrorResponse) -> Result<()> {
+    warn!("Error response: {error_response:?}");
+
+    match error_response.error.message {
+        ApiErrorMessage::RestrictionViolated => Err(Error::Restricted),
+
+        // TODO: test what actually happens when the user revokes the app's access while the app is
+        // running
+        _ => Err(Error::Forbidden),
+    }
+}
+
 /// Returns Ok if the given API error response is because of an expired token. Else, returns an error based on the API
 /// error response.
 fn is_api_error_expired_access_token(error_response: ApiErrorResponse) -> Result<()> {
@@ -244,7 +256,8 @@ where
 
                 StatusCode::FORBIDDEN => {
                     error!("Got 403 Forbidden response");
-                    return Err(Error::Forbidden);
+                    let error_response: ApiErrorResponse = response.json().await?;
+                    handle_403_forbidden_api_response(error_response)?
                 }
 
                 StatusCode::UNAUTHORIZED => {
@@ -252,7 +265,7 @@ where
                     let error_response = response.json().await?;
                     is_api_error_expired_access_token(error_response)?;
 
-                    // handle_api_error_response handles all other errors except the access token being expired
+                    // is_api_error_expired_access_token handles all other errors except the access token being expired
                     if !common.auto_refresh_access_token
                         || common.client.handle_access_token_expired().await? == AccessTokenExpiryResult::Inapplicable
                     {
@@ -340,15 +353,18 @@ where
 
                 StatusCode::FORBIDDEN => {
                     error!("Got 403 Forbidden response");
-                    return Err(Error::Forbidden);
+                    let error_response: ApiErrorResponse = response.json()?;
+                    handle_403_forbidden_api_response(error_response)?
                 }
 
                 StatusCode::UNAUTHORIZED => {
                     warn!("Got 401 Unauthorized response");
                     let error_response = response.json()?;
+                    warn!("Error response: {error_response:?}");
+
                     is_api_error_expired_access_token(error_response)?;
 
-                    // handle_api_error_response handles all other errors except the access token being expired
+                    // is_api_error_expired_access_token handles all other errors except the access token being expired
                     if !common.auto_refresh_access_token
                         || common.client.handle_access_token_expired()? == AccessTokenExpiryResult::Inapplicable
                     {

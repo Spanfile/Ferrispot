@@ -3,6 +3,7 @@ use std::time::Duration;
 use dotenvy::dotenv;
 use ferrispot::{
     client::SpotifyClientBuilder,
+    error::Error,
     model::id::{Id, PlayableContext, PlayableItem, TrackId},
     prelude::*,
     scope::Scope,
@@ -77,6 +78,21 @@ async fn main() {
     println!("Pause");
     user_client.pause().send_async().await.unwrap();
 
+    // player controls may be restricted for the current playback. for example, pausing an already paused playback is
+    // disallowed
+    let currently_playing_item = user_client.currently_playing_item().send_async().await.unwrap();
+
+    if let Some(currently_playing_item) = currently_playing_item {
+        println!(
+            "Pausing disallowed: {}",
+            currently_playing_item.actions().disallows.pausing
+        );
+    }
+
+    // attempting a restricted player control will return a Restricted error
+    let restricted_error = user_client.pause().send_async().await.unwrap_err();
+    assert!(matches!(restricted_error, Error::Restricted));
+
     tokio::time::sleep(Duration::from_secs(3)).await;
     println!("Resume");
     user_client.resume().send_async().await.unwrap();
@@ -102,15 +118,4 @@ async fn main() {
         .send_async()
         .await
         .unwrap();
-
-    // user_client
-    //     .play_context(
-    //         ferrispot::model::id::PlayableContext::from_url(
-    //             "https://open.spotify.com/album/0tDsHtvN9YNuZjlqHvDY2P?si=E9RNAcdrSlCYmQGltzTILg",
-    //         )
-    //         .expect("failed to parse album URL"),
-    //         None,
-    //     )
-    //     .await
-    //     .expect("failed to play album");
 }

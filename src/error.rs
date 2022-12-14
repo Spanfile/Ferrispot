@@ -56,10 +56,21 @@ pub enum Error {
     #[error("The required scope for the endpoint has not been granted by the user")]
     MissingScope,
 
-    /// The endpoint is forbidden. This is likely due to the user removing the application's access to their account.
-    /// The user should be reauthorized.
+    /// The endpoint is forbidden and its possible error message body couldn't be mapped to a more specific error.
+    ///
+    /// This could be due to the user removing the application's access to their account. The user should be
+    /// reauthorized.
     #[error("The endpoint is forbidden")]
     Forbidden,
+
+    /// The player control is restricted.
+    ///
+    /// [CurrentlyPlayingItem](crate::model::playback::CurrentlyPlayingItem) has an
+    /// [`actions`-function](crate::model::playback::CurrentlyPlayingItem::actions) that has a
+    /// [`disallows`-field](crate::model::playback::Actions::disallows) that contains information about which player
+    /// controls are disallowed for the current playback.
+    #[error("The player control is restricted")]
+    Restricted,
 
     /// No device is currently active in the user's account, the active device didn't respond to the playback in a \
     /// timely manner or the given device could not be activated for playback.
