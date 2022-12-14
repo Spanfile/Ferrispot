@@ -1,6 +1,7 @@
 # Unreleased
 - **Changed**: Request builders internally uses a hash map to store query parameters. This prevents certain bugs with trying to append the same parameter multiple times.
 - **Changed**: Better handling of 403 Forbidden errors to account for restricted player control calls failing (see the [play example](examples/play.rs)).
+- **Fixed**: Build fails with just the model enabled (`default-features = false`).
 
 # 0.4.0
 

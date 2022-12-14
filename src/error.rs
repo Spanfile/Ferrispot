@@ -1,6 +1,8 @@
 //! Various error types exposed by the crate.
 
-use std::{borrow::Cow, convert::Infallible};
+use std::borrow::Cow;
+#[cfg(any(feature = "async", feature = "sync"))]
+use std::convert::Infallible;
 
 use thiserror::Error;
 
@@ -176,6 +178,7 @@ impl std::fmt::Display for ConversionError {
     }
 }
 
+#[cfg(any(feature = "async", feature = "sync"))]
 impl From<Infallible> for Error {
     fn from(_: Infallible) -> Self {
         panic!("how did you manage to try and convert a type that could never exist into something that does")

@@ -1,6 +1,10 @@
-use std::{borrow::Cow, fmt::Debug, marker::PhantomData};
+#[cfg(any(feature = "async", feature = "sync"))]
+use std::borrow::Cow;
+use std::{fmt::Debug, marker::PhantomData};
 
+#[cfg(any(feature = "async", feature = "sync"))]
 use log::trace;
+#[cfg(any(feature = "async", feature = "sync"))]
 use reqwest::Method;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -9,6 +13,7 @@ pub(crate) use self::private::PageObject;
 use crate::client::request_builder::AsyncRequestBuilder;
 #[cfg(feature = "sync")]
 use crate::client::request_builder::SyncRequestBuilder;
+#[cfg(any(feature = "async", feature = "sync"))]
 use crate::client::request_builder::{BaseRequestBuilderContainer, RequestBuilder, TryFromEmptyResponse};
 
 mod private {
@@ -35,6 +40,7 @@ mod private {
     }
 }
 
+#[cfg(any(feature = "async", feature = "sync"))]
 struct PageRequestBuilder<TClient, TInner>(RequestBuilder<TClient, TInner>);
 
 /// A trait describing a page-like object that is returned from Spotify's search API.
@@ -68,6 +74,7 @@ where
     pub(crate) phantom: PhantomData<TItem>,
 }
 
+#[cfg(any(feature = "async", feature = "sync"))]
 impl<TClient, TInner> BaseRequestBuilderContainer<TClient, TInner> for PageRequestBuilder<TClient, TInner> {
     fn new<S>(method: Method, base_url: S, client: TClient) -> Self
     where
