@@ -166,6 +166,7 @@ fn handle_403_forbidden_api_response(error_response: ApiErrorResponse) -> Result
 
     match error_response.error.message {
         ApiErrorMessage::RestrictionViolated => Err(Error::Restricted),
+        ApiErrorMessage::PremiumRequired => Err(Error::PremiumRequired),
 
         // TODO: test what actually happens when the user revokes the app's access while the app is
         // running

@@ -74,6 +74,10 @@ pub enum Error {
     #[error("The player control is restricted")]
     Restricted,
 
+    /// A player control failed because the target user does not have a Spotify Premium account.
+    #[error("A Spotify Premium account is required")]
+    PremiumRequired,
+
     /// No device is currently active in the user's account, the active device didn't respond to the playback in a \
     /// timely manner or the given device could not be activated for playback.
     ///

@@ -44,6 +44,7 @@ pub(crate) enum ApiErrorMessage {
     NoActiveDevice,
     NotFound,
     RestrictionViolated,
+    PremiumRequired,
 
     Other(String),
 }
@@ -88,6 +89,7 @@ impl<'de> Deserialize<'de> for ApiErrorMessage {
                     "Player command failed: No active device found" => Ok(ApiErrorMessage::NoActiveDevice),
                     "Not found." => Ok(ApiErrorMessage::NotFound),
                     "Player command failed: Restriction violated" => Ok(ApiErrorMessage::RestrictionViolated),
+                    "Player command failed: Premium required" => Ok(ApiErrorMessage::PremiumRequired),
 
                     _ => Ok(ApiErrorMessage::Other(v)),
                 }
