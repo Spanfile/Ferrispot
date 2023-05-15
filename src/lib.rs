@@ -66,6 +66,7 @@ pub mod prelude {
             id::{IdFromBare, IdFromKnownKind, IdTrait},
             search::ToTypesString,
             track::{CommonTrackInformation, FullTrackInformation, NonLocalTrackInformation, RelinkedTrackEquality},
+            user::{CommonUserInformation, CurrentUserInformation, PrivateUserInformation},
         },
         scope::ToScopesString,
     };

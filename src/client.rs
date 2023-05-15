@@ -151,6 +151,8 @@ const API_TRACKS_ENDPOINT: &str = concatcp!(API_BASE_URL, "tracks");
 const API_SEARCH_ENDPOINT: &str = concatcp!(API_BASE_URL, "search");
 
 // scoped endpoints
+const API_USER_PROFILE_ENDPOINT: &str = concatcp!(API_BASE_URL, "users");
+const API_CURRENT_USER_PROFILE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me");
 const API_PLAYBACK_STATE_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player");
 const API_CURRENTLY_PLAYING_ITEM_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/currently-playing");
 const API_PLAYER_PLAY_ENDPOINT: &str = concatcp!(API_BASE_URL, "me/player/play");

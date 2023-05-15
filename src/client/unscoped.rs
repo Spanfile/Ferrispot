@@ -1,6 +1,7 @@
 use log::warn;
 use reqwest::{Method, StatusCode};
 
+use super::{request_builder::RequestBuilder, API_USER_PROFILE_ENDPOINT};
 #[cfg(feature = "async")]
 use crate::client::request_builder::AsyncResponseHandler;
 #[cfg(feature = "sync")]
@@ -13,8 +14,9 @@ use crate::{
     },
     error::Error,
     model::{
-        id::{Id, IdTrait, TrackId},
+        id::{Id, IdTrait, TrackId, UserId},
         track::FullTrack,
+        user::PublicUser,
     },
 };
 
@@ -80,6 +82,15 @@ where
         S: Into<String>,
     {
         SearchBuilder::new(Method::GET, API_SEARCH_ENDPOINT, self.clone()).query(query.into())
+    }
+
+    /// Get public information about a Spotify user.
+    fn user_profile<'a>(&'a self, user_id: Id<'a, UserId>) -> RequestBuilder<Self, PublicUser> {
+        RequestBuilder::new(
+            Method::GET,
+            format!("{API_USER_PROFILE_ENDPOINT}/{}", user_id.as_str()),
+            self.clone(),
+        )
     }
 }
 

@@ -4,6 +4,7 @@ use std::{future::Future, pin::Pin};
 use log::{error, trace, warn};
 use reqwest::{Method, StatusCode};
 
+use super::API_CURRENT_USER_PROFILE_ENDPOINT;
 use crate::{
     client::{
         object,
@@ -21,6 +22,7 @@ use crate::{
         error::{ApiErrorMessage, ApiErrorResponse},
         id::{IdTrait, PlayableContext, PlayableItem},
         playback::{CurrentlyPlayingItem, Device, PlaybackState, RepeatState},
+        user::User,
     },
 };
 
@@ -365,6 +367,25 @@ where
         }
 
         builder
+    }
+
+    /// Get detailed profile information about the current user.
+    ///
+    /// Required scope: [UserReadEmail](crate::scope::Scope::UserReadEmail). Optionally required scope:
+    /// [UserReadPrivate](crate::scope::Scope::UserReadPrivate).
+    ///
+    /// This function can return either a [PrivateUser](crate::model::user::PrivateUser) object or a
+    /// [CurrentUser](crate::model::user::CurrentUser) object, wrapped in the [User](crate::model::user::User) enum. If
+    /// the [UserReadPrivate](crate::scope::Scope::UserReadPrivate) scope is granted to the application, this function
+    /// will return a [PrivateUser](crate::model::user::PrivateUser) object. Otherwise, it will return a
+    /// [CurrentUser](crate::model::user::CurrentUser) object.
+    ///
+    /// # Note about the `user-read-email`-scope
+    ///
+    /// It seems Spotify always grants your application the [UserReadEmail](crate::scope::Scope::UserReadEmail) scope,
+    /// even if you didn't explicitly ask for it.
+    fn current_user_profile(&self) -> RequestBuilder<Self, User> {
+        RequestBuilder::new(Method::GET, API_CURRENT_USER_PROFILE_ENDPOINT, self.clone())
     }
 }
 

@@ -1440,7 +1440,8 @@ where
             {
                 let (_, kind) = parse_item_type_and_kind_from_url_or_uri(&v)
                     .or_else(|_| {
-                        if is_valid_id(&v) {
+                        // the ID is probably a bare ID. bare user IDs are a special case for validation
+                        if is_valid_id(&v) || (T::ITEM_TYPE == ItemType::User && is_valid_user_id(&v)) {
                             Ok((T::ITEM_TYPE, IdKind::Bare))
                         } else {
                             Err(IdError::InvalidId(v.clone()))
@@ -2224,5 +2225,23 @@ mod tests {
     fn cannot_deserialize_spotify_id_from_bare() {
         let result: std::result::Result<SpotifyId, _> = serde_json::from_str("\"0tDsHtvN9YNuZjlqHvDY2P\"");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn deserialize_user_id_from_bare() {
+        let id: Id<'static, UserId> = serde_json::from_str("\"1337420asdasd\"").unwrap();
+        assert!(matches!(id.as_str(), "1337420asdasd"));
+    }
+
+    #[test]
+    fn deserialize_user_id_from_uri() {
+        let id: Id<'static, UserId> = serde_json::from_str("\"spotify:user:1337420asdasd\"").unwrap();
+        assert!(matches!(id.as_str(), "1337420asdasd"));
+    }
+
+    #[test]
+    fn deserialize_user_id_from_url() {
+        let id: Id<'static, UserId> = serde_json::from_str("\"https://open.spotify.com/user/1337420asdasd\"").unwrap();
+        assert!(matches!(id.as_str(), "1337420asdasd"));
     }
 }

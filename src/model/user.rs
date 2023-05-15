@@ -10,7 +10,7 @@
 //!   has been granted the [`user-read-email`-scope](crate::scope::Scope::UserReadEmail), but *not* the
 //!   [`user-read-private`-scope](crate::scope::Scope::UserReadPrivate).
 //! - [PublicUser]: contains all public information about a user. Retrieved from the
-//!   [`user_profile-`function](crate::client::ScopedClient::user_profile).
+//!   [`user_profile-`function](crate::client::UnscopedClient::user_profile).
 //!
 //! Additionally, there is the [User] enum that encompasses all three kinds of users.
 //!
@@ -194,7 +194,8 @@ where
 }
 
 /// An enum that encompasses all user types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
 pub enum User {
     Private(PrivateUser),
     Current(CurrentUser),

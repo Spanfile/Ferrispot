@@ -6,6 +6,7 @@ use crate::{
     model::{
         playback::{CurrentlyPlayingItem, Device, PlaybackState},
         track::{FullTrack, TrackObject},
+        user::{PublicUser, User},
     },
 };
 
@@ -81,3 +82,5 @@ impl TryFromEmptyResponse for TracksResponse {}
 impl TryFromEmptyResponse for FullTrack {}
 impl TryFromEmptyResponse for TrackObject {}
 impl TryFromEmptyResponse for Vec<FullTrack> {}
+impl TryFromEmptyResponse for User {}
+impl TryFromEmptyResponse for PublicUser {}
