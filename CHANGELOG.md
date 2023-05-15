@@ -1,9 +1,13 @@
 # Unreleased
+- **New**: The following new endpoints have been implemented:
+  - Scoped: `current_user_profile` ([Get current user's profile](https://developer.spotify.com/documentation/web-api/reference/get-current-users-profile)])
+  - Unscoped: `user_profile` ([Get user's profile](https://developer.spotify.com/documentation/web-api/reference/get-users-profile))
 - **Changed**: Request builders internally uses a hash map to store query parameters. This prevents certain bugs with trying to append the same parameter multiple times.
 - **Changed**: Better handling of 403 Forbidden errors to account for:
   - Restricted player control calls failing (see the [play example](examples/play.rs)).
   - Target user not having a Spotify Premium account.
 - **Fixed**: Build fails with just the model enabled (`default-features = false`).
+- **Fixed**: User IDs failed to deserialize as bare IDs.
 
 # 0.4.0
 
