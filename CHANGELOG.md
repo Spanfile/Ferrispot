@@ -1,4 +1,6 @@
 # Unreleased
+
+# 0.4.1
 - **New**: The following new endpoints have been implemented:
   - Scoped: `current_user_profile` ([Get current user's profile](https://developer.spotify.com/documentation/web-api/reference/get-current-users-profile)])
   - Unscoped: `user_profile` ([Get user's profile](https://developer.spotify.com/documentation/web-api/reference/get-users-profile))
