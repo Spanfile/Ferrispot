@@ -94,6 +94,7 @@
 
 use std::sync::{Arc, RwLock};
 
+use base64::Engine;
 use log::debug;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{IntoUrl, Method, Url};
@@ -378,16 +379,10 @@ where
         }
 
         let authorize_url = if let Some(pkce_verifier) = self.pkce_verifier.as_deref() {
-            const URL_SAFE_ENGINE: base64::engine::fast_portable::FastPortable =
-                base64::engine::fast_portable::FastPortable::from(
-                    &base64::alphabet::URL_SAFE,
-                    base64::engine::fast_portable::NO_PAD,
-                );
-
             let mut hasher = sha2::Sha256::new();
             hasher.update(pkce_verifier);
             let pkce_challenge = hasher.finalize();
-            let pkce_challenge = base64::encode_engine(pkce_challenge, &URL_SAFE_ENGINE);
+            let pkce_challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(pkce_challenge);
 
             debug!(
                 "Using PKCE extension with verifier: {} and challenge: {}",

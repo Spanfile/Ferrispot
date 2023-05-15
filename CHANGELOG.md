@@ -6,6 +6,7 @@
 - **Changed**: Better handling of 403 Forbidden errors to account for:
   - Restricted player control calls failing (see the [play example](examples/play.rs)).
   - Target user not having a Spotify Premium account.
+- **Changed**: Update `base64` dependency to 0.21.0.
 - **Fixed**: Build fails with just the model enabled (`default-features = false`).
 - **Fixed**: User IDs failed to deserialize as bare IDs.
 

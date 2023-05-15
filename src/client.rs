@@ -95,6 +95,7 @@ pub(crate) mod unscoped;
 
 use std::sync::{Arc, RwLock};
 
+use base64::Engine;
 use const_format::concatcp;
 use log::debug;
 use reqwest::{
@@ -690,7 +691,10 @@ impl private::AccessTokenExpirySync for SyncSpotifyClientWithSecret {
 
 fn build_authorization_header(client_id: &str, client_secret: &str) -> String {
     let auth = format!("{client_id}:{client_secret}");
-    format!("Basic {}", base64::encode(auth))
+    format!(
+        "Basic {}",
+        base64::engine::general_purpose::STANDARD_NO_PAD.encode(auth)
+    )
 }
 
 /// Takes a response for an authentication request and if its status is 400, parses its body as an authentication error.
