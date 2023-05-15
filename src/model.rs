@@ -10,6 +10,7 @@ pub mod id;
 pub mod playback;
 pub mod search;
 pub mod track;
+pub mod user;
 
 mod country_code;
 pub(crate) mod object_type;

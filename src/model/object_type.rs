@@ -1,6 +1,7 @@
 pub const TYPE_ALBUM: &str = "album";
 pub const TYPE_TRACK: &str = "track";
 pub const TYPE_ARTIST: &str = "artist";
+pub const TYPE_USER: &str = "user";
 
 pub(crate) mod object_type_serialize {
     use serde::{Deserialize, Deserializer, Serializer};
@@ -45,6 +46,9 @@ pub(crate) struct TypeTrack;
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct TypeArtist;
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub(crate) struct TypeUser;
+
 impl ObjectType for TypeAlbum {
     const OBJECT_TYPE: &'static str = TYPE_ALBUM;
 }
@@ -55,4 +59,8 @@ impl ObjectType for TypeTrack {
 
 impl ObjectType for TypeArtist {
     const OBJECT_TYPE: &'static str = TYPE_ARTIST;
+}
+
+impl ObjectType for TypeUser {
+    const OBJECT_TYPE: &'static str = TYPE_USER;
 }
