@@ -119,7 +119,8 @@ pub type SyncImplicitGrantUserClientBuilder = ImplicitGrantUserClientBuilder<Syn
 /// [SyncImplicitGrantUserClient]. Likewise, both the builder struct and the incomplete client struct are similarly
 /// generic, and have equivalent type aliases.
 ///
-/// This client uses `Arc` internally, so you do not need to wrap it in an `Arc` in order to reuse it.
+/// This client uses `Arc` internally, so you do not need to wrap it in an `Arc` in order to reuse it; it is cheap to
+/// clone, and all clones refer to the same internal structures.
 #[derive(Debug, Clone)]
 pub struct ImplicitGrantUserClient<C>
 where

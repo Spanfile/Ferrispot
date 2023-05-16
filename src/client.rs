@@ -22,6 +22,13 @@
 //!
 //! [Spotify documentation on authorization.](https://developer.spotify.com/documentation/general/guides/authorization/)
 //!
+//! | Authorization flow | Access user resources | Requires secret key | Access token refresh |
+//! |-|-|-|-|
+//! | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
+//! | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
+//! | [Client credentials](SpotifyClientWithSecret) | No | Yes | Yes |
+//! | [ImplicitGrantUserClient](implicit_grant) (not recommended) | Yes | No | No |
+//!
 //! ## Client credentials flow
 //!
 //! [SpotifyClientWithSecret](SpotifyClientWithSecret) implements the client credentials flow. A new client may be built
@@ -75,14 +82,6 @@
 //! See the module-level documentation for the [implicit grant module](implicit_grant). Note that it is not recommended
 //! for use. It is recommended to use the [authorization code module](authorization_code) in order to access scoped
 //! endpoints.
-
-// TODO: this table would be really neat to have if rustfmt didn't mess it up
-// | Authorization flow | [Access user resources](ScopedClient) | Requires secret key | [Access token
-// refresh](AccessTokenRefresh) | |-|-|-|-|
-// | [AuthorizationCodeUserClient with PKCE](authorization_code) | Yes | No | Yes |
-// | [AuthorizationCodeUserClient](authorization_code) | Yes | Yes | Yes |
-// | [ImplicitGrantUserClient](implicit_grant) | Yes | No | No |
-// | [Client credentials](SpotifyClientWithSecret) | No | Yes | Yes |
 
 pub mod authorization_code;
 pub mod implicit_grant;
@@ -208,8 +207,8 @@ pub trait AccessTokenRefreshSync: crate::private::Sealed {
 /// client types directly, hence there are type aliases for both kinds of clients: [AsyncSpotifyClient] and
 /// [SyncSpotifyClient]. Likewise, the builder struct is similarly generic, and has equivalent type aliases.
 ///
-/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
-/// order to reuse it.
+/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` in order to
+/// reuse it; it is cheap to clone, and all clones refer to the same internal structures.
 #[derive(Debug, Clone)]
 pub struct SpotifyClient<C>
 where
@@ -234,8 +233,8 @@ struct SpotifyClientRef {
 /// client types directly, hence there are type aliases for both kinds of clients: [AsyncSpotifyClientWithSecret] and
 /// [SyncSpotifyClientWithSecret]. Likewise, the builder struct is similarly generic, and has equivalent type aliases.
 ///
-/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` or a `Mutex` in
-/// order to reuse it.
+/// This client uses `Arc` and interior mutability internally, so you do not need to wrap it in an `Arc` in order to
+/// reuse it; it is cheap to clone, and all clones refer to the same internal structures.
 #[derive(Debug, Clone)]
 pub struct SpotifyClientWithSecret<C>
 where

@@ -189,7 +189,7 @@
 //! let id_str = borrowing_id.as_str();
 //! ```
 //!
-//! Cloning a borrowing Id returns a new Id that borrow's from the given Id's value. The cloned Id's lifetime may not
+//! Cloning a borrowing Id returns a new Id that borrows from the given Id's value. The cloned Id's lifetime may not
 //! outlive that of the given Id's *value's* lifetime it borrows from, therefore the cloned Id *may* outlive the given
 //! Id.
 //! ```

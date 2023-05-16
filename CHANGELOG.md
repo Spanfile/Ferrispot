@@ -1,4 +1,6 @@
 # Unreleased
+- **Changed**: Documentation improvements.
+- **Changed**: The `ScopedClient` and `UnscopedClient` traits now require `Self: crate::private::Sealed`. This shouldn't break anything, unless you're implementing the traits for your own types, which you shouldn't be doing anyways.
 
 # 0.4.1
 - **New**: The following new endpoints have been implemented:

@@ -32,7 +32,7 @@ use crate::{
 /// [ImplicitGrantUserClient](crate::client::implicit_grant::ImplicitGrantUserClient) implement this trait.
 pub trait ScopedClient
 where
-    Self: Clone + Sized,
+    Self: crate::private::Sealed + Clone + Sized,
 {
     /// Get information about the user’s current playback state, including track or episode, progress, and active
     /// device.

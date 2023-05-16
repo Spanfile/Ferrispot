@@ -64,16 +64,22 @@ mod private {
 
     // TODO: I really do not like having to use this trait but not doing so would require, yet again, stabilised
     // specialisation
+    /// This trait allows graceful handling of empty 200 responses vs actually empty 204 responses. In case the Spotify
+    /// API returns a 204, the return type is assumed to be the unit type. serde/serde_json won't deserialize the unit
+    /// type from an empty string (the nonexistent body in the response) so instead this trait is used to bypass the
+    /// serialization and return an appropriate response for the 204.
     pub trait TryFromEmptyResponse
     where
         Self: Sized,
     {
+        /// Return an appropriate result for an empty response (204).
         fn try_from_empty_response() -> Result<Self> {
             Err(Error::EmptyResponse)
         }
     }
 
     impl TryFromEmptyResponse for () {
+        /// Return a successful result containing the unit type.
         fn try_from_empty_response() -> Result<Self> {
             Ok(())
         }
@@ -236,12 +242,16 @@ where
             if let Some(body) = &common.body {
                 trace!("Request body: {:?}", body);
                 request = request.json(body);
-            // Spotify requires that all empty POST and PUT have a Content-Length header set to 0. reqwest doesn't do it
-            // so we have to do it ourselves. and before you ask, it cannot be set as a default header in the client
-            // because reqwest doesn't seem to set it at all for requests, so setting it to default 0 means it'll always
-            // be 0, even if there's a body, which causes issues
-            } else if common.method == Method::POST || common.method == Method::PUT {
-                request = request.header(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            } else {
+                // Spotify requires that all empty POST and PUT requests have Content-Length set to 0. I've previously
+                // supposedly observed that reqwest doesn't set Content-Length, even when there's a body, so we have to
+                // set it ourselves when there's an empty body. in hindsight it seems silly reqwest doesn't set
+                // Content-Length but I guess it makes sense if it's streaming the body or smth. setting a default
+                // Content-Length to 0 for every request also doesn't work since then it's set to 0 even when there's a
+                // body, which causes issues
+                if common.method == Method::POST || common.method == Method::PUT {
+                    request = request.header(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                }
             }
 
             let response = request.send().await?;
@@ -297,6 +307,9 @@ where
 
                     let response = response?;
 
+                    // bypass serialization for 204 responses, since it's possible the return type is the unit type, but
+                    // serde/serde_json won't deserialize the unit type from an empty string, instead failing with an
+                    // EOF error
                     let response_body = if response.status() == StatusCode::NO_CONTENT {
                         TResponse::try_from_empty_response()?
                     } else {
@@ -333,12 +346,16 @@ where
             if let Some(body) = &common.body {
                 trace!("Request body: {:?}", body);
                 request = request.json(body);
-            // Spotify requires that all empty POST and PUT have a Content-Length header set to 0. reqwest doesn't do it
-            // so we have to do it ourselves. and before you ask, it cannot be set as a default header in the client
-            // because reqwest doesn't seem to set it at all for requests, so setting it to default 0 means it'll always
-            // be 0, even if there's a body, which causes issues
-            } else if common.method == Method::POST || common.method == Method::PUT {
-                request = request.header(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+            } else {
+                // Spotify requires that all empty POST and PUT requests have Content-Length set to 0. I've previously
+                // supposedly observed that reqwest doesn't set Content-Length, even when there's a body, so we have to
+                // set it ourselves when there's an empty body. in hindsight it seems silly reqwest doesn't set
+                // Content-Length but I guess it makes sense if it's streaming the body or smth. setting a default
+                // Content-Length to 0 for every request also doesn't work since then it's set to 0 even when there's a
+                // body, which causes issues
+                if common.method == Method::POST || common.method == Method::PUT {
+                    request = request.header(header::CONTENT_LENGTH, header::HeaderValue::from_static("0"));
+                }
             }
 
             let response = request.send()?;
@@ -396,6 +413,9 @@ where
 
                     let response = response?;
 
+                    // bypass serialization for 204 responses, since it's possible the return type is the unit type, but
+                    // serde/serde_json won't deserialize the unit type from an empty string, instead failing with an
+                    // EOF error
                     let response_body = if response.status() == StatusCode::NO_CONTENT {
                         TResponse::try_from_empty_response()?
                     } else {
@@ -429,8 +449,7 @@ pub struct RequestBuilder<TClient, TResponse, TBody = (), TReturn = TResponse> {
     react_to_rate_limit: bool,
     auto_refresh_access_token: bool,
 
-    return_phantom: PhantomData<TReturn>,
-    response_phantom: PhantomData<TResponse>,
+    phantom: PhantomData<(TReturn, TResponse)>,
 }
 
 impl<TClient, TResponse, TBody, TReturn> RequestBuilder<TClient, TResponse, TBody, TReturn> {
@@ -462,8 +481,7 @@ impl<TClient, TResponse, TBody, TReturn> private::BaseRequestBuilderContainer<TC
             react_to_rate_limit: true,
             auto_refresh_access_token: true,
 
-            return_phantom: PhantomData,
-            response_phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 

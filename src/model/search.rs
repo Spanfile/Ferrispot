@@ -1,3 +1,5 @@
+//! Everything related to search results from Spotify's catalog.
+
 mod private {
     use serde::Deserialize;
 

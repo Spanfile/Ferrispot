@@ -24,7 +24,7 @@ use crate::{
 /// clients implement this trait.
 pub trait UnscopedClient
 where
-    Self: Clone + Sized,
+    Self: crate::private::Sealed + Clone + Sized,
 {
     /// Get Spotify catalog information for a single track identified by its unique Spotify ID.
     ///

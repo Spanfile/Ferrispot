@@ -1,3 +1,5 @@
+//! Everything related to playback, such as the currently playing item and device it's playing on.
+
 use std::time::Duration;
 
 use serde::Deserialize;
