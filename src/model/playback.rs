@@ -2,13 +2,13 @@
 
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::{id::PlayableContext, track::FullTrack, ExternalUrls, ItemType};
 use crate::{prelude::IdTrait, util::duration_millis};
 
 /// A device in an user's account that may be used for playback.
-#[derive(Debug, Clone, Eq, Deserialize)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct Device {
     name: String,
     // TODO: aspotify says this and the volume can be nonexistent for whatever reason but I haven't ever seen that
@@ -23,7 +23,7 @@ pub struct Device {
 }
 
 /// A device's type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DeviceType {
     Computer,
     Tablet,
@@ -42,7 +42,7 @@ pub enum DeviceType {
 
 /// Current playback state. Contains information about which device is playing, what the repeat and shuffle states are
 /// and which item is currently playing.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaybackState {
     device: Device,
     repeat_state: RepeatState,
@@ -53,7 +53,7 @@ pub struct PlaybackState {
 }
 
 /// Currently playing item.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentlyPlayingItem {
     timestamp: u64, // TODO: this is an unix epoch
     is_playing: bool,
@@ -67,7 +67,7 @@ pub struct CurrentlyPlayingItem {
 ///
 /// Public refers to the playing item being available through the API. The item is not considered public when, but not
 /// limited to, the user has a private session enabled.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicPlayingItem {
     context: Option<Context>,
     #[serde(rename = "progress_ms", with = "duration_millis")]
@@ -77,7 +77,7 @@ pub struct PublicPlayingItem {
 }
 
 /// The context of the current playback (i.e. album, artist, playlist or show).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Context {
     #[serde(rename = "type")]
     context_type: ItemType,
@@ -87,14 +87,14 @@ pub struct Context {
 }
 
 /// What actions can be taken on the current playing item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Actions {
     /// Disallowed actions on the current playing item.
     pub disallows: Disallows,
 }
 
 /// Disallowed actions on the current playing item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Disallows {
     #[serde(default)]
     pub interrupting_playback: bool,
@@ -119,7 +119,7 @@ pub struct Disallows {
 }
 
 /// The kind of item that is playing.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "currently_playing_type", content = "item")]
 #[non_exhaustive]
 pub enum PlayingType {
@@ -131,7 +131,7 @@ pub enum PlayingType {
 }
 
 /// Possible item repeat states.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RepeatState {
     Off,
