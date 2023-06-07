@@ -25,6 +25,8 @@ A lot of the functionality is largely opinionated for my own use but I'm trying 
     -   In case both `tokio_sleep` and `async_std_sleep` are enabled, Tokio's sleep function will be used.
     -   In case neither are enabled, the library will return a rate limit error when it occurs.
     -   These features are meaningless unless the `async` feature is also enabled.
+-   `native-tls` (default): use native system TLS library for secure connections.
+-   `rustls-tls`: use `rustls` for secure connections.
 
 ## Changelog
 
