@@ -1,5 +1,7 @@
 # Unreleased
 
+# 0.4.2
+
 -   **New**: Various model objects now implement `Serialize`.
 -   **New**: `native-tls` and `rustls-tls` crate feature flags to select which TLS library to use for secure connections.
 -   **Changed**: Documentation improvements.
