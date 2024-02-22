@@ -4,7 +4,7 @@ use crate::{
     client::request_builder::TryFromEmptyResponse,
     error::ConversionError,
     model::{
-        playback::{CurrentlyPlayingItem, Device, PlaybackState},
+        playback::Device,
         track::{FullTrack, TrackObject},
         user::{PublicUser, User},
     },
@@ -75,12 +75,11 @@ impl From<DevicesResponse> for Vec<Device> {
     }
 }
 
+// TryFromEmptyResponse already has blanket implementations for Option and Vec; implement it for every other object
+// (can't have a blanket implementation for everything since specialisation isn't a thing yet)
 impl TryFromEmptyResponse for DevicesResponse {}
-impl TryFromEmptyResponse for Option<PlaybackState> {}
-impl TryFromEmptyResponse for Option<CurrentlyPlayingItem> {}
 impl TryFromEmptyResponse for TracksResponse {}
 impl TryFromEmptyResponse for FullTrack {}
 impl TryFromEmptyResponse for TrackObject {}
-impl TryFromEmptyResponse for Vec<FullTrack> {}
 impl TryFromEmptyResponse for User {}
 impl TryFromEmptyResponse for PublicUser {}

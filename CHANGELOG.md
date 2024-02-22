@@ -4,6 +4,7 @@
 -   **New**: `native-tls` and `rustls-tls` crate feature flags to select which TLS library to use for secure connections.
 -   **Changed**: Documentation improvements.
 -   **Changed**: The `ScopedClient` and `UnscopedClient` traits now require `Self: crate::private::Sealed`. This shouldn't break anything, unless you're implementing the traits for your own types, which you shouldn't be doing anyways.
+-   **Fixed**: `.playback_state()` and `.currently_playing_item()` return `Err(EmptyResponse)` when nothing is playing and Spotify responds with 204 No Content (#6)
 
 # 0.4.1
 

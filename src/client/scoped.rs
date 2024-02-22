@@ -34,7 +34,7 @@ pub trait ScopedClient
 where
     Self: crate::private::Sealed + Clone + Sized,
 {
-    /// Get information about the user’s current playback state, including track or episode, progress, and active
+    /// Get information about the user's current playback state, including track or episode, progress, and active
     /// device.
     ///
     /// This function returns a superset of the [currently playing item](Self::currently_playing_item).

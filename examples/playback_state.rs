@@ -77,8 +77,14 @@ async fn main() {
                     item.progress(),
                     full_track.duration(),
                 );
+            } else {
+                println!("Playing item isn't a track");
             }
+        } else {
+            println!("Playing item isn't available (private session?)");
         }
+    } else {
+        println!("Nothing playing");
     }
 
     // .currently_playing_item()
@@ -97,7 +103,13 @@ async fn main() {
                     item.progress(),
                     full_track.duration(),
                 );
+            } else {
+                println!("Playing item isn't a track");
             }
+        } else {
+            println!("Playing item isn't available (private session?)");
         }
+    } else {
+        println!("Nothing playing");
     }
 }

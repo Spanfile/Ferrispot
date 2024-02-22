@@ -84,6 +84,20 @@ mod private {
             Ok(())
         }
     }
+
+    impl<T> TryFromEmptyResponse for Option<T> {
+        /// Return a successful result containing `None`.
+        fn try_from_empty_response() -> Result<Self> {
+            Ok(None)
+        }
+    }
+
+    impl<T> TryFromEmptyResponse for Vec<T> {
+        /// Return a successful result containing an empty vector.
+        fn try_from_empty_response() -> Result<Self> {
+            Ok(Vec::new())
+        }
+    }
 }
 
 mod catalog_item_builder;
