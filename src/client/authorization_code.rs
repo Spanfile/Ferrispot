@@ -29,7 +29,7 @@
 //!     // specify any (or none) of the scopes you require access to
 //!     .scopes([Scope::UserReadPlaybackState])
 //!     // in case the user has already approved the application, this may be
-//!     // set to `true` for force the user approve the application again
+//!     // set to `true` to force the user approve the application again
 //!     .show_dialog(true)
 //!     .build();
 //!
@@ -83,8 +83,7 @@
 //!     // specify any (or none) of the scopes you require access to
 //!     .scopes([Scope::UserReadPlaybackState])
 //!     // in case the user has already approved the application, this may be
-//!     // set to `true` for force the user approve
-//!     // the application again
+//!     // set to `true` to force the user approve the application again
 //!     .show_dialog(true)
 //!     .build();
 //!
